@@ -1,0 +1,23 @@
+name: Feature request
+description: Propose an editor, animation, output, or assistant improvement
+title: '[Idea]: '
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Artist problem
+      description: What workflow is difficult today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed interaction
+      description: Explain how it should fit the existing workbench.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Zakape",
+  "version": "0.1.0",
+  "identifier": "io.github.surelleha.zakape",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:3300",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../.output/public"
+  },
+  "app": {
+    "security": {
+      "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' ipc: http: https: ws: wss:; img-src 'self' asset: http: https: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; worker-src 'self' blob:"
+    },
+    "windows": [
+      {
+        "label": "main",
+        "title": "Zakape",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 680,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "backgroundColor": "#111411"
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "GraphicsAndDesign",
+    "shortDescription": "Pixel art and sprite animation workbench",
+    "longDescription": "An open-source pixel-art and sprite-animation workbench with an optional model assistant.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+.agents/
+node_modules/
+.nuxt/
+.output/
+apps/studio/src-tauri/gen/
+apps/studio/src-tauri/icons/
+apps/studio/target/
+docs/ui-snapshots/
+apps/studio/tests/e2e/*-snapshots/
+pnpm-lock.yaml

@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - esbuild
+  - vue-demi

@@ -1,0 +1,37 @@
+name: Bug report
+description: Report a reproducible Zakape problem
+title: '[Bug]: '
+labels: [bug]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Include what you expected and what occurred.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: '1. Open…\n2. Select…\n3. Observe…'
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Zakape version or commit
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Windows, macOS, Linux, Browser preview]
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots are welcome. Remove API keys and private artwork first.

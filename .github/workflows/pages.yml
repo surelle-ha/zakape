@@ -39,7 +39,7 @@ jobs:
       - run: pnpm --filter @zakape/site build
         env:
           NUXT_APP_BASE_URL: /zakape/
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: apps/site/.output/public
       - name: Deploy to GitHub Pages

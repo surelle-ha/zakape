@@ -16,7 +16,7 @@ Reviewed 1 September 2026 at 1440 px desktop width:
 - `docs/ui-snapshots/studio-workbench.png`
 - `docs/ui-snapshots/website-home.png`
 
-The Playwright baselines live beside the end-to-end tests so CI can detect unintended visual drift. Snapshots are a review aid, not a substitute for keyboard, interaction, and accessibility assertions.
+The Playwright baselines live beside the end-to-end tests so CI can detect unintended visual drift. The website keeps reviewed Windows and Linux baselines because text rasterization differs between platforms. Snapshots are a review aid, not a substitute for keyboard, interaction, and accessibility assertions.
 
 ## Manual review checklist
 

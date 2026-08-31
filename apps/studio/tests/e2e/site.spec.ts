@@ -16,11 +16,12 @@ test('public site explains the workbench and optional assistant', async ({ page 
 })
 
 test('matches the reviewed website layout', async ({ page }) => {
+  const platformSnapshot = `website-home-${process.platform}.png`
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('http://127.0.0.1:3301')
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'website-home.png'), fullPage: true })
-  await expect(page).toHaveScreenshot('website-home.png', {
+  await expect(page).toHaveScreenshot(platformSnapshot, {
     animations: 'disabled',
     fullPage: true,
     maxDiffPixelRatio: 0.015,

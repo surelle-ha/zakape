@@ -6,4 +6,6 @@
 4. The release workflow builds Windows, macOS, and Linux bundles and attaches them to a GitHub release.
 5. The Pages workflow publishes the static site from `apps/site` on updates to `main`.
 
+Before the first website deployment, a repository administrator must select **GitHub Actions** under **Settings → Pages → Build and deployment → Source**. GitHub does not allow a collaborator or the default workflow token to create the initial Pages site. Later deployments need no manual step.
+
 Unsigned alpha bundles may trigger operating-system warnings. Code-signing and updater keys must be configured as repository secrets before automatic updates are enabled.

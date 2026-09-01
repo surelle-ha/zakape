@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/surelle-ha/zakape/compare/v0.1.0...v0.2.0) (2026-09-01)
+
+
+### Features
+
+* add local Ollama assistant ([ff1a1ba](https://github.com/surelle-ha/zakape/commit/ff1a1ba7c34425e91afd180ef471c1290eae91d7))
+
+
+### Bug Fixes
+
+* ship notarized universal macOS bundles ([40e3b1a](https://github.com/surelle-ha/zakape/commit/40e3b1ab9c1e2e9f7328f945492323c6fefa150c))
+
 ## 0.1.0 (2026-09-01)
 
 ### Features

@@ -8,3 +8,4 @@ apps/studio/target/
 docs/ui-snapshots/
 apps/studio/tests/e2e/*-snapshots/
 pnpm-lock.yaml
+CHANGELOG.md

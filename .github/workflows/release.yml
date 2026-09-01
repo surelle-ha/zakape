@@ -6,9 +6,17 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing draft tag to rebuild, for example v0.1.0
+        description: Existing release tag to rebuild, for example v0.2.0
         required: false
         type: string
+      target:
+        description: Platforms to rebuild
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - macos
 
 permissions:
   contents: write
@@ -27,6 +35,8 @@ jobs:
       tag_name: ${{ steps.metadata.outputs.tag_name }}
       release_id: ${{ steps.metadata.outputs.release_id }}
       build_ref: ${{ steps.metadata.outputs.build_ref }}
+      build_matrix: ${{ steps.targets.outputs.build_matrix }}
+      macos_included: ${{ steps.targets.outputs.macos_included }}
     steps:
       - name: Prepare semantic release
         id: please
@@ -50,9 +60,6 @@ jobs:
           if (-not $release) {
             throw "Release $env:TAG_NAME was not found."
           }
-          if ($env:MANUAL_TAG -and -not $release.draft) {
-            throw "Release $env:TAG_NAME is already published; only draft releases can be rebuilt."
-          }
           if (-not $env:MANUAL_TAG) {
             gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($release.id)" -f target_commitish="$env:AUTOMATED_REF" | Out-Null
           }
@@ -60,20 +67,51 @@ jobs:
           "tag_name=$env:TAG_NAME" >> $env:GITHUB_OUTPUT
           "release_id=$($release.id)" >> $env:GITHUB_OUTPUT
           "build_ref=$buildRef" >> $env:GITHUB_OUTPUT
+      - name: Select build targets
+        id: targets
+        if: steps.please.outputs.release_created == 'true' || inputs.tag != ''
+        shell: bash
+        env:
+          MANUAL_TARGET: ${{ inputs.target }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          macos_ready=true
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!name}" ]; then
+              macos_ready=false
+            fi
+          done
+
+          target="${MANUAL_TARGET:-all}"
+          if [ "$target" = "macos" ]; then
+            if [ "$macos_ready" != "true" ]; then
+              echo "::error::A macOS rebuild requires all five Apple signing and notarization secrets."
+              exit 1
+            fi
+            matrix='{"include":[{"platform":"macos-latest","build_args":"--target universal-apple-darwin"}]}'
+            macos_included=true
+          elif [ "$macos_ready" = "true" ]; then
+            matrix='{"include":[{"platform":"macos-latest","build_args":"--target universal-apple-darwin"},{"platform":"ubuntu-22.04","build_args":""},{"platform":"windows-latest","build_args":""}]}'
+            macos_included=true
+          else
+            echo "::warning::Apple release credentials are not configured. Publishing Windows and Linux without a macOS asset."
+            matrix='{"include":[{"platform":"ubuntu-22.04","build_args":""},{"platform":"windows-latest","build_args":""}]}'
+            macos_included=false
+          fi
+
+          echo "build_matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "macos_included=$macos_included" >> "$GITHUB_OUTPUT"
 
   build:
     needs: release
     if: needs.release.outputs.release_ready == 'true'
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - platform: macos-latest
-            build_args: --target universal-apple-darwin
-          - platform: ubuntu-22.04
-            build_args: ''
-          - platform: windows-latest
-            build_args: ''
+      matrix: ${{ fromJSON(needs.release.outputs.build_matrix) }}
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v7
@@ -158,10 +196,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Publish completed release
+        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ needs.release.outputs.tag_name }}
+          RELEASE_ID: ${{ needs.release.outputs.release_id }}
+          MACOS_INCLUDED: ${{ needs.release.outputs.macos_included }}
         run: |
-          release_id=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" | jq --arg tag "$TAG_NAME" -r '.[] | select(.tag_name == $tag) | .id')
-          test -n "$release_id"
-          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -F draft=false -F prerelease=false
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/$env:RELEASE_ID" | ConvertFrom-Json
+          $startMarker = '<!-- zakape-macos-status:start -->'
+          $endMarker = '<!-- zakape-macos-status:end -->'
+          $pattern = "(?s)\r?\n?$([regex]::Escape($startMarker)).*?$([regex]::Escape($endMarker))"
+          $body = [regex]::Replace([string]$release.body, $pattern, '').TrimEnd()
+          if ($env:MACOS_INCLUDED -ne 'true') {
+            $body += "`n`n$startMarker`n> **macOS:** A signed and notarized package is not included because Apple release credentials are not configured. Windows and Linux downloads are available.`n$endMarker"
+          }
+          $payload = @{ body = $body; draft = $false; prerelease = $false } | ConvertTo-Json
+          $payload | gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$env:RELEASE_ID" --input - | Out-Null

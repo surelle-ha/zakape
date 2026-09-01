@@ -19,7 +19,13 @@ Project
     └── cels[frameId] → Pixel[width × height]
 ```
 
-All editing operations go through the editor store so they can create undo checkpoints, trigger rendering, mark the project dirty, and autosave. Export flattens visible layers in order using their opacity.
+All editing operations go through the editor store so they can create undo checkpoints, trigger rendering, mark the project dirty, and autosave. The store owns one editor session per open document, including its project data, active frame and layer, undo/redo stacks, and dirty revision. Export flattens visible layers in order using their opacity.
+
+Line and rectangle tools share integer raster helpers between their live pointer preview and final commit, keeping the preview exact. The mirror pencil reflects a continuous stroke across the vertical axis by default, the horizontal axis while Ctrl is held, or both axes while Shift is held. The dither pencil alternates the selected primary and secondary colors on the global pixel grid. Onion skinning composites the previous frame and paints its occupied pixels as a single tinted silhouette beneath the active frame. Frame insertion accepts an explicit source frame and left/right insertion index so timeline menus can create blank or copied neighbors without a global add control.
+
+New projects persist their color mode and initial background. RGBA drawing retains supplied hex colors, Greyscale converts paint and assistant operations by luminance, and Indexed maps them to the nearest project-palette entry. A black or white background initializes the first cel with opaque pixels; transparent projects initialize it with `null` pixels.
+
+The canvas work surface derives its background-grid interval from the active zoom. Ctrl-wheel zoom preserves the pointer's approximate content position, while the hand tool directly adjusts the canvas scroll container. A client plugin marks the container only while it is moving, allowing the custom scrollbars to fade automatically without reflow.
 
 ## Desktop and browser boundary
 
@@ -31,7 +37,7 @@ Rust owns a narrow local transport for Ollama. Its two commands discover install
 
 ## Persistence
 
-The project home is the first interactive screen after the launch splash. On desktop, Rust creates the operating system's `Documents/zakape` directory and mirrors each autosaved project to `project_id.zakape`. The native commands accept project IDs rather than arbitrary paths, reject traversal characters, validate the project version and JSON identity, and cap project files at 32 MB. PGlite keeps the same project JSON as an indexed local cache and powers browser-mode persistence. The project home merges both indexes for migration compatibility.
+The project launcher is the first interactive surface after the launch splash. On desktop, Rust creates the operating system's `Documents/zakape` directory and mirrors each autosaved project to `project_id.zakape`. The native commands accept project IDs rather than arbitrary paths, reject traversal characters, validate the project version and JSON identity, and cap project files at 32 MB. PGlite keeps the same project JSON as an indexed local cache and powers browser-mode persistence. The launcher merges both indexes for migration compatibility.
 
 PGlite creates a small `projects` table with `id`, `name`, `updated_at`, and JSON data. It also stores the selected model provider, address, and model ID as preferences. It excludes provider secrets.
 
@@ -39,4 +45,4 @@ PGlite's WebAssembly loader currently requires eval permission inside the packag
 
 ## Quality gates
 
-Type checks, unit tests, static generation, Rust formatting/lints, Playwright journeys, and UI snapshots run locally and in GitHub Actions. Native release bundles are produced on tagged releases and by manual workflow dispatch.
+Type checks, unit tests, static generation, Rust formatting/lints, Playwright journeys, and UI snapshots run locally and in GitHub Actions. Interaction coverage includes document tabs, shape previews, frame-local menus, onion skinning, hand panning, zoom-linked work grids, Ctrl-wheel zoom, context-menu suppression, and browser-shortcut hardening. Native release bundles are produced on tagged releases and by manual workflow dispatch.

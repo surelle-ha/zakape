@@ -6,8 +6,8 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   modules: ['@nuxt/eslint'],
   css: [
-    '@fontsource-variable/space-grotesk/index.css',
-    '@fontsource-variable/jetbrains-mono/index.css',
+    '@fontsource-variable/bricolage-grotesque/index.css',
+    '@fontsource-variable/azeret-mono/index.css',
     '~/assets/css/main.css',
   ],
   vite: {

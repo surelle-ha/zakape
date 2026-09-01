@@ -1,22 +1,109 @@
 import type { ArtOperation, FrameArtEdit, Pixel, SpriteProject, ToolId } from '~/types/editor'
-import { cloneProject, createDemoProject, emptyPixels, makeId, normalizeHex } from '~/utils/project'
+import {
+  cloneProject,
+  coercePixelToColorMode,
+  createDemoProject,
+  emptyPixels,
+  makeId,
+  normalizeHex,
+} from '~/utils/project'
+import { rasterLine, rasterRectangle } from '~/utils/raster'
 
 const HISTORY_LIMIT = 60
 
+export interface EditorDocument {
+  id: string
+  project: SpriteProject
+  activeFrameId: string
+  activeLayerId: string
+  history: SpriteProject[]
+  future: SpriteProject[]
+  dirtyRevision: number
+  lastAction: string
+  placeholder: boolean
+}
+
+const createEditorDocument = (
+  project: SpriteProject,
+  placeholder = false,
+  lastAction = 'Project ready',
+): EditorDocument => ({
+  id: project.id,
+  project: cloneProject(project),
+  activeFrameId: project.frames[0]!.id,
+  activeLayerId: project.layers.at(-1)!.id,
+  history: [],
+  future: [],
+  dirtyRevision: 0,
+  lastAction,
+  placeholder,
+})
+
 export const useEditor = () => {
-  const project = useState<SpriteProject>('editor-project', createDemoProject)
-  const activeFrameId = useState<string>('active-frame', () => project.value.frames[0]!.id)
-  const activeLayerId = useState<string>('active-layer', () => project.value.layers.at(-1)!.id)
+  const documents = useState<EditorDocument[]>('editor-documents', () => [
+    createEditorDocument(createDemoProject(), true),
+  ])
+  const activeDocumentId = useState<string>('active-document', () => documents.value[0]!.id)
+  const currentDocument = computed(
+    () =>
+      documents.value.find((document) => document.id === activeDocumentId.value) ??
+      documents.value[0]!,
+  )
+  const project = computed<SpriteProject>({
+    get: () => currentDocument.value.project,
+    set: (value) => {
+      currentDocument.value.project = value
+    },
+  })
+  const activeFrameId = computed<string>({
+    get: () => currentDocument.value.activeFrameId,
+    set: (value) => {
+      currentDocument.value.activeFrameId = value
+    },
+  })
+  const activeLayerId = computed<string>({
+    get: () => currentDocument.value.activeLayerId,
+    set: (value) => {
+      currentDocument.value.activeLayerId = value
+    },
+  })
+  const history = computed<SpriteProject[]>({
+    get: () => currentDocument.value.history,
+    set: (value) => {
+      currentDocument.value.history = value
+    },
+  })
+  const future = computed<SpriteProject[]>({
+    get: () => currentDocument.value.future,
+    set: (value) => {
+      currentDocument.value.future = value
+    },
+  })
+  const dirtyRevision = computed<number>({
+    get: () => currentDocument.value.dirtyRevision,
+    set: (value) => {
+      currentDocument.value.dirtyRevision = value
+    },
+  })
+  const lastAction = computed<string>({
+    get: () => currentDocument.value.lastAction,
+    set: (value) => {
+      currentDocument.value.lastAction = value
+    },
+  })
+  const isPlaceholder = computed(() => currentDocument.value.placeholder)
   const activeTool = useState<ToolId>('active-tool', () => 'pencil')
   const primaryColor = useState<string>('primary-color', () => '#ff875f')
+  const secondaryColor = useState<string>('secondary-color', () => '#16221c')
+  const activeDrawingColor = useState<'primary' | 'secondary'>(
+    'active-drawing-color',
+    () => 'primary',
+  )
   const brushSize = useState<number>('brush-size', () => 1)
   const zoom = useState<number>('canvas-zoom', () => 14)
   const showGrid = useState<boolean>('show-grid', () => true)
+  const showTransparency = useState<boolean>('show-transparency', () => true)
   const onionSkin = useState<boolean>('onion-skin', () => true)
-  const history = useState<SpriteProject[]>('editor-history', () => [])
-  const future = useState<SpriteProject[]>('editor-future', () => [])
-  const dirtyRevision = useState<number>('dirty-revision', () => 0)
-  const lastAction = useState<string>('last-action', () => 'Project ready')
 
   const activeFrame = computed(() =>
     project.value.frames.find((frame) => frame.id === activeFrameId.value),
@@ -31,6 +118,9 @@ export const useEditor = () => {
   )
   const canUndo = computed(() => history.value.length > 0)
   const canRedo = computed(() => future.value.length > 0)
+  const drawingColor = computed(() =>
+    activeDrawingColor.value === 'primary' ? primaryColor.value : secondaryColor.value,
+  )
 
   const touch = (action: string) => {
     project.value.updatedAt = new Date().toISOString()
@@ -46,21 +136,81 @@ export const useEditor = () => {
   }
 
   const replaceProject = (next: SpriteProject, action = 'Project opened') => {
-    project.value = cloneProject(next)
-    activeFrameId.value = project.value.frames[0]!.id
-    activeLayerId.value = project.value.layers.at(-1)!.id
-    history.value = []
-    future.value = []
-    touch(action)
+    const existing = documents.value.find((document) => document.id === next.id)
+    if (existing) {
+      activeDocumentId.value = existing.id
+      return existing.id
+    }
+
+    const document = createEditorDocument(next, false, action)
+    if (documents.value.length === 1 && documents.value[0]!.placeholder) {
+      documents.value = [document]
+    } else {
+      documents.value.push(document)
+    }
+    activeDocumentId.value = document.id
+    return document.id
   }
 
-  const beginStroke = () =>
-    checkpoint(activeTool.value === 'eraser' ? 'Erase stroke' : 'Paint stroke')
+  const activateDocument = (documentId: string) => {
+    if (!documents.value.some((document) => document.id === documentId)) return false
+    activeDocumentId.value = documentId
+    return true
+  }
+
+  const closeDocument = (documentId: string) => {
+    const index = documents.value.findIndex((document) => document.id === documentId)
+    if (index < 0) return false
+    if (documents.value.length === 1) {
+      const placeholder = createEditorDocument(createDemoProject(), true)
+      documents.value = [placeholder]
+      activeDocumentId.value = placeholder.id
+      return true
+    }
+
+    const closingActive = documentId === activeDocumentId.value
+    documents.value.splice(index, 1)
+    if (closingActive) {
+      activeDocumentId.value = documents.value[Math.max(0, index - 1)]!.id
+    }
+    return false
+  }
+
+  const swapColors = () => {
+    const primary = primaryColor.value
+    primaryColor.value = secondaryColor.value
+    secondaryColor.value = primary
+    lastAction.value = 'Swapped drawing colors'
+  }
+
+  const resetColors = () => {
+    primaryColor.value = '#16221c'
+    secondaryColor.value = '#ffffff'
+    lastAction.value = 'Reset drawing colors'
+  }
+
+  const selectDrawingColor = (target: 'primary' | 'secondary') => {
+    activeDrawingColor.value = target
+    lastAction.value = `${target === 'primary' ? 'Primary' : 'Secondary'} color selected`
+  }
+
+  const beginStroke = () => {
+    const action =
+      activeTool.value === 'eraser'
+        ? 'Erase stroke'
+        : activeTool.value === 'mirror'
+          ? 'Mirror stroke'
+          : activeTool.value === 'dither'
+            ? 'Dither stroke'
+            : 'Paint stroke'
+    checkpoint(action)
+  }
 
   const paintPixel = (x: number, y: number, color: Pixel = primaryColor.value) => {
     const pixels = activeLayer.value?.cels[activeFrameId.value]
     if (!pixels) return
     const radius = Math.floor((brushSize.value - 1) / 2)
+    const drawingPixel = coercePixelToColorMode(project.value, color)
     for (let offsetY = -radius; offsetY < brushSize.value - radius; offsetY += 1) {
       for (let offsetX = -radius; offsetX < brushSize.value - radius; offsetX += 1) {
         const targetX = x + offsetX
@@ -71,21 +221,59 @@ export const useEditor = () => {
           targetX < project.value.width &&
           targetY < project.value.height
         ) {
-          pixels[targetY * project.value.width + targetX] = color
+          pixels[targetY * project.value.width + targetX] = drawingPixel
         }
       }
     }
     dirtyRevision.value += 1
   }
 
-  const endStroke = () => touch(activeTool.value === 'eraser' ? 'Erased pixels' : 'Painted pixels')
+  const paintDitherPixel = (x: number, y: number) => {
+    const pixels = activeLayer.value?.cels[activeFrameId.value]
+    if (!pixels) return
+    const radius = Math.floor((brushSize.value - 1) / 2)
+    const invert = activeDrawingColor.value === 'secondary' ? 1 : 0
+    for (let offsetY = -radius; offsetY < brushSize.value - radius; offsetY += 1) {
+      for (let offsetX = -radius; offsetX < brushSize.value - radius; offsetX += 1) {
+        const targetX = x + offsetX
+        const targetY = y + offsetY
+        if (
+          targetX < 0 ||
+          targetY < 0 ||
+          targetX >= project.value.width ||
+          targetY >= project.value.height
+        ) {
+          continue
+        }
+        const useSecondary = (targetX + targetY + invert) % 2 === 1
+        pixels[targetY * project.value.width + targetX] = coercePixelToColorMode(
+          project.value,
+          useSecondary ? secondaryColor.value : primaryColor.value,
+        )
+      }
+    }
+    dirtyRevision.value += 1
+  }
 
-  const pickColor = (x: number, y: number) => {
+  const endStroke = () => {
+    const action =
+      activeTool.value === 'eraser'
+        ? 'Erased pixels'
+        : activeTool.value === 'mirror'
+          ? 'Painted mirrored pixels'
+          : activeTool.value === 'dither'
+            ? 'Painted dither pattern'
+            : 'Painted pixels'
+    touch(action)
+  }
+
+  const pickColor = (x: number, y: number, target: 'primary' | 'secondary' = 'primary') => {
     for (const layer of [...project.value.layers].reverse()) {
       if (!layer.visible) continue
       const pixel = layer.cels[activeFrameId.value]?.[y * project.value.width + x]
       if (pixel) {
-        primaryColor.value = pixel
+        if (target === 'primary') primaryColor.value = pixel
+        else secondaryColor.value = pixel
         lastAction.value = `Picked ${pixel}`
         return
       }
@@ -95,8 +283,9 @@ export const useEditor = () => {
   const floodFill = (x: number, y: number, color: Pixel) => {
     const pixels = activeLayer.value?.cels[activeFrameId.value]
     if (!pixels) return
+    const fillColor = coercePixelToColorMode(project.value, color)
     const target = pixels[y * project.value.width + x]
-    if (target === color) return
+    if (target === fillColor) return
     checkpoint('Fill area')
     const queue: Array<[number, number]> = [[x, y]]
     const visited = new Set<string>()
@@ -114,7 +303,7 @@ export const useEditor = () => {
       ) {
         continue
       }
-      pixels[currentY * project.value.width + currentX] = color
+      pixels[currentY * project.value.width + currentX] = fillColor
       queue.push(
         [currentX + 1, currentY],
         [currentX - 1, currentY],
@@ -125,45 +314,31 @@ export const useEditor = () => {
     touch('Filled area')
   }
 
-  const drawLine = (fromX: number, fromY: number, toX: number, toY: number) => {
+  const drawLine = (
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    color: Pixel = primaryColor.value,
+  ) => {
     checkpoint('Draw line')
-    let x = fromX
-    let y = fromY
-    const deltaX = Math.abs(toX - fromX)
-    const deltaY = -Math.abs(toY - fromY)
-    const stepX = fromX < toX ? 1 : -1
-    const stepY = fromY < toY ? 1 : -1
-    let error = deltaX + deltaY
-    while (true) {
-      paintPixel(x, y)
-      if (x === toX && y === toY) break
-      const doubleError = 2 * error
-      if (doubleError >= deltaY) {
-        error += deltaY
-        x += stepX
-      }
-      if (doubleError <= deltaX) {
-        error += deltaX
-        y += stepY
-      }
-    }
+    rasterLine({ x: fromX, y: fromY }, { x: toX, y: toY }).forEach((point) =>
+      paintPixel(point.x, point.y, color),
+    )
     touch('Drew line')
   }
 
-  const drawRectangle = (fromX: number, fromY: number, toX: number, toY: number) => {
+  const drawRectangle = (
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    color: Pixel = primaryColor.value,
+  ) => {
     checkpoint('Draw rectangle')
-    const left = Math.min(fromX, toX)
-    const right = Math.max(fromX, toX)
-    const top = Math.min(fromY, toY)
-    const bottom = Math.max(fromY, toY)
-    for (let x = left; x <= right; x += 1) {
-      paintPixel(x, top)
-      paintPixel(x, bottom)
-    }
-    for (let y = top; y <= bottom; y += 1) {
-      paintPixel(left, y)
-      paintPixel(right, y)
-    }
+    rasterRectangle({ x: fromX, y: fromY }, { x: toX, y: toY }).forEach((point) =>
+      paintPixel(point.x, point.y, color),
+    )
     touch('Drew rectangle')
   }
 
@@ -183,23 +358,26 @@ export const useEditor = () => {
     touch('Redo')
   }
 
-  const addFrame = (duplicate = false) => {
+  const addFrame = (
+    duplicate = false,
+    insertAt = project.value.frames.findIndex((frame) => frame.id === activeFrameId.value) + 1,
+    sourceFrameId = activeFrameId.value,
+  ) => {
     checkpoint(duplicate ? 'Duplicate frame' : 'Add frame')
     const frameId = makeId('frame')
-    const currentFrame = activeFrame.value
-    project.value.frames.push({
+    const sourceFrame = project.value.frames.find((frame) => frame.id === sourceFrameId)
+    const boundedIndex = Math.max(0, Math.min(project.value.frames.length, insertAt))
+    project.value.frames.splice(boundedIndex, 0, {
       id: frameId,
-      name: `F${project.value.frames.length + 1}`,
-      duration: currentFrame?.duration ?? 120,
+      name: `F${boundedIndex + 1}`,
+      duration: sourceFrame?.duration ?? 120,
     })
     project.value.layers.forEach((layer) => {
       layer.cels[frameId] = duplicate
-        ? [
-            ...(layer.cels[activeFrameId.value] ??
-              emptyPixels(project.value.width, project.value.height)),
-          ]
+        ? [...(layer.cels[sourceFrameId] ?? emptyPixels(project.value.width, project.value.height))]
         : emptyPixels(project.value.width, project.value.height)
     })
+    project.value.frames.forEach((frame, index) => (frame.name = `F${index + 1}`))
     activeFrameId.value = frameId
     touch(duplicate ? 'Duplicated frame' : 'Added frame')
   }
@@ -208,9 +386,14 @@ export const useEditor = () => {
     if (project.value.frames.length === 1) return
     checkpoint('Delete frame')
     const index = project.value.frames.findIndex((frame) => frame.id === frameId)
+    if (index < 0) return
     project.value.frames.splice(index, 1)
     project.value.layers.forEach((layer) => Reflect.deleteProperty(layer.cels, frameId))
-    activeFrameId.value = project.value.frames[Math.max(0, index - 1)]!.id
+    project.value.frames.forEach((frame, frameIndex) => (frame.name = `F${frameIndex + 1}`))
+    if (activeFrameId.value === frameId) {
+      activeFrameId.value =
+        project.value.frames[Math.min(index, project.value.frames.length - 1)]!.id
+    }
     touch('Deleted frame')
   }
 
@@ -273,7 +456,7 @@ export const useEditor = () => {
         (layer.cels[frameEdit.frameId] = emptyPixels(project.value.width, project.value.height))
       const set = (x: number, y: number, color: Pixel) => {
         if (x >= 0 && y >= 0 && x < project.value.width && y < project.value.height) {
-          pixels[y * project.value.width + x] = color
+          pixels[y * project.value.width + x] = coercePixelToColorMode(project.value, color)
         }
       }
       frameEdit.operations.forEach((operation: ArtOperation) => {
@@ -296,7 +479,9 @@ export const useEditor = () => {
         } else if (operation.type === 'replace_palette_color') {
           const from = normalizeHex(operation.from)
           pixels.forEach((pixel, index) => {
-            if (pixel?.toLowerCase() === from) pixels[index] = operation.to
+            if (pixel?.toLowerCase() === from) {
+              pixels[index] = coercePixelToColorMode(project.value, operation.to)
+            }
           })
         }
       })
@@ -305,14 +490,21 @@ export const useEditor = () => {
   }
 
   return {
+    documents,
+    activeDocumentId,
+    isPlaceholder,
     project,
     activeFrameId,
     activeLayerId,
     activeTool,
     primaryColor,
+    secondaryColor,
+    activeDrawingColor,
+    drawingColor,
     brushSize,
     zoom,
     showGrid,
+    showTransparency,
     onionSkin,
     dirtyRevision,
     lastAction,
@@ -323,8 +515,14 @@ export const useEditor = () => {
     canRedo,
     checkpoint,
     replaceProject,
+    activateDocument,
+    closeDocument,
+    swapColors,
+    resetColors,
+    selectDrawingColor,
     beginStroke,
     paintPixel,
+    paintDitherPixel,
     endStroke,
     pickColor,
     floodFill,

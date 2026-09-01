@@ -1,4 +1,6 @@
 export type Pixel = string | null
+export type ColorMode = 'rgba' | 'grayscale' | 'indexed'
+export type CanvasBackground = 'transparent' | 'black' | 'white'
 
 export interface Frame {
   id: string
@@ -20,6 +22,8 @@ export interface SpriteProject {
   name: string
   width: number
   height: number
+  colorMode: ColorMode
+  background: CanvasBackground
   palette: string[]
   frames: Frame[]
   layers: Layer[]
@@ -27,7 +31,8 @@ export interface SpriteProject {
   updatedAt: string
 }
 
-export type ToolId = 'pencil' | 'eraser' | 'fill' | 'picker' | 'line' | 'rectangle' | 'hand'
+export type ToolId =
+  'pencil' | 'mirror' | 'dither' | 'eraser' | 'fill' | 'picker' | 'line' | 'rectangle' | 'hand'
 
 export interface PixelPoint {
   x: number

@@ -4,6 +4,7 @@ import {
   ChevronDown,
   Download,
   FileUp,
+  Grid2X2,
   Grid3X3,
   Minus,
   Plus,
@@ -12,16 +13,20 @@ import {
   Sparkles,
   Undo2,
 } from '@lucide/vue'
-import type { ToolId } from '~/types/editor'
-import { createBlankProject, parseSpriteProject } from '~/utils/project'
+import type { CanvasBackground, ColorMode, ToolId } from '~/types/editor'
+import { cloneProject, createBlankProject, parseSpriteProject } from '~/utils/project'
 
 const {
+  documents,
+  activeDocumentId,
+  isPlaceholder,
   project,
   activeTool,
   activeLayer,
   brushSize,
   zoom,
   showGrid,
+  showTransparency,
   dirtyRevision,
   lastAction,
   canUndo,
@@ -29,8 +34,13 @@ const {
   undo,
   redo,
   replaceProject,
+  activateDocument,
+  closeDocument,
+  swapColors,
+  resetColors,
   renameProject,
 } = useEditor()
+const { discardProposal } = useAiAssistant()
 const {
   persistenceState,
   recentProjects,
@@ -39,7 +49,7 @@ const {
   loadProject,
   saveProject,
 } = useProjectRepository()
-const { screen, openRequest, newRequest, requestedSize, showEditor } = useWorkspace()
+const { launcherOpen, launcherView, showHome, showEditor, requestNew } = useWorkspace()
 const exportOpen = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const editingName = ref(false)
@@ -47,9 +57,15 @@ const nameDraft = ref(project.value.name)
 const initialized = ref(false)
 let autosaveTimer: number | null = null
 let temporaryTool: ToolId | null = null
+const toolHint = computed(() => {
+  if (activeTool.value === 'mirror') return 'Vertical mirror · Ctrl horizontal · Shift both axes'
+  if (activeTool.value === 'dither') return 'Alternates primary and secondary colors'
+  return 'Alt samples color · Space pans · Ctrl scroll zooms'
+})
 
 const saveNow = async () => {
-  await saveProject(project.value)
+  if (isPlaceholder.value) return
+  await saveProject(cloneProject(project.value))
   window.setTimeout(() => {
     if (persistenceState.value === 'saved') persistenceState.value = 'idle'
   }, 1800)
@@ -77,7 +93,7 @@ const openProjectFile = async (event: Event) => {
     replaceProject(parsed, `Opened ${file.name}`)
     nameDraft.value = parsed.name
     showEditor()
-    await saveProject(project.value)
+    await saveProject(parsed)
   } catch (error) {
     window.alert(error instanceof Error ? error.message : 'The project could not be opened.')
   } finally {
@@ -85,15 +101,32 @@ const openProjectFile = async (event: Event) => {
   }
 }
 
-const createProject = async (size = 32) => {
-  const nextProject = createBlankProject(size)
-  replaceProject(nextProject, `Created ${size}×${size} sprite`)
+const createProject = async (spec: {
+  name: string
+  width: number
+  height: number
+  colorMode: ColorMode
+  background: CanvasBackground
+}) => {
+  const nextProject = createBlankProject(
+    spec.width,
+    spec.height,
+    spec.name,
+    spec.colorMode,
+    spec.background,
+  )
+  replaceProject(nextProject, `Created ${spec.width}×${spec.height} sprite`)
   nameDraft.value = nextProject.name
   showEditor()
-  await saveProject(project.value)
+  await saveProject(nextProject)
 }
 
 const openRecentProject = async (projectId: string) => {
+  if (documents.value.some((document) => document.id === projectId)) {
+    await switchDocument(projectId)
+    showEditor()
+    return
+  }
   const savedProject = await loadProject(projectId)
   if (!savedProject) return
   replaceProject(savedProject, `Opened ${savedProject.name}`)
@@ -101,23 +134,88 @@ const openRecentProject = async (projectId: string) => {
   showEditor()
 }
 
+const switchDocument = async (documentId: string) => {
+  if (documentId === activeDocumentId.value) return
+  if (autosaveTimer) window.clearTimeout(autosaveTimer)
+  if (!isPlaceholder.value) await saveProject(cloneProject(project.value))
+  discardProposal()
+  if (!activateDocument(documentId)) return
+  nameDraft.value = project.value.name
+  editingName.value = false
+}
+
+const closeSpriteDocument = async (documentId: string) => {
+  const document = documents.value.find((item) => item.id === documentId)
+  if (document && !document.placeholder) await saveProject(cloneProject(document.project))
+  const launcherNeeded = closeDocument(documentId)
+  discardProposal()
+  nameDraft.value = project.value.name
+  editingName.value = false
+  if (launcherNeeded) showHome()
+}
+
 const keydown = (event: KeyboardEvent) => {
-  const target = event.target as HTMLElement | null
-  if (target?.matches('input, textarea, [contenteditable="true"]')) return
+  const target = event.target
+  const editingText =
+    target instanceof HTMLElement && target.matches('input, textarea, [contenteditable="true"]')
   const key = event.key.toLowerCase()
-  if ((event.ctrlKey || event.metaKey) && key === 'z') {
+  const commandKey = event.ctrlKey || event.metaKey
+  if (editingText) {
+    if (!commandKey || ['a', 'c', 'v', 'x', 'y', 'z'].includes(key)) return
+    if (['n', 'o', 's'].includes(key)) return
+    event.preventDefault()
+    return
+  }
+  if (['f5', 'f6', 'f11', 'f12'].includes(key) || (event.altKey && key.startsWith('arrow'))) {
+    event.preventDefault()
+    return
+  }
+  if (commandKey && key === 'z') {
     event.preventDefault()
     if (event.shiftKey) redo()
     else undo()
     return
   }
-  if ((event.ctrlKey || event.metaKey) && key === 'y') {
+  if (commandKey && key === 'y') {
     event.preventDefault()
     redo()
     return
   }
+  if (commandKey && event.key === 'Tab') {
+    const openDocuments = documents.value.filter((document) => !document.placeholder)
+    if (openDocuments.length > 1) {
+      event.preventDefault()
+      const index = openDocuments.findIndex((document) => document.id === activeDocumentId.value)
+      const offset = event.shiftKey ? -1 : 1
+      const next = openDocuments[(index + offset + openDocuments.length) % openDocuments.length]
+      if (next) void switchDocument(next.id)
+    }
+    return
+  }
+  if (commandKey && key === 'w') {
+    event.preventDefault()
+    if (!isPlaceholder.value) void closeSpriteDocument(activeDocumentId.value)
+    return
+  }
+  if (commandKey && ['n', 'o', 's'].includes(key)) return
+  if (commandKey && (key === '=' || key === '+')) {
+    event.preventDefault()
+    zoom.value = Math.min(24, zoom.value + 1)
+    return
+  }
+  if (commandKey && key === '-') {
+    event.preventDefault()
+    zoom.value = Math.max(4, zoom.value - 1)
+    return
+  }
+  if (commandKey) {
+    event.preventDefault()
+    return
+  }
   const shortcuts: Partial<Record<string, ToolId>> = {
     p: 'pencil',
+    m: 'mirror',
+    t: 'dither',
     e: 'eraser',
     f: 'fill',
     i: 'picker',
@@ -126,6 +224,8 @@ const keydown = (event: KeyboardEvent) => {
     h: 'hand',
   }
   if (shortcuts[key]) activeTool.value = shortcuts[key]!
+  if (key === 'x') swapColors()
+  if (key === 'd') resetColors()
   if (event.code === 'Space' && !temporaryTool) {
     event.preventDefault()
     temporaryTool = activeTool.value
@@ -137,6 +237,25 @@ const keydown = (event: KeyboardEvent) => {
   if (key === '-') zoom.value = Math.max(4, zoom.value - 1)
 }
 
+const onCanvasWheel = async (event: WheelEvent) => {
+  if (!event.ctrlKey && !event.metaKey) return
+  event.preventDefault()
+  const host = event.currentTarget as HTMLElement
+  const bounds = host.getBoundingClientRect()
+  const focusX = event.clientX - bounds.left
+  const focusY = event.clientY - bounds.top
+  const oldZoom = zoom.value
+  const nextZoom = Math.max(4, Math.min(24, oldZoom + (event.deltaY < 0 ? 1 : -1)))
+  if (nextZoom === oldZoom) return
+  const contentX = host.scrollLeft + focusX
+  const contentY = host.scrollTop + focusY
+  zoom.value = nextZoom
+  await nextTick()
+  const scale = nextZoom / oldZoom
+  host.scrollLeft = contentX * scale - focusX
+  host.scrollTop = contentY * scale - focusY
+}
+
 const keyup = (event: KeyboardEvent) => {
   if (event.code === 'Space' && temporaryTool) {
     activeTool.value = temporaryTool
@@ -145,44 +264,38 @@ const keyup = (event: KeyboardEvent) => {
 }
 
 watch(dirtyRevision, () => {
-  if (!initialized.value || screen.value !== 'editor') return
+  if (!initialized.value || isPlaceholder.value) return
   if (autosaveTimer) window.clearTimeout(autosaveTimer)
-  autosaveTimer = window.setTimeout(saveNow, 700)
+  const snapshot = cloneProject(project.value)
+  autosaveTimer = window.setTimeout(() => void saveProject(snapshot), 700)
 })
 
-watch(openRequest, () => fileInput.value?.click())
-watch(newRequest, () => void createProject(requestedSize.value))
-watch(screen, (nextScreen) => {
-  if (nextScreen === 'home') void refreshProjects()
+watch(launcherOpen, (open) => {
+  if (open) void refreshProjects()
 })
 
 onMounted(async () => {
   await refreshProjects()
   initialized.value = true
-  window.addEventListener('keydown', keydown)
+  window.addEventListener('keydown', keydown, true)
   window.addEventListener('keyup', keyup)
 })
 
 onBeforeUnmount(() => {
   if (autosaveTimer) window.clearTimeout(autosaveTimer)
-  window.removeEventListener('keydown', keydown)
+  window.removeEventListener('keydown', keydown, true)
   window.removeEventListener('keyup', keyup)
 })
 </script>
 
 <template>
   <div class="studio-page">
-    <ProjectHub
-      v-if="screen === 'home'"
-      :projects="recentProjects"
-      :workspace-directory="workspaceDirectory"
-      :loading="persistenceState === 'loading'"
-      @new-project="createProject"
-      @open-project="openRecentProject"
-      @browse="fileInput?.click()"
-    />
-
-    <main v-else class="studio-shell" data-testid="app-shell" @click="exportOpen = false">
+    <main
+      class="studio-shell"
+      data-testid="app-shell"
+      @click="exportOpen = false"
+      @contextmenu.prevent
+    >
       <header class="app-bar">
         <div class="project-heading">
           <input
@@ -248,17 +361,6 @@ onBeforeUnmount(() => {
           <button
             type="button"
             class="icon-button"
-            :class="{ active: showGrid }"
-            :aria-pressed="showGrid"
-            aria-label="Toggle grid"
-            title="Toggle grid"
-            @click="showGrid = !showGrid"
-          >
-            <Grid3X3 :size="16" />
-          </button>
-          <button
-            type="button"
-            class="icon-button"
             aria-label="Open project"
             title="Open .zakape project"
             @click="fileInput?.click()"
@@ -290,6 +392,8 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
+      <DocumentTabs @activate="switchDocument" @close="closeSpriteDocument" @new="requestNew" />
+
       <div class="workspace-grid">
         <ToolRail />
 
@@ -300,7 +404,7 @@ onBeforeUnmount(() => {
                 ><Sparkles v-if="activeTool === 'picker'" :size="13" />{{ activeTool }}</span
               >
               <label
-                v-if="activeTool === 'pencil' || activeTool === 'eraser'"
+                v-if="['pencil', 'mirror', 'dither', 'eraser'].includes(activeTool)"
                 class="brush-control"
               >
                 <span>Size</span>
@@ -315,7 +419,7 @@ onBeforeUnmount(() => {
                   {{ size }}
                 </button>
               </label>
-              <span class="context-hint">Alt samples color · Space pans · right-click erases</span>
+              <span class="context-hint">{{ toolHint }}</span>
             </div>
             <div class="zoom-control">
               <button type="button" aria-label="Zoom out" @click="zoom = Math.max(4, zoom - 1)">
@@ -326,14 +430,39 @@ onBeforeUnmount(() => {
                 <Plus :size="14" />
               </button>
               <span>{{ Math.round((zoom * 100) / 14) }}%</span>
+              <span class="zoom-divider" />
+              <button
+                type="button"
+                :class="{ active: showGrid }"
+                :aria-pressed="showGrid"
+                aria-label="Toggle pixel grid"
+                title="Pixel grid"
+                @click="showGrid = !showGrid"
+              >
+                <Grid3X3 :size="14" />
+              </button>
+              <button
+                type="button"
+                :class="{ active: showTransparency }"
+                :aria-pressed="showTransparency"
+                aria-label="Toggle transparency checkerboard"
+                title="Transparency checkerboard"
+                @click="showTransparency = !showTransparency"
+              >
+                <Grid2X2 :size="14" />
+              </button>
             </div>
           </header>
-          <div class="canvas-scroll">
+          <div
+            class="canvas-scroll"
+            :style="{ '--workspace-grid-size': `${zoom}px` }"
+            @wheel="onCanvasWheel"
+          >
             <PixelCanvas />
           </div>
           <footer class="canvas-status">
             <span><i class="accent-dot" /> Active cel: {{ activeLayer?.name }}</span>
-            <span>RGBA · sRGB</span>
+            <span>{{ project.colorMode.toUpperCase() }} · sRGB</span>
           </footer>
         </section>
 
@@ -342,6 +471,20 @@ onBeforeUnmount(() => {
 
       <TimelineStrip />
     </main>
+
+    <ProjectLauncher
+      v-if="launcherOpen"
+      :projects="recentProjects"
+      :workspace-directory="workspaceDirectory"
+      :view="launcherView"
+      :loading="persistenceState === 'loading'"
+      :can-close="!isPlaceholder"
+      @create-project="createProject"
+      @open-project="openRecentProject"
+      @browse="fileInput?.click()"
+      @close="showEditor"
+      @update-view="launcherView = $event"
+    />
 
     <input
       ref="fileInput"

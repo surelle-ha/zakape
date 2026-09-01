@@ -14,7 +14,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-frame">
+  <div class="app-frame" @contextmenu.prevent>
     <AppTitleBar :menus-enabled="!splashVisible" />
     <div class="app-content"><NuxtPage /></div>
     <AppSplash :visible="splashVisible" />

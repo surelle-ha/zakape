@@ -1,4 +1,4 @@
-import type { Layer, Pixel, SpriteProject } from '~/types/editor'
+import type { CanvasBackground, ColorMode, Layer, Pixel, SpriteProject } from '~/types/editor'
 
 export const makeId = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
@@ -9,26 +9,35 @@ export const emptyPixels = (width: number, height: number): Pixel[] =>
 export const cloneProject = (project: SpriteProject): SpriteProject =>
   JSON.parse(JSON.stringify(project)) as SpriteProject
 
-export const createBlankProject = (size = 32): SpriteProject => {
-  const dimension = Math.max(8, Math.min(256, Math.round(size)))
+export const createBlankProject = (
+  width = 32,
+  height = width,
+  name = 'Untitled sprite',
+  colorMode: ColorMode = 'rgba',
+  background: CanvasBackground = 'transparent',
+): SpriteProject => {
+  const canvasWidth = Math.max(1, Math.min(1024, Math.round(width)))
+  const canvasHeight = Math.max(1, Math.min(1024, Math.round(height)))
+  if (canvasWidth * canvasHeight > 1_048_576) {
+    throw new Error('A canvas can contain at most 1,048,576 pixels.')
+  }
   const now = new Date().toISOString()
   const frameId = makeId('frame')
+  const backgroundColor =
+    background === 'black' ? '#000000' : background === 'white' ? '#ffffff' : null
+  const palette =
+    colorMode === 'grayscale'
+      ? ['#000000', '#333333', '#666666', '#999999', '#cccccc', '#ffffff']
+      : ['#16221c', '#456b5a', '#7ed0aa', '#b9f5d0', '#d9ffe7', '#ff875f', '#ffd36a', '#fff1bd']
   return {
     version: 1,
     id: makeId('project'),
-    name: 'Untitled sprite',
-    width: dimension,
-    height: dimension,
-    palette: [
-      '#16221c',
-      '#456b5a',
-      '#7ed0aa',
-      '#b9f5d0',
-      '#d9ffe7',
-      '#ff875f',
-      '#ffd36a',
-      '#fff1bd',
-    ],
+    name: name.trim().slice(0, 64) || 'Untitled sprite',
+    width: canvasWidth,
+    height: canvasHeight,
+    colorMode,
+    background,
+    palette,
     frames: [{ id: frameId, name: 'F1', duration: 120 }],
     layers: [
       {
@@ -36,7 +45,9 @@ export const createBlankProject = (size = 32): SpriteProject => {
         name: 'Pixel layer',
         visible: true,
         opacity: 1,
-        cels: { [frameId]: emptyPixels(dimension, dimension) },
+        cels: {
+          [frameId]: Array.from({ length: canvasWidth * canvasHeight }, () => backgroundColor),
+        },
       },
     ],
     createdAt: now,
@@ -120,6 +131,8 @@ export const createDemoProject = (): SpriteProject => {
     name: 'Mint runner',
     width,
     height,
+    colorMode: 'rgba',
+    background: 'transparent',
     palette: [
       '#16221c',
       '#456b5a',
@@ -144,6 +157,38 @@ export const normalizeHex = (color: string): string | null => {
     return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`.toLowerCase()
   }
   return null
+}
+
+const colorChannels = (color: string) => [
+  Number.parseInt(color.slice(1, 3), 16),
+  Number.parseInt(color.slice(3, 5), 16),
+  Number.parseInt(color.slice(5, 7), 16),
+]
+
+export const coercePixelToColorMode = (project: SpriteProject, color: Pixel): Pixel => {
+  if (!color || project.colorMode === 'rgba') return color
+  const normalized = normalizeHex(color)
+  if (!normalized) return color
+  const channels = colorChannels(normalized)
+  if (project.colorMode === 'grayscale') {
+    const value = Math.round(channels[0]! * 0.2126 + channels[1]! * 0.7152 + channels[2]! * 0.0722)
+    const hex = value.toString(16).padStart(2, '0')
+    return `#${hex}${hex}${hex}`
+  }
+  const palette = project.palette
+    .map(normalizeHex)
+    .filter((entry): entry is string => Boolean(entry))
+  return palette.reduce(
+    (nearest, candidate) => {
+      const candidateChannels = colorChannels(candidate)
+      const distance = candidateChannels.reduce(
+        (sum, channel, index) => sum + (channel - channels[index]!) ** 2,
+        0,
+      )
+      return distance < nearest.distance ? { color: candidate, distance } : nearest
+    },
+    { color: normalized, distance: Number.POSITIVE_INFINITY },
+  ).color
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -172,6 +217,10 @@ export const parseSpriteProject = (input: unknown): SpriteProject => {
     width > 1024 ||
     height > 1024 ||
     width * height > 1_048_576 ||
+    (input.colorMode !== undefined &&
+      !['rgba', 'grayscale', 'indexed'].includes(String(input.colorMode))) ||
+    (input.background !== undefined &&
+      !['transparent', 'black', 'white'].includes(String(input.background))) ||
     typeof input.createdAt !== 'string' ||
     typeof input.updatedAt !== 'string' ||
     !Array.isArray(input.palette) ||
@@ -238,5 +287,8 @@ export const parseSpriteProject = (input: unknown): SpriteProject => {
     }
   }
 
-  return cloneProject(input as unknown as SpriteProject)
+  const project = cloneProject(input as unknown as SpriteProject)
+  project.colorMode ??= 'rgba'
+  project.background ??= 'transparent'
+  return project
 }

@@ -18,8 +18,9 @@ export const drawProjectFrame = (
   project: SpriteProject,
   frameId: string,
   scale = 1,
+  clear = true,
 ) => {
-  context.clearRect(0, 0, project.width * scale, project.height * scale)
+  if (clear) context.clearRect(0, 0, project.width * scale, project.height * scale)
   context.imageSmoothingEnabled = false
   for (const layer of project.layers) {
     if (!layer.visible || layer.opacity <= 0) continue

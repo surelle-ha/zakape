@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createBlankProject,
   createDemoProject,
+  coercePixelToColorMode,
   emptyPixels,
   normalizeHex,
   parseSpriteProject,
@@ -35,14 +36,28 @@ describe('project helpers', () => {
     expect(pixels).toEqual(['#ffffff', null, null, null])
   })
 
-  it('creates a bounded blank project for the project home', () => {
-    const project = createBlankProject(64)
+  it('creates a named rectangular project within the canvas limits', () => {
+    const project = createBlankProject(96, 48, 'Forest runner')
 
-    expect(project).toMatchObject({ width: 64, height: 64, name: 'Untitled sprite' })
+    expect(project).toMatchObject({ width: 96, height: 48, name: 'Forest runner' })
     expect(project.frames).toHaveLength(1)
     expect(project.layers).toHaveLength(1)
-    expect(project.layers[0]!.cels[project.frames[0]!.id]).toHaveLength(64 * 64)
-    expect(createBlankProject(999).width).toBe(256)
+    expect(project.layers[0]!.cels[project.frames[0]!.id]).toHaveLength(96 * 48)
+    expect(createBlankProject(2048).width).toBe(1024)
+    expect(() => createBlankProject(1024, 1025)).not.toThrow()
+  })
+
+  it('initializes color mode and background without losing pixel constraints', () => {
+    const grayscale = createBlankProject(3, 2, 'Value study', 'grayscale', 'white')
+    const indexed = createBlankProject(2, 2, 'Palette study', 'indexed', 'black')
+
+    expect(grayscale).toMatchObject({ colorMode: 'grayscale', background: 'white' })
+    expect(grayscale.layers[0]!.cels[grayscale.frames[0]!.id]).toEqual(
+      Array.from({ length: 6 }, () => '#ffffff'),
+    )
+    expect(coercePixelToColorMode(grayscale, '#ff0000')).toBe('#363636')
+    expect(indexed).toMatchObject({ colorMode: 'indexed', background: 'black' })
+    expect(indexed.palette).toContain(coercePixelToColorMode(indexed, '#ff8b62'))
   })
 
   it('accepts complete projects and rejects unsafe or incomplete imports', () => {

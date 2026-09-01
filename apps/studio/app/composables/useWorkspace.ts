@@ -1,33 +1,33 @@
-export type WorkspaceScreen = 'home' | 'editor'
+export type LauncherView = 'recent' | 'new'
 
 export const useWorkspace = () => {
-  const screen = useState<WorkspaceScreen>('workspace-screen', () => 'home')
-  const openRequest = useState<number>('workspace-open-request', () => 0)
-  const newRequest = useState<number>('workspace-new-request', () => 0)
-  const requestedSize = useState<number>('workspace-new-size', () => 32)
+  const launcherOpen = useState<boolean>('workspace-launcher-open', () => true)
+  const launcherView = useState<LauncherView>('workspace-launcher-view', () => 'recent')
+  const screen = computed(() => (launcherOpen.value ? 'home' : 'editor'))
 
   const showHome = () => {
-    screen.value = 'home'
+    launcherView.value = 'recent'
+    launcherOpen.value = true
   }
 
   const showEditor = () => {
-    screen.value = 'editor'
+    launcherOpen.value = false
   }
 
   const requestOpen = () => {
-    openRequest.value += 1
+    launcherView.value = 'recent'
+    launcherOpen.value = true
   }
 
-  const requestNew = (size = 32) => {
-    requestedSize.value = size
-    newRequest.value += 1
+  const requestNew = () => {
+    launcherView.value = 'new'
+    launcherOpen.value = true
   }
 
   return {
     screen,
-    openRequest,
-    newRequest,
-    requestedSize,
+    launcherOpen,
+    launcherView,
     showHome,
     showEditor,
     requestOpen,

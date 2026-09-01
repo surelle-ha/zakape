@@ -61,7 +61,10 @@ export interface ArtProposal {
   operations: ArtOperation[]
 }
 
+export type ModelProvider = 'ollama' | 'openai-compatible'
+
 export interface ModelConnection {
+  provider: ModelProvider
   baseUrl: string
   model: string
   apiKey: string

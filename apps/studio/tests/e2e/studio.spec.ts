@@ -61,6 +61,47 @@ test('exports an animated GIF and portable project', async ({ page }) => {
   expect(exportedProject.frames).toHaveLength(4)
 })
 
+test('discovers installed Ollama models and switches providers', async ({ page }) => {
+  await page.route('http://127.0.0.1:11434/api/tags', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ models: [{ name: 'qwen2.5-coder:7b', size: 4_700_000_000 }] }),
+    })
+  })
+
+  await page.locator('.connection-row').click()
+  await expect(page.getByRole('dialog', { name: 'Choose where the model runs' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Ollama Local runtime/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await page.getByRole('button', { name: 'Find models' }).click()
+  await expect(page.getByLabel('Installed model')).toHaveValue('qwen2.5-coder:7b')
+  await expect(page.getByText('Ollama is ready')).toBeVisible()
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'ollama-connection-ready.png') })
+
+  await page.getByRole('button', { name: /Compatible API/ }).click()
+  await expect(page.getByLabel(/API key/)).toBeVisible()
+  await expect(page.getByTestId('ollama-runtime')).toBeHidden()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Choose where the model runs' })).toBeHidden()
+  await expect(page.locator('.connection-row')).toBeFocused()
+})
+
+test('explains how to recover when local Ollama is offline', async ({ page }) => {
+  await page.route('http://127.0.0.1:11434/api/tags', async (route) => {
+    await route.abort('connectionrefused')
+  })
+
+  await page.locator('.connection-row').click()
+  await page.getByRole('button', { name: 'Find models' }).click()
+  await expect(page.getByRole('alert')).toContainText('Ollama is not running')
+  await expect(page.getByTestId('ollama-runtime')).toContainText('Unavailable')
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'ollama-connection-offline.png') })
+})
+
 test('matches the reviewed desktop layout', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 960 })
   await mkdir(snapshotDirectory, { recursive: true })

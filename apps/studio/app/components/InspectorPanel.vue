@@ -123,7 +123,11 @@ const updateOpacity = (layerId: string, event: Event) => {
         <span>
           <strong>{{ connection.model || 'No model connected' }}</strong>
           <small>{{
-            connection.model ? connection.baseUrl : 'Local or hosted · your credentials'
+            connection.model
+              ? connection.provider === 'ollama'
+                ? 'Ollama · on this device'
+                : connection.baseUrl
+              : 'Ollama on-device or compatible API'
           }}</small>
         </span>
         <Settings2 :size="15" />

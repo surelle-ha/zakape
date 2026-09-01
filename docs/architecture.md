@@ -23,11 +23,13 @@ All editing operations go through the editor store so they can create undo check
 
 ## Desktop and browser boundary
 
-Output helpers detect a Tauri runtime. Desktop builds use Tauri's dialog and filesystem plugins; browser builds use Blob downloads. No project logic is implemented in Rust yet, which keeps the `.zakape` format portable and testable.
+Output helpers detect a Tauri runtime. Desktop builds use Tauri's dialog and filesystem plugins; browser builds use Blob downloads. The `.zakape` project model and editing logic remain in TypeScript so they stay portable and testable.
+
+Rust owns a narrow local transport for Ollama. Its two commands discover installed models and request chat responses. Both commands validate that the configured URL uses a loopback host and append fixed Ollama routes; they cannot proxy arbitrary URLs. Browser builds use the same Ollama API shape through direct fetch requests. Compatible hosted endpoints remain a direct browser/WebView connection.
 
 ## Persistence
 
-PGlite creates a small `projects` table with `id`, `name`, `updated_at`, and JSON data. The latest project is restored at startup. Autosave is debounced. Provider secrets are intentionally excluded from PGlite.
+PGlite creates a small `projects` table with `id`, `name`, `updated_at`, and JSON data. Zakape restores the latest project at startup and debounces autosave. PGlite stores the selected model provider, address, and model ID as preferences. It excludes provider secrets.
 
 PGlite's WebAssembly loader currently requires eval permission inside the packaged webview. The desktop CSP therefore permits eval for self-hosted application scripts while still disallowing remote scripts. Removing that exception is tracked as a dependency/runtime hardening opportunity.
 

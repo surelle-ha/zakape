@@ -1,12 +1,12 @@
 # Zakape
 
-Zakape is an open-source pixel-art and sprite-animation workbench for the desktop. It keeps the dependable parts of a traditional sprite editor—precise tools, layers, frames, onion skinning, palettes, and production exports—while adding an optional bring-your-own-model assistant that proposes reviewable pixel operations.
+Zakape is an open-source pixel-art and sprite-animation workbench for the desktop. It keeps the dependable parts of a traditional sprite editor: precise tools, layers, frames, onion skinning, palettes, and production exports. An optional model assistant proposes reviewable pixel operations through local Ollama or a compatible API you choose.
 
 The desktop app is built with Tauri 2, Rust, Nuxt, Vue, Tailwind CSS, Lucide, and PGlite. The public website is a separate Nuxt app in the same pnpm workspace.
 
 ## Project status
 
-Zakape is in early alpha. The current milestone focuses on a reliable editor loop and a safe, provider-neutral AI-assisted workflow. Project files use the open JSON-based `.zakape` format.
+Zakape is in early alpha. The current milestone focuses on a reliable editor loop and a safe, local-first assisted workflow. Project files use the open JSON-based `.zakape` format.
 
 ## Quick start
 
@@ -39,12 +39,12 @@ docs/               Architecture, AI, release, and QA notes
 ## Principles
 
 - The pixel editor remains complete and usable without any AI connection.
-- Model credentials stay on the user's device and are never committed.
-- AI output is parsed into a small, validated edit language and previewed before application.
+- Your model credentials stay on your device and are never committed.
+- Model output is parsed into a small, validated edit language and previewed before application.
 - Exports are ordinary files: PNG, sprite-sheet PNG + JSON, GIF, and `.zakape` project JSON.
 - Visual quality and keyboard accessibility are tested as product behavior, not treated as polish debt.
 
-Read [the architecture](docs/architecture.md), [release process](docs/release.md), and [contribution guide](CONTRIBUTING.md) before making a large change.
+Before making a large change, read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [model assistant guide](docs/ai/model-assistant.md) and [release process](docs/release.md) cover their respective workflows.
 
 ## License
 

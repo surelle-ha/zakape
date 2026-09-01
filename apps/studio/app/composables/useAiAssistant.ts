@@ -1,9 +1,27 @@
-import type { ArtOperation, ArtProposal, ModelConnection, SpriteProject } from '~/types/editor'
+import type {
+  ArtOperation,
+  ArtProposal,
+  ModelConnection,
+  ModelProvider,
+  SpriteProject,
+} from '~/types/editor'
 import { getCompositePixels } from '~/utils/render'
 import { normalizeHex } from '~/utils/project'
 
 const MAX_OPERATIONS = 24
 const MAX_PIXELS = 2048
+export const OLLAMA_DEFAULT_URL = 'http://127.0.0.1:11434'
+
+export interface AssistantModel {
+  id: string
+  size?: number
+  modifiedAt?: string
+}
+
+export interface AssistantMessage {
+  role: 'system' | 'user'
+  content: string
+}
 
 const assistantSystemPrompt = `You are Zakape's pixel-art editing assistant. Return only one JSON object with this shape:
 {"summary":"short explanation","operations":[...]}
@@ -17,6 +35,110 @@ Use null as a color only to erase. Stay inside the canvas, prefer the supplied p
 const parseJsonObject = (value: string) => {
   const unwrapped = value.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
   return JSON.parse(unwrapped) as unknown
+}
+
+const errorText = (error: unknown) => {
+  if (typeof error === 'string') return error
+  if (error instanceof Error) return error.message
+  return 'The model provider could not be reached.'
+}
+
+export const normalizeOllamaBaseUrl = (value: string) => {
+  let url: URL
+  try {
+    url = new URL(value.trim())
+  } catch {
+    throw new Error('Enter a valid Ollama address, such as http://127.0.0.1:11434.')
+  }
+
+  const hostname = url.hostname.toLowerCase()
+  const isLoopback = hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]'
+  if (
+    !isLoopback ||
+    !['http:', 'https:'].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    (url.pathname !== '/' && url.pathname !== '') ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error('Ollama must use a loopback address: 127.0.0.1, localhost, or [::1].')
+  }
+
+  return url.toString().replace(/\/$/, '')
+}
+
+export const normalizeOllamaModels = (input: unknown): AssistantModel[] => {
+  const models = Array.isArray(input)
+    ? input
+    : input && typeof input === 'object' && Array.isArray((input as { models?: unknown }).models)
+      ? (input as { models: unknown[] }).models
+      : []
+
+  return models
+    .map((item): AssistantModel | null => {
+      if (!item || typeof item !== 'object') return null
+      const model = item as {
+        id?: unknown
+        name?: unknown
+        model?: unknown
+        size?: unknown
+        modified_at?: unknown
+      }
+      const id =
+        typeof model.id === 'string'
+          ? model.id
+          : typeof model.name === 'string'
+            ? model.name
+            : model.model
+      if (typeof id !== 'string' || !id.trim()) return null
+      return {
+        id: id.trim(),
+        ...(typeof model.size === 'number' ? { size: model.size } : {}),
+        ...(typeof model.modified_at === 'string' ? { modifiedAt: model.modified_at } : {}),
+      }
+    })
+    .filter((model): model is AssistantModel => model !== null)
+    .sort((left, right) => left.id.localeCompare(right.id))
+}
+
+export const normalizeCompatibleModels = (input: unknown): AssistantModel[] => {
+  if (!input || typeof input !== 'object' || !Array.isArray((input as { data?: unknown }).data)) {
+    return []
+  }
+  return (input as { data: unknown[] }).data
+    .map((item) => {
+      if (!item || typeof item !== 'object' || typeof (item as { id?: unknown }).id !== 'string') {
+        return null
+      }
+      return { id: (item as { id: string }).id }
+    })
+    .filter((model): model is AssistantModel => model !== null)
+}
+
+export const mapOllamaError = (error: unknown, baseUrl: string, model?: string) => {
+  const message = errorText(error)
+  const lowerMessage = message.toLowerCase()
+  if (lowerMessage.includes('loopback address') || lowerMessage.includes('valid ollama address')) {
+    return message
+  }
+  if (lowerMessage.includes('model') && lowerMessage.includes('not found')) {
+    return `${model || 'That model'} is not installed. Pull it in Ollama, then refresh the model list.`
+  }
+  if (lowerMessage.includes('timed out') || lowerMessage.includes('timeout')) {
+    return 'Ollama did not respond in time. Check that it is running, then try again.'
+  }
+  if (
+    lowerMessage.includes('failed to fetch') ||
+    lowerMessage.includes('networkerror') ||
+    lowerMessage.includes('load failed') ||
+    lowerMessage.includes('not running') ||
+    lowerMessage.includes('connection') ||
+    lowerMessage.includes('tcp connect')
+  ) {
+    return `Ollama is not running at ${baseUrl}. Start Ollama, then try again.`
+  }
+  return message
 }
 
 const validateColor = (value: unknown, allowNull = true): string | null => {
@@ -118,9 +240,90 @@ const encodeCanvas = (project: SpriteProject, frameId: string) => {
   return { palette, rows }
 }
 
+export const createAssistantMessages = (
+  prompt: string,
+  project: SpriteProject,
+  frameId: string,
+  layerName: string,
+): AssistantMessage[] => {
+  const canvas = encodeCanvas(project, frameId)
+  return [
+    { role: 'system', content: assistantSystemPrompt },
+    {
+      role: 'user',
+      content: JSON.stringify({
+        request: prompt,
+        canvas: { width: project.width, height: project.height, ...canvas },
+        activeLayer: layerName,
+      }),
+    },
+  ]
+}
+
+export const createOllamaChatBody = (model: string, messages: AssistantMessage[]) => ({
+  model,
+  messages,
+  stream: false,
+  format: 'json',
+  options: { temperature: 0.2 },
+})
+
+export const readOllamaChatContent = (input: unknown) => {
+  if (!input || typeof input !== 'object') return ''
+  const message = (input as { message?: unknown }).message
+  if (!message || typeof message !== 'object') return ''
+  const content = (message as { content?: unknown }).content
+  return typeof content === 'string' ? content : ''
+}
+
+export const readCompatibleChatContent = (input: unknown) => {
+  if (!input || typeof input !== 'object') return ''
+  const choices = (input as { choices?: unknown }).choices
+  if (!Array.isArray(choices)) return ''
+  const firstChoice = choices[0]
+  if (!firstChoice || typeof firstChoice !== 'object') return ''
+  const message = (firstChoice as { message?: unknown }).message
+  if (!message || typeof message !== 'object') return ''
+  const content = (message as { content?: unknown }).content
+  return typeof content === 'string' ? content : ''
+}
+
+const isTauriRuntime = () => import.meta.client && '__TAURI_INTERNALS__' in window
+
+const invokeDesktop = async <T>(command: string, args: Record<string, unknown>): Promise<T> => {
+  const { invoke } = await import('@tauri-apps/api/core')
+  return invoke<T>(command, args)
+}
+
+const directOllamaModels = async (baseUrl: string) => {
+  const response = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(12_000) })
+  if (!response.ok) throw new Error(`Ollama returned ${response.status}.`)
+  return normalizeOllamaModels(await response.json())
+}
+
+const discoverModels = async (connection: ModelConnection): Promise<AssistantModel[]> => {
+  if (connection.provider === 'ollama') {
+    const baseUrl = normalizeOllamaBaseUrl(connection.baseUrl)
+    return isTauriRuntime()
+      ? invokeDesktop<AssistantModel[]>('ollama_list_models', { baseUrl })
+      : directOllamaModels(baseUrl)
+  }
+
+  const baseUrl = connection.baseUrl.replace(/\/$/, '')
+  const response = await fetch(`${baseUrl}/models`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(connection.apiKey ? { Authorization: `Bearer ${connection.apiKey}` } : {}),
+    },
+  })
+  if (!response.ok) throw new Error(`Provider returned ${response.status}.`)
+  return normalizeCompatibleModels(await response.json())
+}
+
 export const useAiAssistant = () => {
   const connection = useState<ModelConnection>('model-connection', () => ({
-    baseUrl: 'http://localhost:11434/v1',
+    provider: 'ollama',
+    baseUrl: OLLAMA_DEFAULT_URL,
     model: '',
     apiKey: '',
   }))
@@ -130,6 +333,7 @@ export const useAiAssistant = () => {
   )
   const errorMessage = useState<string>('assistant-error', () => '')
   const proposal = useState<ArtProposal | null>('assistant-proposal', () => null)
+  const availableModels = useState<AssistantModel[]>('assistant-models', () => [])
 
   const endpoint = (path: string) => `${connection.value.baseUrl.replace(/\/$/, '')}${path}`
   const headers = () => ({
@@ -141,14 +345,23 @@ export const useAiAssistant = () => {
     status.value = 'testing'
     errorMessage.value = ''
     try {
-      const response = await fetch(endpoint('/models'), { headers: headers() })
-      if (!response.ok) throw new Error(`Provider returned ${response.status}.`)
+      const models = await discoverModels(connection.value)
+      availableModels.value = models
+      if (connection.value.provider === 'ollama' && models.length === 0) {
+        throw new Error(
+          'Ollama is running, but no models are installed. Pull a model, then refresh.',
+        )
+      }
       status.value = 'connected'
-      return true
+      return models
     } catch (error) {
       status.value = 'error'
-      errorMessage.value = error instanceof Error ? error.message : 'Connection failed.'
-      return false
+      availableModels.value = []
+      errorMessage.value =
+        connection.value.provider === 'ollama'
+          ? mapOllamaError(error, connection.value.baseUrl, connection.value.model)
+          : errorText(error)
+      return []
     }
   }
 
@@ -163,41 +376,54 @@ export const useAiAssistant = () => {
     errorMessage.value = ''
     proposal.value = null
     try {
-      const canvas = encodeCanvas(project, frameId)
-      const response = await fetch(endpoint('/chat/completions'), {
-        method: 'POST',
-        headers: headers(),
-        body: JSON.stringify({
-          model: connection.value.model,
-          temperature: 0.2,
-          messages: [
-            { role: 'system', content: assistantSystemPrompt },
-            {
-              role: 'user',
-              content: JSON.stringify({
-                request: prompt,
-                canvas: { width: project.width, height: project.height, ...canvas },
-                activeLayer: layerName,
-              }),
-            },
-          ],
-        }),
-      })
-      if (!response.ok) {
-        const message = await response.text()
-        throw new Error(`Provider returned ${response.status}: ${message.slice(0, 180)}`)
+      const messages = createAssistantMessages(prompt, project, frameId, layerName)
+      let content = ''
+
+      if (connection.value.provider === 'ollama') {
+        const baseUrl = normalizeOllamaBaseUrl(connection.value.baseUrl)
+        if (isTauriRuntime()) {
+          content = await invokeDesktop<string>('ollama_chat', {
+            baseUrl,
+            model: connection.value.model,
+            messages,
+          })
+        } else {
+          const response = await fetch(`${baseUrl}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(createOllamaChatBody(connection.value.model, messages)),
+          })
+          if (!response.ok) {
+            const message = await response.text()
+            throw new Error(`Ollama returned ${response.status}: ${message.slice(0, 180)}`)
+          }
+          content = readOllamaChatContent(await response.json())
+        }
+      } else {
+        const response = await fetch(endpoint('/chat/completions'), {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({
+            model: connection.value.model,
+            temperature: 0.2,
+            messages,
+          }),
+        })
+        if (!response.ok) {
+          const message = await response.text()
+          throw new Error(`Provider returned ${response.status}: ${message.slice(0, 180)}`)
+        }
+        content = readCompatibleChatContent(await response.json())
       }
-      const payload = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>
-      }
-      const content = payload.choices?.[0]?.message?.content
       if (!content) throw new Error('The provider returned an empty response.')
       proposal.value = validateProposal(parseJsonObject(content), project.width, project.height)
       status.value = 'connected'
     } catch (error) {
       status.value = 'error'
       errorMessage.value =
-        error instanceof Error ? error.message : 'The proposal could not be created.'
+        connection.value.provider === 'ollama'
+          ? mapOllamaError(error, connection.value.baseUrl, connection.value.model)
+          : errorText(error)
     }
   }
 
@@ -206,13 +432,22 @@ export const useAiAssistant = () => {
     errorMessage.value = ''
   }
 
+  const clearConnectionState = (provider?: ModelProvider) => {
+    status.value = 'idle'
+    errorMessage.value = ''
+    availableModels.value = []
+    if (provider && provider !== connection.value.provider) proposal.value = null
+  }
+
   return {
     connection,
     status,
     errorMessage,
     proposal,
+    availableModels,
     testConnection,
     requestProposal,
     discardProposal,
+    clearConnectionState,
   }
 }

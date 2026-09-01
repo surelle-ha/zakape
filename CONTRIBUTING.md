@@ -19,6 +19,7 @@ cargo clippy --manifest-path apps/studio/src-tauri/Cargo.toml --all-targets -- -
 ## Pull requests
 
 - Explain the user problem and the chosen interaction.
+- Use Conventional Commit titles: `fix:` for patches, `feat:` for minor releases, and `feat!:` or a `BREAKING CHANGE:` footer for major releases.
 - Attach before/after screenshots for UI changes.
 - Update files under `docs/` for architecture, provider, data-format, or AI behavior changes.
 - Do not commit API keys, model responses containing private art, generated build artifacts, or telemetry dumps.

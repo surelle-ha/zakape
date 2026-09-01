@@ -32,7 +32,7 @@ pnpm build:desktop  # native Tauri bundle
 ```text
 apps/studio/        Nuxt sprite editor and Tauri shell
 apps/site/          Public project website
-docs/               Research, architecture, AI, release, and QA notes
+docs/               Architecture, AI, release, and QA notes
 .github/             CI, release, Pages, and contribution workflows
 ```
 
@@ -44,8 +44,8 @@ docs/               Research, architecture, AI, release, and QA notes
 - Exports are ordinary files: PNG, sprite-sheet PNG + JSON, GIF, and `.zakape` project JSON.
 - Visual quality and keyboard accessibility are tested as product behavior, not treated as polish debt.
 
-Read [the architecture](docs/architecture.md), [competitive research](docs/research/aseprite-piskel.md), and [contribution guide](CONTRIBUTING.md) before making a large change.
+Read [the architecture](docs/architecture.md), [release process](docs/release.md), and [contribution guide](CONTRIBUTING.md) before making a large change.
 
 ## License
 
-[MIT](LICENSE). Aseprite and Piskel are independent projects; Zakape is not affiliated with either project and does not copy their code or product identity.
+[MIT](LICENSE).

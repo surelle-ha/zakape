@@ -2,28 +2,80 @@ name: Desktop release
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing draft tag to rebuild, for example v0.1.0
+        required: false
+        type: string
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
 
 jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_ready: ${{ steps.please.outputs.release_created == 'true' || inputs.tag != '' }}
+      tag_name: ${{ steps.metadata.outputs.tag_name }}
+      release_id: ${{ steps.metadata.outputs.release_id }}
+      build_ref: ${{ steps.metadata.outputs.build_ref }}
+    steps:
+      - name: Prepare semantic release
+        id: please
+        if: inputs.tag == ''
+        uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - name: Resolve release metadata
+        id: metadata
+        if: steps.please.outputs.release_created == 'true' || inputs.tag != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ inputs.tag || steps.please.outputs.tag_name }}
+          MANUAL_TAG: ${{ inputs.tag }}
+          AUTOMATED_REF: ${{ github.sha }}
+        run: |
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:TAG_NAME" | ConvertFrom-Json
+          if ($env:MANUAL_TAG -and -not $release.draft) {
+            throw "Release $env:TAG_NAME is already published; only draft releases can be rebuilt."
+          }
+          if (-not $env:MANUAL_TAG) {
+            gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($release.id)" -f target_commitish="$env:AUTOMATED_REF" | Out-Null
+          }
+          $buildRef = if ($env:MANUAL_TAG) { $release.target_commitish } else { $env:AUTOMATED_REF }
+          "tag_name=$env:TAG_NAME" >> $env:GITHUB_OUTPUT
+          "release_id=$($release.id)" >> $env:GITHUB_OUTPUT
+          "build_ref=$buildRef" >> $env:GITHUB_OUTPUT
+
   build:
+    needs: release
+    if: needs.release.outputs.release_ready == 'true'
     strategy:
       fail-fast: false
       matrix:
         platform: [macos-latest, ubuntu-22.04, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.build_ref }}
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.17.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -32,13 +84,25 @@ jobs:
         with:
           workspaces: apps/studio/src-tauri -> target
       - run: pnpm install --frozen-lockfile
-      - uses: tauri-apps/tauri-action@v0
+      - name: Build and upload native bundle
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: apps/studio
-          tagName: v__VERSION__
-          releaseName: Zakape v__VERSION__
-          releaseBody: See the changelog and attached platform bundles.
-          releaseDraft: true
-          prerelease: true
+          releaseId: ${{ needs.release.outputs.release_id }}
+          uploadUpdaterJson: false
+          retryAttempts: 2
+
+  publish:
+    needs: [release, build]
+    if: needs.release.outputs.release_ready == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish completed release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ needs.release.outputs.tag_name }}
+        run: |
+          release_id=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" --jq .id)
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -F draft=false -F prerelease=false

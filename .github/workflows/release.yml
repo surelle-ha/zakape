@@ -200,6 +200,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ needs.release.outputs.release_id }}
+          TAG_NAME: ${{ needs.release.outputs.tag_name }}
           MACOS_INCLUDED: ${{ needs.release.outputs.macos_included }}
         run: |
           $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/$env:RELEASE_ID" | ConvertFrom-Json
@@ -210,5 +211,5 @@ jobs:
           if ($env:MACOS_INCLUDED -ne 'true') {
             $body += "`n`n$startMarker`n> **macOS:** A signed and notarized package is not included because Apple release credentials are not configured. Windows and Linux downloads are available.`n$endMarker"
           }
-          $payload = @{ body = $body; draft = $false; prerelease = $false } | ConvertTo-Json
+          $payload = @{ tag_name = $env:TAG_NAME; body = $body; draft = $false; prerelease = $false } | ConvertTo-Json
           $payload | gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$env:RELEASE_ID" --input - | Out-Null

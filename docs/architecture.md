@@ -25,11 +25,15 @@ All editing operations go through the editor store so they can create undo check
 
 Output helpers detect a Tauri runtime. Desktop builds use Tauri's dialog and filesystem plugins; browser builds use Blob downloads. The `.zakape` project model and editing logic remain in TypeScript so they stay portable and testable.
 
-Rust owns a narrow local transport for Ollama. Its two commands discover installed models and request chat responses. Both commands validate that the configured URL uses a loopback host and append fixed Ollama routes; they cannot proxy arbitrary URLs. Browser builds use the same Ollama API shape through direct fetch requests. Compatible hosted endpoints remain a direct browser/WebView connection.
+The desktop window disables native decorations. A 36 px application titlebar provides the drag region, project title, application menus, and right-side minimize/maximize/close controls. The browser build renders the same chrome for layout parity while window-control actions safely become no-ops.
+
+Rust owns a narrow local transport for Ollama. Its two commands discover installed models and request chat responses. Both commands validate that the configured URL uses a loopback host and append fixed Ollama routes; they cannot proxy arbitrary URLs. Chat requests use a structured response schema and a pixel-art direction contract. Proposals address exact frame IDs and remain bound to the selected layer, allowing one validated undo checkpoint to cover either the current frame or the full animation. Browser builds use the same Ollama API shape through direct fetch requests. Compatible hosted endpoints remain a direct browser/WebView connection.
 
 ## Persistence
 
-PGlite creates a small `projects` table with `id`, `name`, `updated_at`, and JSON data. Zakape restores the latest project at startup and debounces autosave. PGlite stores the selected model provider, address, and model ID as preferences. It excludes provider secrets.
+The project home is the first interactive screen after the launch splash. On desktop, Rust creates the operating system's `Documents/zakape` directory and mirrors each autosaved project to `project_id.zakape`. The native commands accept project IDs rather than arbitrary paths, reject traversal characters, validate the project version and JSON identity, and cap project files at 32 MB. PGlite keeps the same project JSON as an indexed local cache and powers browser-mode persistence. The project home merges both indexes for migration compatibility.
+
+PGlite creates a small `projects` table with `id`, `name`, `updated_at`, and JSON data. It also stores the selected model provider, address, and model ID as preferences. It excludes provider secrets.
 
 PGlite's WebAssembly loader currently requires eval permission inside the packaged webview. The desktop CSP therefore permits eval for self-hosted application scripts while still disallowing remote scripts. Removing that exception is tracked as a dependency/runtime hardening opportunity.
 

@@ -9,6 +9,41 @@ export const emptyPixels = (width: number, height: number): Pixel[] =>
 export const cloneProject = (project: SpriteProject): SpriteProject =>
   JSON.parse(JSON.stringify(project)) as SpriteProject
 
+export const createBlankProject = (size = 32): SpriteProject => {
+  const dimension = Math.max(8, Math.min(256, Math.round(size)))
+  const now = new Date().toISOString()
+  const frameId = makeId('frame')
+  return {
+    version: 1,
+    id: makeId('project'),
+    name: 'Untitled sprite',
+    width: dimension,
+    height: dimension,
+    palette: [
+      '#16221c',
+      '#456b5a',
+      '#7ed0aa',
+      '#b9f5d0',
+      '#d9ffe7',
+      '#ff875f',
+      '#ffd36a',
+      '#fff1bd',
+    ],
+    frames: [{ id: frameId, name: 'F1', duration: 120 }],
+    layers: [
+      {
+        id: makeId('layer'),
+        name: 'Pixel layer',
+        visible: true,
+        opacity: 1,
+        cels: { [frameId]: emptyPixels(dimension, dimension) },
+      },
+    ],
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+
 const paintRect = (
   pixels: Pixel[],
   canvasWidth: number,
@@ -109,4 +144,99 @@ export const normalizeHex = (color: string): string | null => {
     return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`.toLowerCase()
   }
   return null
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+const isSafeId = (value: unknown): value is string =>
+  typeof value === 'string' && /^[a-z0-9_-]{1,128}$/i.test(value)
+
+const unsupportedProject = () =>
+  new Error('This project is invalid or unsupported. Open a .zakape file exported by Zakape.')
+
+export const parseSpriteProject = (input: unknown): SpriteProject => {
+  if (!isRecord(input)) throw unsupportedProject()
+  const width = Number(input.width)
+  const height = Number(input.height)
+  if (
+    input.version !== 1 ||
+    !isSafeId(input.id) ||
+    typeof input.name !== 'string' ||
+    !input.name.trim() ||
+    input.name.length > 64 ||
+    !Number.isInteger(width) ||
+    !Number.isInteger(height) ||
+    width < 1 ||
+    height < 1 ||
+    width > 1024 ||
+    height > 1024 ||
+    width * height > 1_048_576 ||
+    typeof input.createdAt !== 'string' ||
+    typeof input.updatedAt !== 'string' ||
+    !Array.isArray(input.palette) ||
+    input.palette.length > 256 ||
+    !input.palette.every((color) => typeof color === 'string' && normalizeHex(color)) ||
+    !Array.isArray(input.frames) ||
+    input.frames.length < 1 ||
+    input.frames.length > 512 ||
+    !Array.isArray(input.layers) ||
+    input.layers.length < 1 ||
+    input.layers.length > 256
+  ) {
+    throw unsupportedProject()
+  }
+
+  const frameIds = new Set<string>()
+  for (const frame of input.frames) {
+    if (
+      !isRecord(frame) ||
+      !isSafeId(frame.id) ||
+      frameIds.has(frame.id) ||
+      typeof frame.name !== 'string' ||
+      frame.name.length > 64 ||
+      typeof frame.duration !== 'number' ||
+      !Number.isFinite(frame.duration) ||
+      frame.duration <= 0 ||
+      frame.duration > 60_000
+    ) {
+      throw unsupportedProject()
+    }
+    frameIds.add(frame.id)
+  }
+
+  const layerIds = new Set<string>()
+  for (const layer of input.layers) {
+    if (
+      !isRecord(layer) ||
+      !isSafeId(layer.id) ||
+      layerIds.has(layer.id) ||
+      typeof layer.name !== 'string' ||
+      !layer.name.trim() ||
+      layer.name.length > 64 ||
+      typeof layer.visible !== 'boolean' ||
+      typeof layer.opacity !== 'number' ||
+      !Number.isFinite(layer.opacity) ||
+      layer.opacity < 0 ||
+      layer.opacity > 1 ||
+      !isRecord(layer.cels)
+    ) {
+      throw unsupportedProject()
+    }
+    layerIds.add(layer.id)
+    for (const frameId of frameIds) {
+      const pixels = layer.cels[frameId]
+      if (
+        !Array.isArray(pixels) ||
+        pixels.length !== width * height ||
+        !pixels.every(
+          (pixel) => pixel === null || (typeof pixel === 'string' && Boolean(normalizeHex(pixel))),
+        )
+      ) {
+        throw unsupportedProject()
+      }
+    }
+  }
+
+  return cloneProject(input as unknown as SpriteProject)
 }

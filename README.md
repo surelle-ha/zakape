@@ -44,7 +44,7 @@ docs/               Architecture, AI, release, and QA notes
 - Exports are ordinary files: PNG, sprite-sheet PNG + JSON, GIF, and `.zakape` project JSON.
 - Visual quality and keyboard accessibility are tested as product behavior, not treated as polish debt.
 
-Before making a large change, read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [model assistant guide](docs/ai/model-assistant.md) and [release process](docs/release.md) cover their respective workflows.
+Before making a large change, read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [project workspace](docs/project-workspace.md), [model assistant guide](docs/ai/model-assistant.md), and [release process](docs/release.md) cover their respective workflows.
 
 ## License
 

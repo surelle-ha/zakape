@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  assistantSystemPrompt,
   createAssistantMessages,
   createOllamaChatBody,
   mapOllamaError,
@@ -17,17 +18,23 @@ describe('assistant proposal validation', () => {
     const proposal = validateProposal(
       {
         summary: 'Add a small highlight.',
-        operations: [
-          { type: 'set_pixels', pixels: [{ x: 2, y: 3, color: '#FFD36A' }] },
-          { type: 'outline_rect', x: 4, y: 4, width: 3, height: 3, color: '#ff875f' },
+        frames: [
+          {
+            frame_id: 'frame_1',
+            operations: [
+              { type: 'set_pixels', pixels: [{ x: 2, y: 3, color: '#FFD36A' }] },
+              { type: 'outline_rect', x: 4, y: 4, width: 3, height: 3, color: '#ff875f' },
+            ],
+          },
         ],
       },
       16,
       16,
+      ['frame_1'],
     )
 
-    expect(proposal.operations).toHaveLength(2)
-    expect(proposal.operations[0]).toMatchObject({
+    expect(proposal.frames[0]!.operations).toHaveLength(2)
+    expect(proposal.frames[0]!.operations[0]).toMatchObject({
       type: 'set_pixels',
       pixels: [{ x: 2, y: 3, color: '#ffd36a' }],
     })
@@ -38,10 +45,16 @@ describe('assistant proposal validation', () => {
       validateProposal(
         {
           summary: 'Escape the canvas.',
-          operations: [{ type: 'set_pixels', pixels: [{ x: 32, y: 1, color: '#fff' }] }],
+          frames: [
+            {
+              frame_id: 'frame_1',
+              operations: [{ type: 'set_pixels', pixels: [{ x: 32, y: 1, color: '#fff' }] }],
+            },
+          ],
         },
         16,
         16,
+        ['frame_1'],
       ),
     ).toThrow(/out-of-bounds/)
   })
@@ -49,11 +62,46 @@ describe('assistant proposal validation', () => {
   it('rejects unknown operations', () => {
     expect(() =>
       validateProposal(
-        { summary: 'Run code.', operations: [{ type: 'shell', command: 'whoami' }] },
+        {
+          summary: 'Run code.',
+          frames: [{ frame_id: 'frame_1', operations: [{ type: 'shell', command: 'whoami' }] }],
+        },
         16,
         16,
+        ['frame_1'],
       ),
     ).toThrow(/Unsupported/)
+  })
+
+  it('requires one ordered proposal entry for every requested animation frame', () => {
+    expect(() =>
+      validateProposal(
+        {
+          summary: 'Coordinate the run cycle.',
+          frames: [{ frame_id: 'frame_2', operations: [] }],
+        },
+        32,
+        32,
+        ['frame_1', 'frame_2'],
+      ),
+    ).toThrow(/every requested frame/)
+
+    const proposal = validateProposal(
+      {
+        summary: 'Coordinate the run cycle.',
+        frames: [
+          {
+            frame_id: 'frame_1',
+            operations: [{ type: 'set_pixels', pixels: [{ x: 8, y: 8, color: '#fff1bd' }] }],
+          },
+          { frame_id: 'frame_2', operations: [] },
+        ],
+      },
+      32,
+      32,
+      ['frame_1', 'frame_2'],
+    )
+    expect(proposal.frames.map((frame) => frame.frameId)).toEqual(['frame_1', 'frame_2'])
   })
 })
 
@@ -90,17 +138,27 @@ describe('Ollama provider adapter', () => {
       'Add one highlight.',
       project,
       project.frames[0]!.id,
-      project.layers[0]!.name,
+      project.layers[0]!.id,
     )
     const body = createOllamaChatBody('qwen2.5-coder:7b', messages)
 
     expect(body).toMatchObject({
       model: 'qwen2.5-coder:7b',
       stream: false,
-      format: 'json',
-      options: { temperature: 0.2 },
+      format: { type: 'object' },
+      options: { temperature: 0.1, top_p: 0.9, num_ctx: 16_384 },
     })
     expect(messages[1]!.content).toContain('Add one highlight.')
+    expect(assistantSystemPrompt).toContain('intentional pixel clusters')
+    const payload = JSON.parse(messages[1]!.content) as {
+      target_frame_ids: string[]
+      frames: Array<{ role: string; composite_rows: number[][]; active_layer_rows: number[][] }>
+    }
+    expect(payload.target_frame_ids).toEqual(['frame_1'])
+    expect(payload.frames).toHaveLength(3)
+    expect(payload.frames[0]).toMatchObject({ role: 'target' })
+    expect(payload.frames[0]!.composite_rows).toHaveLength(32)
+    expect(payload.frames[0]!.active_layer_rows).toHaveLength(32)
     expect(readOllamaChatContent({ message: { content: '{"operations":[]}' } })).toBe(
       '{"operations":[]}',
     )
@@ -119,5 +177,25 @@ describe('Ollama provider adapter', () => {
     expect(
       mapOllamaError(new Error('model not found'), 'http://127.0.0.1:11434', 'tinyllama'),
     ).toMatch(/tinyllama is not installed/)
+  })
+
+  it('sends every animation frame as a target for entire-sheet edits', () => {
+    const project = createDemoProject()
+    const messages = createAssistantMessages(
+      'Keep the spark attached through the run cycle.',
+      project,
+      project.frames[0]!.id,
+      project.layers[1]!.id,
+      'sheet',
+    )
+    const payload = JSON.parse(messages[1]!.content) as {
+      edit_scope: string
+      target_frame_ids: string[]
+      frames: Array<{ role: string }>
+    }
+
+    expect(payload.edit_scope).toBe('full_animation')
+    expect(payload.target_frame_ids).toEqual(project.frames.map((frame) => frame.id))
+    expect(payload.frames.every((frame) => frame.role === 'target')).toBe(true)
   })
 })

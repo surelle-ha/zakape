@@ -1,4 +1,4 @@
-import type { ArtOperation, Pixel, SpriteProject, ToolId } from '~/types/editor'
+import type { ArtOperation, FrameArtEdit, Pixel, SpriteProject, ToolId } from '~/types/editor'
 import { cloneProject, createDemoProject, emptyPixels, makeId, normalizeHex } from '~/utils/project'
 
 const HISTORY_LIMIT = 60
@@ -258,40 +258,50 @@ export const useEditor = () => {
     touch('Renamed project')
   }
 
-  const applyOperations = (operations: ArtOperation[]) => {
-    const pixels = activeLayer.value?.cels[activeFrameId.value]
-    if (!pixels) return
+  const applyOperations = (frameEdits: FrameArtEdit[], layerId = activeLayerId.value) => {
+    const layer = project.value.layers.find((item) => item.id === layerId)
+    const edits = frameEdits.filter(
+      (frameEdit) =>
+        frameEdit.operations.length > 0 &&
+        project.value.frames.some((frame) => frame.id === frameEdit.frameId),
+    )
+    if (!layer || edits.length === 0) return
     checkpoint('Apply assistant proposal')
-    const set = (x: number, y: number, color: Pixel) => {
-      if (x >= 0 && y >= 0 && x < project.value.width && y < project.value.height) {
-        pixels[y * project.value.width + x] = color
+    edits.forEach((frameEdit) => {
+      const pixels =
+        layer.cels[frameEdit.frameId] ??
+        (layer.cels[frameEdit.frameId] = emptyPixels(project.value.width, project.value.height))
+      const set = (x: number, y: number, color: Pixel) => {
+        if (x >= 0 && y >= 0 && x < project.value.width && y < project.value.height) {
+          pixels[y * project.value.width + x] = color
+        }
       }
-    }
-    operations.forEach((operation) => {
-      if (operation.type === 'set_pixels') {
-        operation.pixels.forEach((pixel) => set(pixel.x, pixel.y, pixel.color))
-      } else if (operation.type === 'fill_rect' || operation.type === 'outline_rect') {
-        for (let y = operation.y; y < operation.y + operation.height; y += 1) {
-          for (let x = operation.x; x < operation.x + operation.width; x += 1) {
-            if (
-              operation.type === 'fill_rect' ||
-              x === operation.x ||
-              y === operation.y ||
-              x === operation.x + operation.width - 1 ||
-              y === operation.y + operation.height - 1
-            ) {
-              set(x, y, operation.color)
+      frameEdit.operations.forEach((operation: ArtOperation) => {
+        if (operation.type === 'set_pixels') {
+          operation.pixels.forEach((pixel) => set(pixel.x, pixel.y, pixel.color))
+        } else if (operation.type === 'fill_rect' || operation.type === 'outline_rect') {
+          for (let y = operation.y; y < operation.y + operation.height; y += 1) {
+            for (let x = operation.x; x < operation.x + operation.width; x += 1) {
+              if (
+                operation.type === 'fill_rect' ||
+                x === operation.x ||
+                y === operation.y ||
+                x === operation.x + operation.width - 1 ||
+                y === operation.y + operation.height - 1
+              ) {
+                set(x, y, operation.color)
+              }
             }
           }
+        } else if (operation.type === 'replace_palette_color') {
+          const from = normalizeHex(operation.from)
+          pixels.forEach((pixel, index) => {
+            if (pixel?.toLowerCase() === from) pixels[index] = operation.to
+          })
         }
-      } else if (operation.type === 'replace_palette_color') {
-        const from = normalizeHex(operation.from)
-        pixels.forEach((pixel, index) => {
-          if (pixel?.toLowerCase() === from) pixels[index] = operation.to
-        })
-      }
+      })
     })
-    touch('Applied assistant proposal')
+    touch(`Applied assistant edit to ${edits.length} frame${edits.length === 1 ? '' : 's'}`)
   }
 
   return {

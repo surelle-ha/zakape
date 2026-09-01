@@ -1,10 +1,13 @@
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
+use serde_json::{json, Value};
+use std::{fs, path::PathBuf, time::Duration};
+use tauri::{AppHandle, Manager};
 
 const OLLAMA_CONNECT_TIMEOUT: Duration = Duration::from_secs(4);
 const OLLAMA_DISCOVERY_TIMEOUT: Duration = Duration::from_secs(12);
 const OLLAMA_CHAT_TIMEOUT: Duration = Duration::from_secs(180);
+const MAX_PROJECT_BYTES: usize = 32 * 1024 * 1024;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AssistantMessage {
@@ -39,13 +42,15 @@ struct OllamaChatRequest<'a> {
     model: &'a str,
     messages: &'a [AssistantMessage],
     stream: bool,
-    format: &'static str,
+    format: Value,
     options: OllamaOptions,
 }
 
 #[derive(Serialize)]
 struct OllamaOptions {
     temperature: f32,
+    top_p: f32,
+    num_ctx: u32,
 }
 
 #[derive(Deserialize)]
@@ -56,6 +61,223 @@ struct OllamaChatResponse {
 #[derive(Deserialize)]
 struct OllamaChatMessage {
     content: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceProject {
+    id: String,
+    name: String,
+    width: u64,
+    height: u64,
+    frame_count: usize,
+    updated_at: String,
+}
+
+fn workspace_directory_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let documents = app
+        .path()
+        .document_dir()
+        .map_err(|_| "Zakape could not find the Documents directory.".to_string())?;
+    let directory = documents.join("zakape");
+    fs::create_dir_all(&directory)
+        .map_err(|_| "Zakape could not create Documents/zakape.".to_string())?;
+    Ok(directory)
+}
+
+fn checked_project_id(project_id: &str) -> Result<&str, String> {
+    let project_id = project_id.trim();
+    if project_id.is_empty()
+        || project_id.len() > 128
+        || !project_id
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'))
+    {
+        return Err("The project ID cannot be used as a Zakape filename.".to_string());
+    }
+    Ok(project_id)
+}
+
+fn project_file_path(app: &AppHandle, project_id: &str) -> Result<PathBuf, String> {
+    Ok(workspace_directory_path(app)?.join(format!("{}.zakape", checked_project_id(project_id)?)))
+}
+
+#[tauri::command]
+fn workspace_directory(app: AppHandle) -> Result<String, String> {
+    Ok(workspace_directory_path(&app)?
+        .to_string_lossy()
+        .into_owned())
+}
+
+#[tauri::command]
+fn workspace_list_projects(app: AppHandle) -> Result<Vec<WorkspaceProject>, String> {
+    let directory = workspace_directory_path(&app)?;
+    let entries = fs::read_dir(directory)
+        .map_err(|_| "Zakape could not read the project working directory.".to_string())?;
+    let mut projects = Vec::new();
+
+    for entry in entries.flatten().take(500) {
+        let path = entry.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("zakape") {
+            continue;
+        }
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
+        if !metadata.is_file() || metadata.len() > MAX_PROJECT_BYTES as u64 {
+            continue;
+        }
+        let Ok(contents) = fs::read_to_string(path) else {
+            continue;
+        };
+        if contents.len() > MAX_PROJECT_BYTES {
+            continue;
+        }
+        let Ok(project) = serde_json::from_str::<Value>(&contents) else {
+            continue;
+        };
+        let Some(id) = project.get("id").and_then(Value::as_str) else {
+            continue;
+        };
+        if checked_project_id(id).is_err() {
+            continue;
+        }
+        if entry.path().file_stem().and_then(|stem| stem.to_str()) != Some(id) {
+            continue;
+        }
+        projects.push(WorkspaceProject {
+            id: id.to_string(),
+            name: project
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or("Untitled sprite")
+                .to_string(),
+            width: project.get("width").and_then(Value::as_u64).unwrap_or(0),
+            height: project.get("height").and_then(Value::as_u64).unwrap_or(0),
+            frame_count: project
+                .get("frames")
+                .and_then(Value::as_array)
+                .map(Vec::len)
+                .unwrap_or(0),
+            updated_at: project
+                .get("updatedAt")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+        });
+    }
+
+    projects.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+    Ok(projects)
+}
+
+#[tauri::command]
+fn workspace_read_project(app: AppHandle, project_id: String) -> Result<String, String> {
+    let path = project_file_path(&app, &project_id)?;
+    let contents = fs::read_to_string(path)
+        .map_err(|_| "Zakape could not read that project from Documents/zakape.".to_string())?;
+    if contents.len() > MAX_PROJECT_BYTES {
+        return Err("That project exceeds Zakape's 32 MB project limit.".to_string());
+    }
+    Ok(contents)
+}
+
+#[tauri::command]
+fn workspace_write_project(
+    app: AppHandle,
+    project_id: String,
+    contents: String,
+) -> Result<String, String> {
+    if contents.len() > MAX_PROJECT_BYTES {
+        return Err("That project exceeds Zakape's 32 MB project limit.".to_string());
+    }
+    let project: Value = serde_json::from_str(&contents)
+        .map_err(|_| "Zakape refused to save invalid project JSON.".to_string())?;
+    let parsed_id = project
+        .get("id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "The project is missing its ID.".to_string())?;
+    if parsed_id != checked_project_id(&project_id)? || project.get("version") != Some(&json!(1)) {
+        return Err("The project identity or version is invalid.".to_string());
+    }
+
+    let path = project_file_path(&app, &project_id)?;
+    fs::write(&path, contents)
+        .map_err(|_| "Zakape could not save the project in Documents/zakape.".to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+fn assistant_response_format() -> Value {
+    json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["summary", "frames"],
+        "properties": {
+            "summary": { "type": "string" },
+            "frames": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["frame_id", "operations"],
+                    "properties": {
+                        "frame_id": { "type": "string" },
+                        "operations": {
+                            "type": "array",
+                            "items": {
+                                "oneOf": [
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": ["type", "pixels"],
+                                        "properties": {
+                                            "type": { "const": "set_pixels" },
+                                            "pixels": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "additionalProperties": false,
+                                                    "required": ["x", "y", "color"],
+                                                    "properties": {
+                                                        "x": { "type": "integer", "minimum": 0 },
+                                                        "y": { "type": "integer", "minimum": 0 },
+                                                        "color": { "type": ["string", "null"] }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": ["type", "x", "y", "width", "height", "color"],
+                                        "properties": {
+                                            "type": { "enum": ["fill_rect", "outline_rect"] },
+                                            "x": { "type": "integer", "minimum": 0 },
+                                            "y": { "type": "integer", "minimum": 0 },
+                                            "width": { "type": "integer", "minimum": 1 },
+                                            "height": { "type": "integer", "minimum": 1 },
+                                            "color": { "type": ["string", "null"] }
+                                        }
+                                    },
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": ["type", "from", "to"],
+                                        "properties": {
+                                            "type": { "const": "replace_palette_color" },
+                                            "from": { "type": "string" },
+                                            "to": { "type": ["string", "null"] }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
 }
 
 fn ollama_endpoint(base_url: &str, path: &str) -> Result<Url, String> {
@@ -175,8 +397,12 @@ async fn ollama_chat(
         model,
         messages: &messages,
         stream: false,
-        format: "json",
-        options: OllamaOptions { temperature: 0.2 },
+        format: assistant_response_format(),
+        options: OllamaOptions {
+            temperature: 0.1,
+            top_p: 0.9,
+            num_ctx: 16_384,
+        },
     };
     let response = ollama_client()?
         .post(endpoint)
@@ -203,14 +429,21 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![ollama_list_models, ollama_chat])
+        .invoke_handler(tauri::generate_handler![
+            ollama_list_models,
+            ollama_chat,
+            workspace_directory,
+            workspace_list_projects,
+            workspace_read_project,
+            workspace_write_project
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Zakape");
 }
 
 #[cfg(test)]
 mod tests {
-    use super::ollama_endpoint;
+    use super::{checked_project_id, ollama_endpoint};
 
     #[test]
     fn accepts_only_loopback_ollama_addresses() {
@@ -220,5 +453,14 @@ mod tests {
         assert!(ollama_endpoint("http://192.168.1.10:11434", "api/tags").is_err());
         assert!(ollama_endpoint("https://example.com", "api/tags").is_err());
         assert!(ollama_endpoint("http://127.0.0.1:11434/v1", "api/tags").is_err());
+    }
+
+    #[test]
+    fn accepts_only_safe_project_file_ids() {
+        assert!(checked_project_id("project_m7r9_example").is_ok());
+        assert!(checked_project_id("sprite-01").is_ok());
+        assert!(checked_project_id("../outside").is_err());
+        assert!(checked_project_id("folder/project").is_err());
+        assert!(checked_project_id("").is_err());
     }
 }

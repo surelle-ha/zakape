@@ -56,9 +56,18 @@ export interface ReplaceColorOperation {
 
 export type ArtOperation = SetPixelsOperation | FillRectOperation | ReplaceColorOperation
 
+export type AssistantEditScope = 'frame' | 'sheet'
+
+export interface FrameArtEdit {
+  frameId: string
+  operations: ArtOperation[]
+}
+
 export interface ArtProposal {
   summary: string
-  operations: ArtOperation[]
+  scope: AssistantEditScope
+  layerId: string
+  frames: FrameArtEdit[]
 }
 
 export type ModelProvider = 'ollama' | 'openai-compatible'

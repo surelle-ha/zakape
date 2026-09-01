@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"Capabilities for the main Zakape workbench window","local":true,"windows":["main"],"permissions":["core:default","dialog:allow-save","fs:allow-write-file"]}}
+{"default":{"identifier":"default","description":"Capabilities for the main Zakape workbench window","local":true,"windows":["main"],"permissions":["core:default","core:window:allow-minimize","core:window:allow-toggle-maximize","core:window:allow-close","core:window:allow-start-dragging","core:window:allow-is-maximized","dialog:allow-save","fs:allow-write-file"]}}

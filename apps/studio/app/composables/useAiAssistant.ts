@@ -1,15 +1,19 @@
 import type {
   ArtOperation,
   ArtProposal,
+  AssistantEditScope,
+  FrameArtEdit,
   ModelConnection,
   ModelProvider,
+  Pixel,
   SpriteProject,
 } from '~/types/editor'
 import { getCompositePixels } from '~/utils/render'
 import { normalizeHex } from '~/utils/project'
 
-const MAX_OPERATIONS = 24
-const MAX_PIXELS = 2048
+const MAX_OPERATIONS_PER_FRAME = 32
+const MAX_TARGET_FRAMES = 64
+const MAX_PIXEL_CHANGES_PER_FRAME = 16_384
 export const OLLAMA_DEFAULT_URL = 'http://127.0.0.1:11434'
 
 export interface AssistantModel {
@@ -23,14 +27,104 @@ export interface AssistantMessage {
   content: string
 }
 
-const assistantSystemPrompt = `You are Zakape's pixel-art editing assistant. Return only one JSON object with this shape:
-{"summary":"short explanation","operations":[...]}
+export const assistantSystemPrompt = `You are Zakape's senior pixel artist and animation cleanup director. Convert the artist's request into precise, reviewable pixel operations. Think through the art privately, then return JSON only.
+
+PIXEL-ART CRAFT
+- Read the supplied indexed grids as artwork, not as arbitrary coordinates. -1 means transparency; every other number indexes the supplied palette.
+- Build intentional pixel clusters and readable negative space. Avoid isolated noise, accidental stair-steps, pillow shading, gradients, anti-aliasing, and excessive colors.
+- Preserve a strong silhouette, clear focal point, consistent light direction, and the existing design language unless the artist explicitly asks to change them.
+- Prefer the supplied palette. Reuse nearby ramps for outline, shadow, midtone, and highlight. Add a color only when the request cannot be expressed cleanly with the palette.
+- Make the fewest changes that fully solve the request. Every one-pixel mark must have a purpose at the native resolution.
+- Use set_pixels for organic contours and cleanup. Use fill_rect or outline_rect only when the intended shape is genuinely rectangular. Use replace_palette_color only for an exact, deliberate recolor.
+- composite_rows show the visible result. active_layer_rows show the only layer you may edit. Do not flatten other visible layers into the active layer. Erasing an active-layer pixel may reveal a lower layer.
+
+ANIMATION CRAFT
+- For one-frame work, use reference frames to preserve character proportions, palette, lighting, and motion continuity; never edit a reference frame.
+- For full-animation work, preserve each pose's intended motion. Keep volumes, landmarks, outline weight, lighting, and attached details consistent across frames. Do not copy one static pose over the sequence.
+
+RESPONSE CONTRACT
+Return exactly one JSON object:
+{"summary":"short concrete art direction","frames":[{"frame_id":"exact target id","operations":[...]}]}
+Return exactly one frames entry for every target_frame_id, in the supplied order, even when an entry has no operations. Never return a reference frame.
+
 Allowed operations:
 - {"type":"set_pixels","pixels":[{"x":0,"y":0,"color":"#rrggbb"}]}
 - {"type":"fill_rect","x":0,"y":0,"width":2,"height":2,"color":"#rrggbb"}
 - {"type":"outline_rect","x":0,"y":0,"width":2,"height":2,"color":"#rrggbb"}
 - {"type":"replace_palette_color","from":"#rrggbb","to":"#rrggbb"}
-Use null as a color only to erase. Stay inside the canvas, prefer the supplied palette, preserve the silhouette unless asked, and keep changes economical.`
+
+Use null only to erase. Coordinates start at the top-left. Stay inside the canvas. Before responding, silently audit silhouette readability, cluster cleanliness, palette discipline, animation continuity, frame IDs, coordinates, and JSON validity. Do not include markdown or commentary outside the JSON.`
+
+export const assistantResponseFormat = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['summary', 'frames'],
+  properties: {
+    summary: { type: 'string' },
+    frames: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['frame_id', 'operations'],
+        properties: {
+          frame_id: { type: 'string' },
+          operations: {
+            type: 'array',
+            items: {
+              oneOf: [
+                {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['type', 'pixels'],
+                  properties: {
+                    type: { const: 'set_pixels' },
+                    pixels: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        additionalProperties: false,
+                        required: ['x', 'y', 'color'],
+                        properties: {
+                          x: { type: 'integer', minimum: 0 },
+                          y: { type: 'integer', minimum: 0 },
+                          color: { type: ['string', 'null'] },
+                        },
+                      },
+                    },
+                  },
+                },
+                {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['type', 'x', 'y', 'width', 'height', 'color'],
+                  properties: {
+                    type: { enum: ['fill_rect', 'outline_rect'] },
+                    x: { type: 'integer', minimum: 0 },
+                    y: { type: 'integer', minimum: 0 },
+                    width: { type: 'integer', minimum: 1 },
+                    height: { type: 'integer', minimum: 1 },
+                    color: { type: ['string', 'null'] },
+                  },
+                },
+                {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['type', 'from', 'to'],
+                  properties: {
+                    type: { const: 'replace_palette_color' },
+                    from: { type: 'string' },
+                    to: { type: ['string', 'null'] },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+  },
+} as const
 
 const parseJsonObject = (value: string) => {
   const unwrapped = value.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
@@ -149,28 +243,26 @@ const validateColor = (value: unknown, allowNull = true): string | null => {
   return color
 }
 
-export const validateProposal = (input: unknown, width: number, height: number): ArtProposal => {
-  if (!input || typeof input !== 'object')
-    throw new Error('The model did not return a proposal object.')
-  const candidate = input as { summary?: unknown; operations?: unknown }
-  if (typeof candidate.summary !== 'string' || !candidate.summary.trim()) {
-    throw new Error('The proposal is missing a summary.')
-  }
-  if (!Array.isArray(candidate.operations) || candidate.operations.length > MAX_OPERATIONS) {
-    throw new Error('The proposal has an invalid number of operations.')
+const validateOperations = (input: unknown, width: number, height: number): ArtOperation[] => {
+  if (!Array.isArray(input) || input.length > MAX_OPERATIONS_PER_FRAME) {
+    throw new Error('A frame proposal has an invalid number of operations.')
   }
 
+  const pixelLimit = Math.min(width * height * 2, MAX_PIXEL_CHANGES_PER_FRAME)
   let pixelCount = 0
-  const operations: ArtOperation[] = candidate.operations.map((raw) => {
+  const operations: ArtOperation[] = input.map((raw) => {
     if (!raw || typeof raw !== 'object') throw new Error('An operation is not an object.')
     const operation = raw as Record<string, unknown>
     if (operation.type === 'set_pixels') {
       if (!Array.isArray(operation.pixels)) throw new Error('set_pixels requires a pixels array.')
       pixelCount += operation.pixels.length
-      if (pixelCount > MAX_PIXELS) throw new Error('The proposal changes too many pixels at once.')
+      if (pixelCount > pixelLimit) throw new Error('A frame proposal changes too many pixels.')
       return {
         type: 'set_pixels',
         pixels: operation.pixels.map((rawPixel) => {
+          if (!rawPixel || typeof rawPixel !== 'object') {
+            throw new Error('The proposal contains an invalid pixel.')
+          }
           const pixel = rawPixel as Record<string, unknown>
           const x = Number(pixel.x)
           const y = Number(pixel.y)
@@ -204,6 +296,11 @@ export const validateProposal = (input: unknown, width: number, height: number):
       ) {
         throw new Error('The proposal contains an invalid rectangle.')
       }
+      pixelCount +=
+        operation.type === 'fill_rect'
+          ? rectangleWidth * rectangleHeight
+          : Math.min(rectangleWidth * rectangleHeight, rectangleWidth * 2 + rectangleHeight * 2)
+      if (pixelCount > pixelLimit) throw new Error('A frame proposal changes too many pixels.')
       return {
         type: operation.type,
         x,
@@ -223,38 +320,151 @@ export const validateProposal = (input: unknown, width: number, height: number):
     throw new Error(`Unsupported assistant operation: ${String(operation.type)}`)
   })
 
-  return { summary: candidate.summary.trim().slice(0, 240), operations }
+  return operations
 }
 
-const encodeCanvas = (project: SpriteProject, frameId: string) => {
-  const pixels = getCompositePixels(project, frameId)
-  const palette = [
-    ...new Set([...project.palette, ...pixels.filter((pixel): pixel is string => Boolean(pixel))]),
-  ]
-  const rows = Array.from({ length: project.height }, (_, y) =>
-    Array.from({ length: project.width }, (_, x) => {
-      const pixel = pixels[y * project.width + x]
-      return pixel ? palette.indexOf(pixel) : -1
+export const validateProposal = (
+  input: unknown,
+  width: number,
+  height: number,
+  expectedFrameIds: string[],
+): Pick<ArtProposal, 'summary' | 'frames'> => {
+  if (!input || typeof input !== 'object')
+    throw new Error('The model did not return a proposal object.')
+  if (expectedFrameIds.length === 0 || expectedFrameIds.length > MAX_TARGET_FRAMES) {
+    throw new Error(`Assistant edits support between 1 and ${MAX_TARGET_FRAMES} target frames.`)
+  }
+  const candidate = input as { summary?: unknown; frames?: unknown }
+  if (typeof candidate.summary !== 'string' || !candidate.summary.trim()) {
+    throw new Error('The proposal is missing a summary.')
+  }
+  if (!Array.isArray(candidate.frames) || candidate.frames.length !== expectedFrameIds.length) {
+    throw new Error('The proposal does not cover every requested frame.')
+  }
+
+  const expectedFrameSet = new Set(expectedFrameIds)
+  const seenFrames = new Set<string>()
+  const frames: FrameArtEdit[] = candidate.frames.map((rawFrame, index) => {
+    if (!rawFrame || typeof rawFrame !== 'object') {
+      throw new Error('A frame proposal is not an object.')
+    }
+    const frame = rawFrame as { frame_id?: unknown; operations?: unknown }
+    if (typeof frame.frame_id !== 'string' || !expectedFrameSet.has(frame.frame_id)) {
+      throw new Error('The proposal contains an unexpected frame ID.')
+    }
+    if (seenFrames.has(frame.frame_id)) throw new Error('The proposal repeats a frame ID.')
+    if (frame.frame_id !== expectedFrameIds[index]) {
+      throw new Error('The proposal returned frames in the wrong order.')
+    }
+    seenFrames.add(frame.frame_id)
+    return {
+      frameId: frame.frame_id,
+      operations: validateOperations(frame.operations, width, height),
+    }
+  })
+
+  if (frames.every((frame) => frame.operations.length === 0)) {
+    throw new Error(
+      'The model did not propose any pixel changes. Add more visual direction and try again.',
+    )
+  }
+
+  return { summary: candidate.summary.trim().slice(0, 240), frames }
+}
+
+const encodePixels = (
+  pixels: Pixel[],
+  width: number,
+  height: number,
+  paletteIndexes: Map<string, number>,
+) => {
+  return Array.from({ length: height }, (_, y) =>
+    Array.from({ length: width }, (_, x) => {
+      const pixel = pixels[y * width + x]
+      return pixel ? (paletteIndexes.get(pixel.toLowerCase()) ?? -1) : -1
     }),
   )
-  return { palette, rows }
+}
+
+const collectPalette = (project: SpriteProject, frameIds: string[]) => {
+  const colors = [...project.palette]
+  for (const layer of project.layers) {
+    for (const frameId of frameIds) {
+      colors.push(...(layer.cels[frameId] ?? []).filter((pixel): pixel is string => Boolean(pixel)))
+    }
+  }
+  return [...new Set(colors.map((color) => color.toLowerCase()))]
+}
+
+const neighboringFrameIds = (project: SpriteProject, frameId: string) => {
+  if (project.frames.length < 2) return []
+  const activeIndex = project.frames.findIndex((frame) => frame.id === frameId)
+  if (activeIndex < 0) return []
+  const candidates = [
+    project.frames[(activeIndex - 1 + project.frames.length) % project.frames.length]?.id,
+    project.frames[(activeIndex + 1) % project.frames.length]?.id,
+  ]
+  return [...new Set(candidates.filter((id): id is string => Boolean(id) && id !== frameId))]
 }
 
 export const createAssistantMessages = (
   prompt: string,
   project: SpriteProject,
   frameId: string,
-  layerName: string,
+  layerId: string,
+  scope: AssistantEditScope = 'frame',
 ): AssistantMessage[] => {
-  const canvas = encodeCanvas(project, frameId)
+  const activeLayer = project.layers.find((layer) => layer.id === layerId)
+  if (!activeLayer) throw new Error('The active layer is no longer available.')
+
+  const targetFrameIds = scope === 'sheet' ? project.frames.map((frame) => frame.id) : [frameId]
+  if (targetFrameIds.length > MAX_TARGET_FRAMES) {
+    throw new Error(`Full-animation edits currently support up to ${MAX_TARGET_FRAMES} frames.`)
+  }
+  const referenceFrameIds = scope === 'frame' ? neighboringFrameIds(project, frameId) : []
+  const contextFrameIds = [...targetFrameIds, ...referenceFrameIds]
+  const palette = collectPalette(project, contextFrameIds)
+  const paletteIndexes = new Map(palette.map((color, index) => [color, index]))
+
   return [
     { role: 'system', content: assistantSystemPrompt },
     {
       role: 'user',
       content: JSON.stringify({
         request: prompt,
-        canvas: { width: project.width, height: project.height, ...canvas },
-        activeLayer: layerName,
+        edit_scope: scope === 'sheet' ? 'full_animation' : 'current_frame',
+        target_frame_ids: targetFrameIds,
+        canvas: {
+          width: project.width,
+          height: project.height,
+          coordinate_origin: 'top_left',
+          transparent_index: -1,
+          palette,
+        },
+        active_layer: { id: activeLayer.id, name: activeLayer.name },
+        frames: contextFrameIds.map((contextFrameId) => {
+          const frame = project.frames.find((item) => item.id === contextFrameId)!
+          return {
+            frame_id: frame.id,
+            sequence_index: project.frames.indexOf(frame),
+            name: frame.name,
+            duration_ms: frame.duration,
+            role: targetFrameIds.includes(frame.id) ? 'target' : 'reference_only',
+            composite_rows: encodePixels(
+              getCompositePixels(project, frame.id),
+              project.width,
+              project.height,
+              paletteIndexes,
+            ),
+            active_layer_rows: encodePixels(
+              activeLayer.cels[frame.id] ??
+                Array.from({ length: project.width * project.height }, (): Pixel => null),
+              project.width,
+              project.height,
+              paletteIndexes,
+            ),
+          }
+        }),
       }),
     },
   ]
@@ -264,8 +474,8 @@ export const createOllamaChatBody = (model: string, messages: AssistantMessage[]
   model,
   messages,
   stream: false,
-  format: 'json',
-  options: { temperature: 0.2 },
+  format: assistantResponseFormat,
+  options: { temperature: 0.1, top_p: 0.9, num_ctx: 16_384 },
 })
 
 export const readOllamaChatContent = (input: unknown) => {
@@ -369,14 +579,16 @@ export const useAiAssistant = () => {
     prompt: string,
     project: SpriteProject,
     frameId: string,
-    layerName: string,
+    layerId: string,
+    scope: AssistantEditScope,
   ) => {
     if (!prompt.trim()) return
     status.value = 'working'
     errorMessage.value = ''
     proposal.value = null
     try {
-      const messages = createAssistantMessages(prompt, project, frameId, layerName)
+      const targetFrameIds = scope === 'sheet' ? project.frames.map((frame) => frame.id) : [frameId]
+      const messages = createAssistantMessages(prompt, project, frameId, layerId, scope)
       let content = ''
 
       if (connection.value.provider === 'ollama') {
@@ -405,7 +617,7 @@ export const useAiAssistant = () => {
           headers: headers(),
           body: JSON.stringify({
             model: connection.value.model,
-            temperature: 0.2,
+            temperature: 0.1,
             messages,
           }),
         })
@@ -416,7 +628,16 @@ export const useAiAssistant = () => {
         content = readCompatibleChatContent(await response.json())
       }
       if (!content) throw new Error('The provider returned an empty response.')
-      proposal.value = validateProposal(parseJsonObject(content), project.width, project.height)
+      proposal.value = {
+        ...validateProposal(
+          parseJsonObject(content),
+          project.width,
+          project.height,
+          targetFrameIds,
+        ),
+        scope,
+        layerId,
+      }
       status.value = 'connected'
     } catch (error) {
       status.value = 'error'

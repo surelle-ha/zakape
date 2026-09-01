@@ -1,7 +1,27 @@
 import type { PGlite } from '@electric-sql/pglite'
 import type { SpriteProject } from '~/types/editor'
+import { parseSpriteProject } from '~/utils/project'
 
 let databasePromise: Promise<PGlite> | null = null
+
+export interface WorkspaceProjectSummary {
+  id: string
+  name: string
+  width: number
+  height: number
+  frameCount: number
+  updatedAt: string
+}
+
+const isTauriRuntime = () => import.meta.client && '__TAURI_INTERNALS__' in window
+
+const invokeDesktop = async <T>(
+  command: string,
+  args: Record<string, unknown> = {},
+): Promise<T> => {
+  const { invoke } = await import('@tauri-apps/api/core')
+  return invoke<T>(command, args)
+}
 
 const getDatabase = async () => {
   if (!databasePromise) {
@@ -31,6 +51,88 @@ export const useProjectRepository = () => {
     'persistence-state',
     () => 'idle',
   )
+  const workspaceDirectory = useState<string>('workspace-directory', () => 'Documents/zakape')
+  const recentProjects = useState<WorkspaceProjectSummary[]>('workspace-projects', () => [])
+
+  const databaseProjects = async (): Promise<WorkspaceProjectSummary[]> => {
+    const database = await getDatabase()
+    const result = await database.query<{ data: SpriteProject }>(
+      'select data from projects order by updated_at desc limit 100',
+    )
+    return result.rows.flatMap(({ data }) => {
+      try {
+        const project = parseSpriteProject(data)
+        return [
+          {
+            id: project.id,
+            name: project.name,
+            width: project.width,
+            height: project.height,
+            frameCount: project.frames.length,
+            updatedAt: project.updatedAt,
+          },
+        ]
+      } catch {
+        return []
+      }
+    })
+  }
+
+  const refreshProjects = async () => {
+    if (!import.meta.client) return []
+    persistenceState.value = 'loading'
+    try {
+      const browserProjects = await databaseProjects()
+      let desktopProjects: WorkspaceProjectSummary[] = []
+      if (isTauriRuntime()) {
+        const [directory, projects] = await Promise.all([
+          invokeDesktop<string>('workspace_directory'),
+          invokeDesktop<WorkspaceProjectSummary[]>('workspace_list_projects'),
+        ])
+        workspaceDirectory.value = directory
+        desktopProjects = projects
+      }
+      const projectsById = new Map(browserProjects.map((project) => [project.id, project]))
+      desktopProjects.forEach((project) => projectsById.set(project.id, project))
+      recentProjects.value = [...projectsById.values()]
+        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+        .slice(0, 100)
+      persistenceState.value = 'idle'
+      return recentProjects.value
+    } catch (error) {
+      console.warn('Zakape could not index the project working directory.', error)
+      persistenceState.value = 'error'
+      return []
+    }
+  }
+
+  const loadProject = async (projectId: string): Promise<SpriteProject | null> => {
+    if (!import.meta.client) return null
+    persistenceState.value = 'loading'
+    try {
+      if (isTauriRuntime()) {
+        try {
+          const contents = await invokeDesktop<string>('workspace_read_project', { projectId })
+          const project = parseSpriteProject(JSON.parse(contents))
+          persistenceState.value = 'idle'
+          return project
+        } catch {
+          // Projects created before the desktop directory existed can still be restored from PGlite.
+        }
+      }
+      const database = await getDatabase()
+      const result = await database.query<{ data: SpriteProject }>(
+        'select data from projects where id = $1 limit 1',
+        [projectId],
+      )
+      persistenceState.value = 'idle'
+      return result.rows[0] ? parseSpriteProject(result.rows[0].data) : null
+    } catch (error) {
+      console.warn('Zakape could not open that project.', error)
+      persistenceState.value = 'error'
+      return null
+    }
+  }
 
   const loadLatest = async (): Promise<SpriteProject | null> => {
     if (!import.meta.client) return null
@@ -41,7 +143,7 @@ export const useProjectRepository = () => {
         'select data from projects order by updated_at desc limit 1',
       )
       persistenceState.value = 'idle'
-      return result.rows[0]?.data ?? null
+      return result.rows[0] ? parseSpriteProject(result.rows[0].data) : null
     } catch (error) {
       console.warn('Zakape could not restore the local project.', error)
       persistenceState.value = 'error'
@@ -60,6 +162,12 @@ export const useProjectRepository = () => {
          set name = excluded.name, updated_at = excluded.updated_at, data = excluded.data`,
         [project.id, project.name, project.updatedAt, JSON.stringify(project)],
       )
+      if (isTauriRuntime()) {
+        await invokeDesktop<string>('workspace_write_project', {
+          projectId: project.id,
+          contents: JSON.stringify(project, null, 2),
+        })
+      }
       persistenceState.value = 'saved'
     } catch (error) {
       console.warn('Zakape could not save the local project.', error)
@@ -87,5 +195,15 @@ export const useProjectRepository = () => {
     )
   }
 
-  return { persistenceState, loadLatest, saveProject, loadPreference, savePreference }
+  return {
+    persistenceState,
+    workspaceDirectory,
+    recentProjects,
+    refreshProjects,
+    loadProject,
+    loadLatest,
+    saveProject,
+    loadPreference,
+    savePreference,
+  }
 }

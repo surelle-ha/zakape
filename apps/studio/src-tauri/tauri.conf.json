@@ -20,8 +20,9 @@
         "width": 1440,
         "height": 900,
         "minWidth": 1024,
-        "minHeight": 680,
+        "minHeight": 720,
         "resizable": true,
+        "decorations": false,
         "fullscreen": false,
         "center": true,
         "backgroundColor": "#111411"

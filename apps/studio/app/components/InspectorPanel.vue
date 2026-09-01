@@ -4,15 +4,18 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  Film,
   Layers3,
   LoaderCircle,
   Palette,
   Plus,
+  ScanLine,
   Settings2,
   Sparkles,
   Trash2,
   X,
 } from '@lucide/vue'
+import type { AssistantEditScope } from '~/types/editor'
 
 const {
   project,
@@ -31,7 +34,20 @@ const { connection, status, errorMessage, proposal, requestProposal, discardProp
 const tab = ref<'assist' | 'layers' | 'palette'>('assist')
 const connectionOpen = ref(false)
 const prompt = ref('')
+const scope = ref<AssistantEditScope>('frame')
 const playing = useState<boolean>('preview-playing', () => true)
+const activeFrameIndex = computed(() =>
+  Math.max(
+    0,
+    project.value.frames.findIndex((frame) => frame.id === activeFrameId.value),
+  ),
+)
+const proposalOperationCount = computed(
+  () => proposal.value?.frames.reduce((total, frame) => total + frame.operations.length, 0) ?? 0,
+)
+const proposalFrameCount = computed(
+  () => proposal.value?.frames.filter((frame) => frame.operations.length > 0).length ?? 0,
+)
 
 const suggestions = ['Add a warm rim light', 'Clean silhouette jaggies', 'Push the idle pose']
 
@@ -44,14 +60,21 @@ const submitPrompt = async () => {
     prompt.value,
     project.value,
     activeFrameId.value,
-    activeLayer.value?.name ?? 'Layer',
+    activeLayerId.value,
+    scope.value,
   )
 }
 
 const applyProposal = () => {
   if (!proposal.value) return
-  applyOperations(proposal.value.operations)
+  applyOperations(proposal.value.frames, proposal.value.layerId)
   prompt.value = ''
+  discardProposal()
+}
+
+const selectScope = (nextScope: AssistantEditScope) => {
+  if (scope.value === nextScope) return
+  scope.value = nextScope
   discardProposal()
 }
 
@@ -77,7 +100,7 @@ const updateOpacity = (layerId: string, event: Event) => {
       </div>
       <footer>
         <span>{{ project.width }} × {{ project.height }}</span>
-        <span>{{ project.frames.length }} frames</span>
+        <span>{{ project.frames.length }} frame{{ project.frames.length === 1 ? '' : 's' }}</span>
         <span>{{ Math.round(1000 / (project.frames[0]?.duration ?? 120)) }} fps</span>
       </footer>
     </section>
@@ -133,17 +156,79 @@ const updateOpacity = (layerId: string, event: Event) => {
         <Settings2 :size="15" />
       </button>
 
+      <fieldset class="assistant-scope">
+        <legend>Edit scope</legend>
+        <div class="scope-switch">
+          <button
+            type="button"
+            :class="{ active: scope === 'frame' }"
+            :aria-pressed="scope === 'frame'"
+            :disabled="status === 'working'"
+            data-testid="assistant-scope-frame"
+            @click="selectScope('frame')"
+          >
+            <ScanLine :size="14" />
+            <span
+              ><strong>This frame</strong><small>Frame {{ activeFrameIndex + 1 }}</small></span
+            >
+          </button>
+          <button
+            type="button"
+            :class="{ active: scope === 'sheet' }"
+            :aria-pressed="scope === 'sheet'"
+            :disabled="status === 'working'"
+            data-testid="assistant-scope-sheet"
+            @click="selectScope('sheet')"
+          >
+            <Film :size="14" />
+            <span
+              ><strong>Entire sheet</strong
+              ><small
+                >{{ project.frames.length }} frame{{
+                  project.frames.length === 1 ? '' : 's'
+                }}</small
+              ></span
+            >
+          </button>
+        </div>
+        <div class="scope-strip" :class="{ sheet: scope === 'sheet' }" aria-hidden="true">
+          <i
+            v-for="frame in project.frames"
+            :key="frame.id"
+            :class="{ active: frame.id === activeFrameId, targeted: scope === 'sheet' }"
+          />
+        </div>
+        <p>
+          {{
+            scope === 'sheet'
+              ? `Coordinate one edit across all ${project.frames.length} frame${project.frames.length === 1 ? '' : 's'}. Applies as one undo step.`
+              : 'Edit the current frame, using its neighbors only as visual reference.'
+          }}
+        </p>
+      </fieldset>
+
       <div class="prompt-box">
         <textarea
           v-model="prompt"
           rows="4"
-          placeholder="Describe a small art edit…"
+          :placeholder="
+            scope === 'sheet'
+              ? 'Describe how the animation should change…'
+              : 'Describe a precise pixel-art edit…'
+          "
           aria-label="Assistant prompt"
           @keydown.meta.enter.prevent="submitPrompt"
           @keydown.ctrl.enter.prevent="submitPrompt"
         />
         <div>
-          <span>Active layer · {{ activeLayer?.name }}</span>
+          <span
+            >{{
+              scope === 'sheet'
+                ? `${project.frames.length} frame${project.frames.length === 1 ? '' : 's'}`
+                : `Frame ${activeFrameIndex + 1}`
+            }}
+            · {{ activeLayer?.name }}</span
+          >
           <button
             type="button"
             :disabled="status === 'working' || !prompt.trim()"
@@ -173,17 +258,23 @@ const updateOpacity = (layerId: string, event: Event) => {
         <span class="eyebrow">Ready to review</span>
         <strong>{{ proposal.summary }}</strong>
         <p>
-          {{ proposal.operations.length }} validated operation{{
-            proposal.operations.length === 1 ? '' : 's'
+          {{ proposalOperationCount }} validated operation{{
+            proposalOperationCount === 1 ? '' : 's'
           }}
-          on the active layer.
+          across {{ proposalFrameCount }} frame{{ proposalFrameCount === 1 ? '' : 's' }} on the
+          selected layer.
         </p>
         <div>
           <button type="button" class="button-quiet" @click="discardProposal">
             <X :size="14" /> Discard
           </button>
           <button type="button" class="button-primary" @click="applyProposal">
-            <Check :size="14" /> Apply edit
+            <Check :size="14" />
+            {{
+              proposal.scope === 'sheet'
+                ? `Apply to ${proposalFrameCount} frame${proposalFrameCount === 1 ? '' : 's'}`
+                : 'Apply edit'
+            }}
           </button>
         </div>
       </article>

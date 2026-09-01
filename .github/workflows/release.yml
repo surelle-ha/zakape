@@ -45,7 +45,11 @@ jobs:
           MANUAL_TAG: ${{ inputs.tag }}
           AUTOMATED_REF: ${{ github.sha }}
         run: |
-          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:TAG_NAME" | ConvertFrom-Json
+          $releases = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" | ConvertFrom-Json
+          $release = $releases | Where-Object { $_.tag_name -eq $env:TAG_NAME } | Select-Object -First 1
+          if (-not $release) {
+            throw "Release $env:TAG_NAME was not found."
+          }
           if ($env:MANUAL_TAG -and -not $release.draft) {
             throw "Release $env:TAG_NAME is already published; only draft releases can be rebuilt."
           }
@@ -104,5 +108,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ needs.release.outputs.tag_name }}
         run: |
-          release_id=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" --jq .id)
+          release_id=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" | jq --arg tag "$TAG_NAME" -r '.[] | select(.tag_name == $tag) | .id')
+          test -n "$release_id"
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -F draft=false -F prerelease=false

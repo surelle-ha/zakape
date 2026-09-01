@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/surelle-ha/zakape/compare/v0.2.0...v0.3.0) (2026-09-01)
+
+
+### Features
+
+* add project launcher and multi-frame AI edits ([e65d1df](https://github.com/surelle-ha/zakape/commit/e65d1dfe61dbdf78ad2fcd3f029ec657168b91b4))
+
 ## [0.2.0](https://github.com/surelle-ha/zakape/compare/v0.1.0...v0.2.0) (2026-09-01)
 
 

@@ -130,6 +130,27 @@ jobs:
           args: ${{ matrix.build_args }}
           uploadUpdaterJson: false
           retryAttempts: 2
+      - name: Verify macOS signature and notarization
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          app_path="apps/studio/src-tauri/target/universal-apple-darwin/release/bundle/macos/Zakape.app"
+          executable="$app_path/Contents/MacOS/zakape"
+          shopt -s nullglob
+          dmgs=(apps/studio/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg)
+
+          test -d "$app_path"
+          test -x "$executable"
+          test "${#dmgs[@]}" -eq 1
+
+          architectures="$(lipo -archs "$executable")"
+          [[ " $architectures " == *" arm64 "* ]]
+          [[ " $architectures " == *" x86_64 "* ]]
+
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          spctl --assess --type execute --verbose=2 "$app_path"
+          xcrun stapler validate "$app_path"
+          xcrun stapler validate "${dmgs[0]}"
 
   publish:
     needs: [release, build]

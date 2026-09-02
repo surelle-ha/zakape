@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/surelle-ha/zakape/compare/v0.4.0...v0.5.0) (2026-09-02)
+
+
+### Features
+
+* **studio:** add frame ordering and close guards ([b684c22](https://github.com/surelle-ha/zakape/commit/b684c22d235a1f9e22664eca1ac7dfa8d826d2da))
+
 ## [0.4.0](https://github.com/surelle-ha/zakape/compare/v0.3.0...v0.4.0) (2026-09-01)
 
 

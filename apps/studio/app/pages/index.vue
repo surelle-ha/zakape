@@ -7,12 +7,15 @@ import {
   Grid2X2,
   Grid3X3,
   Keyboard,
+  Layers3,
+  Maximize2,
   Minus,
   Plus,
   Redo2,
   Save,
   Sparkles,
   Undo2,
+  X,
 } from '@lucide/vue'
 import type { CanvasBackground, ColorMode, ToolId } from '~/types/editor'
 import { cloneProject, createBlankProject } from '~/utils/project'
@@ -79,7 +82,9 @@ const { closeRequest, requestProjectClose, requestApplicationClose, cancelClose 
   useCloseConfirmation()
 const appWindow = useAppWindow()
 const exportOpen = ref(false)
+const inspectorOpen = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const canvasScroll = ref<HTMLElement | null>(null)
 const editingName = ref(false)
 const nameDraft = ref(project.value.name)
 const initialized = ref(false)
@@ -102,6 +107,36 @@ const toolHint = computed(() => {
   if (activeTool.value === 'dither') return 'Alternates primary and secondary colors'
   return 'Alt samples color · Space pans · Ctrl scroll zooms'
 })
+
+const fitCanvas = async () => {
+  await nextTick()
+  const host = canvasScroll.value
+  if (!host) return
+  const compact = window.matchMedia('(max-width: 640px)').matches
+  const horizontalPadding = compact ? 72 : 124
+  const verticalPadding = compact ? 72 : 124
+  const availableWidth = Math.max(1, host.clientWidth - horizontalPadding)
+  const availableHeight = Math.max(1, host.clientHeight - verticalPadding)
+  const fittedZoom = Math.floor(
+    Math.min(availableWidth / project.value.width, availableHeight / project.value.height),
+  )
+  zoom.value = Math.max(4, Math.min(24, fittedZoom))
+}
+
+const fitCompactCanvas = async () => {
+  if (!window.matchMedia('(max-width: 1023px)').matches) return
+  await fitCanvas()
+}
+
+const toggleInspector = () => {
+  inspectorOpen.value = !inspectorOpen.value
+  if (inspectorOpen.value) assistantOpen.value = false
+}
+
+const openAssistant = () => {
+  inspectorOpen.value = false
+  toggleAssistant()
+}
 
 const saveNow = async () => {
   if (isPlaceholder.value) return
@@ -132,6 +167,7 @@ const openProjectFile = async (event: Event) => {
     showEditor()
     await saveProject(parsed)
     await offerWalkthrough()
+    await fitCompactCanvas()
   } catch (error) {
     window.alert(error instanceof Error ? error.message : 'The project could not be opened.')
   } finally {
@@ -158,12 +194,14 @@ const createProject = async (spec: {
   showEditor()
   await saveProject(nextProject)
   await offerWalkthrough()
+  await fitCompactCanvas()
 }
 
 const openRecentProject = async (projectId: string) => {
   if (documents.value.some((document) => document.id === projectId)) {
     await switchDocument(projectId)
     showEditor()
+    await fitCompactCanvas()
     return
   }
   const savedProject = await loadProject(projectId)
@@ -172,6 +210,7 @@ const openRecentProject = async (projectId: string) => {
   nameDraft.value = savedProject.name
   showEditor()
   await offerWalkthrough()
+  await fitCompactCanvas()
 }
 
 async function offerWalkthrough() {
@@ -192,6 +231,8 @@ const switchDocument = async (documentId: string) => {
   if (!activateDocument(documentId)) return
   nameDraft.value = project.value.name
   editingName.value = false
+  inspectorOpen.value = false
+  await fitCompactCanvas()
 }
 
 const performCloseSpriteDocument = async (documentId: string) => {
@@ -258,6 +299,7 @@ const keydown = (event: KeyboardEvent) => {
     if (modelConnectionOpen.value) return
     if (shortcutGuideOpen.value) shortcutGuideOpen.value = false
     else if (walkthroughOpen.value) void completeWalkthrough()
+    else if (inspectorOpen.value) inspectorOpen.value = false
     else if (assistantOpen.value) assistantOpen.value = false
     else exportOpen.value = false
     return
@@ -575,7 +617,7 @@ onBeforeUnmount(() => {
               shortcut: 'Ctrl+O',
             }"
             type="button"
-            class="icon-button"
+            class="icon-button phone-optional"
             aria-label="Open project"
             @click="fileInput?.click()"
           >
@@ -588,7 +630,7 @@ onBeforeUnmount(() => {
               shortcut: 'Ctrl+S',
             }"
             type="button"
-            class="icon-button"
+            class="icon-button phone-optional"
             aria-label="Save project locally"
             @click="saveNow"
           >
@@ -602,11 +644,25 @@ onBeforeUnmount(() => {
               shortcut: '?',
             }"
             type="button"
-            class="icon-button"
+            class="icon-button phone-optional"
             aria-label="Keyboard shortcuts"
             @click="showShortcutGuide"
           >
             <Keyboard :size="16" />
+          </button>
+          <button
+            v-tooltip="{
+              text: 'Layers',
+              detail: 'Open the layer stack and live preview.',
+            }"
+            type="button"
+            class="mobile-layer-launch"
+            :class="{ active: inspectorOpen }"
+            :aria-pressed="inspectorOpen"
+            aria-label="Toggle layers panel"
+            @click.stop="toggleInspector"
+          >
+            <Layers3 :size="16" /><span>Layers</span>
           </button>
           <button
             v-tooltip="{
@@ -618,9 +674,9 @@ onBeforeUnmount(() => {
             class="assistant-launch"
             :class="{ active: assistantOpen }"
             :aria-pressed="assistantOpen"
-            @click="toggleAssistant"
+            @click="openAssistant"
           >
-            <Sparkles :size="15" /> Assist
+            <Sparkles :size="15" /> <span>Assist</span>
           </button>
           <div class="export-anchor" @click.stop>
             <button
@@ -635,7 +691,8 @@ onBeforeUnmount(() => {
               :aria-expanded="exportOpen"
               @click="exportOpen = !exportOpen"
             >
-              <Download :size="15" /> Export <ChevronDown :size="13" />
+              <Download :size="15" /> <span>Export</span>
+              <ChevronDown class="export-chevron" :size="13" />
             </button>
             <ExportMenu v-if="exportOpen" @close="exportOpen = false" />
           </div>
@@ -670,6 +727,17 @@ onBeforeUnmount(() => {
               <span class="context-hint">{{ toolHint }}</span>
             </div>
             <div class="zoom-control">
+              <button
+                v-tooltip="{
+                  text: 'Fit canvas',
+                  detail: 'Fit the complete sprite inside the available work area.',
+                }"
+                type="button"
+                aria-label="Fit canvas to workspace"
+                @click="fitCanvas"
+              >
+                <Maximize2 :size="14" />
+              </button>
               <button type="button" aria-label="Zoom out" @click="zoom = Math.max(4, zoom - 1)">
                 <Minus :size="14" />
               </button>
@@ -710,6 +778,7 @@ onBeforeUnmount(() => {
             </div>
           </header>
           <div
+            ref="canvasScroll"
             class="canvas-scroll"
             :style="{ '--workspace-grid-size': `${zoom}px` }"
             @wheel="onCanvasWheel"
@@ -722,7 +791,22 @@ onBeforeUnmount(() => {
           </footer>
         </section>
 
-        <InspectorPanel />
+        <button
+          v-if="inspectorOpen"
+          type="button"
+          class="mobile-panel-scrim"
+          aria-label="Close layers panel"
+          @click="inspectorOpen = false"
+        />
+        <div class="inspector-host" :class="{ open: inspectorOpen }">
+          <header class="mobile-inspector-heading">
+            <span><Layers3 :size="16" /> Layers &amp; preview</span>
+            <button type="button" aria-label="Close layers panel" @click="inspectorOpen = false">
+              <X :size="17" />
+            </button>
+          </header>
+          <InspectorPanel />
+        </div>
       </div>
 
       <TimelineStrip />

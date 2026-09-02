@@ -1,8 +1,8 @@
 # Zakape
 
-Zakape is an open-source pixel-art and sprite-animation workbench for the desktop. It keeps the dependable parts of a traditional sprite editor: precise tools, layers, frames, onion skinning, palettes, and production exports. An optional model assistant proposes reviewable pixel operations through local Ollama or a compatible API you choose.
+Zakape is an open-source pixel-art and sprite-animation workbench for desktop, Android phones, and tablets. It keeps the dependable parts of a traditional sprite editor: precise tools, layers, frames, onion skinning, palettes, and production exports. An optional model assistant proposes reviewable pixel operations through local Ollama or a compatible API you choose.
 
-The desktop app is built with Tauri 2, Rust, Nuxt, Vue, Tailwind CSS, Lucide, and PGlite. The public website is a separate Nuxt app in the same pnpm workspace.
+The native app is built with Tauri 2, Rust, Nuxt, Vue, Tailwind CSS, Lucide, and PGlite. The public website is a separate Nuxt app in the same pnpm workspace.
 
 ## Project status
 
@@ -25,6 +25,8 @@ pnpm check          # lint, type checks, and tests
 pnpm test:e2e       # studio interaction and snapshot tests
 pnpm build          # static web builds
 pnpm build:desktop  # native Tauri bundle
+pnpm build:android:debug   # ARM64 debug APK
+pnpm build:android:bundle  # signed Play bundle when a keystore is configured
 ```
 
 ## Repository map
@@ -44,7 +46,7 @@ docs/               Architecture, AI, release, and QA notes
 - Exports are ordinary files: PNG, sprite-sheet PNG + JSON, GIF, and `.zakape` project JSON.
 - Visual quality and keyboard accessibility are tested as product behavior, not treated as polish debt.
 
-Before making a large change, read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [project workspace](docs/project-workspace.md), [model assistant guide](docs/ai/model-assistant.md), and [release process](docs/release.md) cover their respective workflows.
+Before making a large change, read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [project workspace](docs/project-workspace.md), [Android build guide](docs/android.md), [model assistant guide](docs/ai/model-assistant.md), and [release process](docs/release.md) cover their respective workflows.
 
 ## License
 

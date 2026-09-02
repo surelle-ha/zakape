@@ -3,16 +3,17 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 export const useAppWindow = () => {
   const isMaximized = useState<boolean>('window-maximized', () => false)
   const hasTauri = import.meta.client && '__TAURI_INTERNALS__' in window
+  const hasDesktopWindow = hasTauri && !/Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent)
 
   const withWindow = async (
     action: (window: ReturnType<typeof getCurrentWindow>) => Promise<void>,
   ) => {
-    if (!hasTauri) return
+    if (!hasDesktopWindow) return
     await action(getCurrentWindow())
   }
 
   const refreshMaximized = async () => {
-    if (!hasTauri) return
+    if (!hasDesktopWindow) return
     isMaximized.value = await getCurrentWindow().isMaximized()
   }
 
@@ -26,7 +27,7 @@ export const useAppWindow = () => {
       await refreshMaximized()
     },
     onCloseRequested: async (requestClose: () => void) => {
-      if (!hasTauri) return () => undefined
+      if (!hasDesktopWindow) return () => undefined
       return getCurrentWindow().onCloseRequested((event) => {
         event.preventDefault()
         requestClose()

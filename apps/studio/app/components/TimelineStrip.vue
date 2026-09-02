@@ -180,7 +180,7 @@ onBeforeUnmount(() => {
           :aria-pressed="arrangeFrames"
           @click="toggleArrangeFrames"
         >
-          <GripVertical :size="13" /> Arrange
+          <GripVertical :size="13" /> <span class="control-label">Arrange</span>
         </button>
         <button
           v-tooltip="{
@@ -221,7 +221,7 @@ onBeforeUnmount(() => {
           <ChevronRight :size="15" />
         </button>
         <label class="duration-field">
-          <span>Delay</span>
+          <span class="control-label">Delay</span>
           <input
             :value="activeFrame?.duration ?? 120"
             type="number"
@@ -230,7 +230,7 @@ onBeforeUnmount(() => {
             step="10"
             @change="updateDuration"
           />
-          <span>ms</span>
+          <span class="control-label">ms</span>
         </label>
         <label
           v-tooltip="{
@@ -241,7 +241,7 @@ onBeforeUnmount(() => {
           class="onion-toggle"
         >
           <input v-model="onionSkin" type="checkbox" />
-          <span>Onion silhouette</span>
+          <span class="control-label">Onion silhouette</span>
         </label>
       </div>
     </header>

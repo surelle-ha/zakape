@@ -12,6 +12,8 @@
     "dev:site": "pnpm --filter @zakape/site dev",
     "build": "pnpm -r build",
     "build:desktop": "pnpm --filter @zakape/studio tauri build",
+    "build:android:debug": "pnpm --filter @zakape/studio tauri android build --debug --apk --target aarch64 --ci",
+    "build:android:bundle": "pnpm --filter @zakape/studio tauri android build --aab --target aarch64 --target armv7 --ci",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",

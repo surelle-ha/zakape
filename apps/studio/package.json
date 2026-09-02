@@ -13,6 +13,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:native-close": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/native/window-close.ps1",
+    "android:debug": "tauri android build --debug --apk --target aarch64 --ci",
+    "android:bundle": "tauri android build --aab --target aarch64 --target armv7 --ci",
     "tauri": "tauri"
   },
   "dependencies": {

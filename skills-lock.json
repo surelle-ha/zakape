@@ -1,11 +1,23 @@
 {
   "version": 1,
   "skills": {
+    "distributing-tauri-for-android": {
+      "source": "dchuk/claude-code-tauri-skills",
+      "sourceType": "github",
+      "skillPath": "tauri/tauri-android-distribution/SKILL.md",
+      "computedHash": "f788d9c5c736fdc1c08731642d5a75ea629e8a5ad7558084beedf1a1bc911832"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/frontend-design/SKILL.md",
       "computedHash": "93f53fd1c0352d3d7ec17b8f73d7351bf76f4821e55d123c9d2abc2c53ba48e4"
+    },
+    "mobile-responsiveness": {
+      "source": "hoodini/ai-agents-skills",
+      "sourceType": "github",
+      "skillPath": "skills/mobile-responsiveness/SKILL.md",
+      "computedHash": "e42fd317d47d851a70b575b64ddf90660ded8a97f4f9b357ae747e0f97b58ec9"
     },
     "pixel-art-sprites": {
       "source": "omer-metin/skills-for-antigravity",

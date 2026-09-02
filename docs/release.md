@@ -35,6 +35,12 @@ Without these secrets, the workflow publishes Windows and Linux assets and adds 
 
 The Pages workflow publishes the static site from `apps/site` on updates to `main`.
 
+## Android delivery
+
+The **Android** workflow builds and verifies a debug APK on relevant pushes and pull requests. Manual dispatch can produce a signed AAB and optionally upload it to a Google Play track after the signing and service-account secrets are configured. The first Play Console bundle should be uploaded manually so the application, Play App Signing, and API access are established before automated track uploads are enabled.
+
+Release Please synchronizes the SemVer source used to derive Android's numeric `versionCode`. Keystores and signing-property files are ignored and must never be added to the repository. See the [Android build guide](android.md) for local commands, output locations, and required secrets.
+
 Before the first website deployment, a repository administrator must select **GitHub Actions** under **Settings → Pages → Build and deployment → Source**. GitHub does not allow a collaborator or the default workflow token to create the initial Pages site. Later deployments need no manual step.
 
 Older unsigned alpha bundles may trigger operating-system warnings. The current workflow never publishes a new unsigned macOS bundle. Configure code-signing and updater keys as repository secrets before enabling automatic updates.

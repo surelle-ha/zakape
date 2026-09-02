@@ -283,13 +283,20 @@ fn import_aseprite_project(bytes: Vec<u8>, file_name: String) -> Result<Imported
 }
 
 fn workspace_directory_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let documents = app
+    #[cfg(desktop)]
+    let directory = app
         .path()
         .document_dir()
-        .map_err(|_| "Zakape could not find the Documents directory.".to_string())?;
-    let directory = documents.join("zakape");
+        .map_err(|_| "Zakape could not find the Documents directory.".to_string())?
+        .join("zakape");
+    #[cfg(mobile)]
+    let directory = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| "Zakape could not find its private application storage.".to_string())?
+        .join("zakape");
     fs::create_dir_all(&directory)
-        .map_err(|_| "Zakape could not create Documents/zakape.".to_string())?;
+        .map_err(|_| "Zakape could not create its project workspace.".to_string())?;
     Ok(directory)
 }
 
@@ -383,7 +390,7 @@ fn workspace_list_projects(app: AppHandle) -> Result<Vec<WorkspaceProject>, Stri
 fn workspace_read_project(app: AppHandle, project_id: String) -> Result<String, String> {
     let path = project_file_path(&app, &project_id)?;
     let contents = fs::read_to_string(path)
-        .map_err(|_| "Zakape could not read that project from Documents/zakape.".to_string())?;
+        .map_err(|_| "Zakape could not read that project from its workspace.".to_string())?;
     if contents.len() > MAX_PROJECT_BYTES {
         return Err("That project exceeds Zakape's 32 MB project limit.".to_string());
     }
@@ -411,7 +418,7 @@ fn workspace_write_project(
 
     let path = project_file_path(&app, &project_id)?;
     fs::write(&path, contents)
-        .map_err(|_| "Zakape could not save the project in Documents/zakape.".to_string())?;
+        .map_err(|_| "Zakape could not save the project in its workspace.".to_string())?;
     Ok(path.to_string_lossy().into_owned())
 }
 

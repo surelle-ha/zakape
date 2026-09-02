@@ -33,6 +33,9 @@
     "active": true,
     "targets": "all",
     "category": "GraphicsAndDesign",
+    "android": {
+      "minSdkVersion": 24
+    },
     "shortDescription": "Pixel art and sprite animation workbench",
     "longDescription": "An open-source pixel-art and sprite-animation workbench with an optional model assistant.",
     "icon": [

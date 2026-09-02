@@ -7,6 +7,7 @@
 - Playwright journeys for modal launcher startup, named custom canvases, color mode and background selection, mouse-selected drawing colors, mirrored and dithered strokes, multiple document tabs, project/application close confirmation, drag-and-drop frame ordering with undo, shape previews, frame-local insertion/copy/deletion, onion skinning, hand panning, Ctrl-wheel zoom, zoom-linked grids, custom scrollbars, contextual menus, browser-behavior suppression, entire-sheet assistant edits, exports, and desktop-size visual snapshots.
 - Static generation for both Nuxt applications.
 - Cargo check, rustfmt, and Clippy for the Tauri shell.
+- A Windows UI Automation smoke test launches the packaged executable offscreen, confirms the custom exit dialog, and asserts the native process terminates (`pnpm --filter @zakape/studio test:native-close`).
 - GitHub Actions runs the same gates on pull requests and `main`.
 
 ## Snapshot baselines

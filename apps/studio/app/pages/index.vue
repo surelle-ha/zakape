@@ -199,7 +199,7 @@ const confirmClose = async () => {
     }
     cancelClose()
     await nextTick()
-    await appWindow.closeApproved()
+    await appWindow.exitConfirmed()
   } catch (error) {
     closeError.value = error instanceof Error ? error.message : 'Zakape could not complete closing.'
   } finally {

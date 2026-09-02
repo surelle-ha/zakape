@@ -2,7 +2,6 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 
 export const useAppWindow = () => {
   const isMaximized = useState<boolean>('window-maximized', () => false)
-  const closeApproved = useState<boolean>('window-close-approved', () => false)
   const hasTauri = import.meta.client && '__TAURI_INTERNALS__' in window
 
   const withWindow = async (
@@ -29,16 +28,11 @@ export const useAppWindow = () => {
     onCloseRequested: async (requestClose: () => void) => {
       if (!hasTauri) return () => undefined
       return getCurrentWindow().onCloseRequested((event) => {
-        if (closeApproved.value) return
         event.preventDefault()
         requestClose()
       })
     },
-    closeApproved: async () => {
-      if (!hasTauri) return
-      closeApproved.value = true
-      await withWindow((window) => window.close())
-    },
+    exitConfirmed: () => withWindow((window) => window.destroy()),
     refreshMaximized,
   }
 }

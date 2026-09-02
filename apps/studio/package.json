@@ -12,6 +12,7 @@
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:native-close": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/native/window-close.ps1",
     "tauri": "tauri"
   },
   "dependencies": {

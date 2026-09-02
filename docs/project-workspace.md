@@ -27,13 +27,18 @@ From the project launcher you can:
 - choose RGBA, Greyscale, or Indexed color handling
 - initialize the first frame with a transparent, black, or white background
 - import a `.zakape` file, which is copied into the working directory on save
+- import a compatible layered binary sprite file in the desktop app, then save the converted project into the working directory
 - confirm the resolved desktop working-directory path
+
+Binary sprite import is handled by Rust rather than browser code. The importer validates the file header, 32 MB size limit, 1,024 px dimensions, total pixel count, frame count, and layer count before decoding. It preserves frame order and duration, image-layer visibility and opacity, linked or compressed cel results, palette colors, and supported color mode. Group containers are omitted while their child artwork remains available. Browser builds explain that binary import requires the desktop app.
 
 Use **File → Projects** to reopen the launcher without closing the active document. **File → New sprite**, **Open project**, and **Save project** expose the corresponding keyboard-friendly actions.
 
 ## Open documents
 
 Every opened project gets a document tab above the project title and export bar. Opening or creating another sprite keeps the current sprite available, and each document preserves its active frame, active layer, undo/redo history, and dirty state. Use **Ctrl+Tab** and **Ctrl+Shift+Tab** to move between tabs, **Ctrl+W** to request closing the current tab, or right-click a document tab for document-local actions. Zakape confirms the request and saves the project before removing its tab.
+
+The first project opened on a device presents a four-step editor tour. It explains tools and their shortcuts, independent layers, timeline operations, and the optional assistant drawer. The completed state is stored as a non-secret local preference. Use the Help menu to show the quick tour again or open the complete keyboard command map.
 
 The application close control and the operating system's native close request use the same guarded flow. Zakape lists how many projects will be saved and only exits after explicit confirmation. Canceling returns focus to the control that opened the dialog.
 

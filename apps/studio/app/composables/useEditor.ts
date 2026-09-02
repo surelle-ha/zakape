@@ -104,6 +104,7 @@ export const useEditor = () => {
   const showGrid = useState<boolean>('show-grid', () => true)
   const showTransparency = useState<boolean>('show-transparency', () => true)
   const onionSkin = useState<boolean>('onion-skin', () => true)
+  const layerEditingId = useState<string | null>('layer-editing-id', () => null)
 
   const activeFrame = computed(() =>
     project.value.frames.find((frame) => frame.id === activeFrameId.value),
@@ -431,10 +432,12 @@ export const useEditor = () => {
 
   const deleteLayer = (layerId = activeLayerId.value) => {
     if (project.value.layers.length === 1) return
-    checkpoint('Delete layer')
     const index = project.value.layers.findIndex((layer) => layer.id === layerId)
+    if (index < 0) return
+    checkpoint('Delete layer')
     project.value.layers.splice(index, 1)
     activeLayerId.value = project.value.layers[Math.max(0, index - 1)]!.id
+    layerEditingId.value = null
     touch('Deleted layer')
   }
 
@@ -444,6 +447,32 @@ export const useEditor = () => {
     checkpoint(layer.visible ? 'Hide layer' : 'Show layer')
     layer.visible = !layer.visible
     touch(layer.visible ? 'Layer shown' : 'Layer hidden')
+  }
+
+  const requestLayerRename = (layerId = activeLayerId.value) => {
+    if (!project.value.layers.some((layer) => layer.id === layerId)) return
+    activeLayerId.value = layerId
+    layerEditingId.value = layerId
+  }
+
+  const renameLayer = (layerId: string, name: string) => {
+    const layer = project.value.layers.find((item) => item.id === layerId)
+    const clean = name.trim().slice(0, 64)
+    layerEditingId.value = null
+    if (!layer || !clean || clean === layer.name) return false
+    checkpoint('Rename layer')
+    layer.name = clean
+    touch('Renamed layer')
+    return true
+  }
+
+  const setLayerOpacity = (layerId: string, opacity: number) => {
+    const layer = project.value.layers.find((item) => item.id === layerId)
+    const next = Math.max(0, Math.min(1, opacity))
+    if (!layer || !Number.isFinite(next) || layer.opacity === next) return
+    checkpoint('Change layer opacity')
+    layer.opacity = next
+    touch('Changed layer opacity')
   }
 
   const renameProject = (name: string) => {
@@ -519,6 +548,7 @@ export const useEditor = () => {
     showGrid,
     showTransparency,
     onionSkin,
+    layerEditingId,
     dirtyRevision,
     lastAction,
     activeFrame,
@@ -549,6 +579,9 @@ export const useEditor = () => {
     addLayer,
     deleteLayer,
     toggleLayer,
+    requestLayerRename,
+    renameLayer,
+    setLayerOpacity,
     renameProject,
     applyOperations,
   }

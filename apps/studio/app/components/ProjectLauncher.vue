@@ -269,7 +269,10 @@ watch(
         <div v-else class="launcher-recents">
           <button type="button" class="launcher-open-card" @click="emit('browse')">
             <span class="launcher-action-icon"><FolderOpen :size="18" /></span>
-            <span><strong>Open a project file</strong><small>Import a .zakape file</small></span>
+            <span
+              ><strong>Open a project file</strong
+              ><small>Zakape JSON or compatible desktop sprite file</small></span
+            >
             <ArrowRight :size="15" />
           </button>
 

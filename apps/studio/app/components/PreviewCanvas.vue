@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { drawProjectFrame } from '~/utils/render'
+import { drawLayerFrame, drawProjectFrame } from '~/utils/render'
 
 const props = withDefaults(
   defineProps<{
     frameId?: string
+    layerId?: string
     size?: number
     animate?: boolean
   }>(),
-  { frameId: undefined, size: 144, animate: false },
+  { frameId: undefined, layerId: undefined, size: 144, animate: false },
 )
 
 const { project, activeFrameId, dirtyRevision } = useEditor()
@@ -27,7 +28,12 @@ const redraw = () => {
   if (!element) return
   element.width = project.value.width * scale.value
   element.height = project.value.height * scale.value
-  drawProjectFrame(element.getContext('2d')!, project.value, displayedFrame.value, scale.value)
+  const context = element.getContext('2d')!
+  if (props.layerId) {
+    drawLayerFrame(context, project.value, displayedFrame.value, props.layerId, scale.value)
+  } else {
+    drawProjectFrame(context, project.value, displayedFrame.value, scale.value)
+  }
 }
 
 const schedule = () => {

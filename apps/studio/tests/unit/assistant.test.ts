@@ -150,8 +150,19 @@ describe('Ollama provider adapter', () => {
     })
     expect(messages[1]!.content).toContain('Add one highlight.')
     expect(assistantSystemPrompt).toContain('intentional pixel clusters')
+    expect(assistantSystemPrompt).toContain('Work silhouette first')
+    expect(assistantSystemPrompt).toContain('ordered, repeating dithering patterns')
+    expect(assistantSystemPrompt).toContain('anticipation, action, impact, and recovery')
     const payload = JSON.parse(messages[1]!.content) as {
       target_frame_ids: string[]
+      art_constraints: {
+        native_resolution: string
+        hard_edges: boolean
+        anti_aliasing: boolean
+        existing_color_count: number
+        recommended_color_budget: { small_prop: string; character: string }
+        frame_durations_ms: number[]
+      }
       frames: Array<{ role: string; composite_rows: number[][]; active_layer_rows: number[][] }>
     }
     expect(payload.target_frame_ids).toEqual(['frame_1'])
@@ -159,6 +170,17 @@ describe('Ollama provider adapter', () => {
     expect(payload.frames[0]).toMatchObject({ role: 'target' })
     expect(payload.frames[0]!.composite_rows).toHaveLength(32)
     expect(payload.frames[0]!.active_layer_rows).toHaveLength(32)
+    expect(payload.art_constraints).toMatchObject({
+      native_resolution: '32x32',
+      hard_edges: true,
+      anti_aliasing: false,
+      recommended_color_budget: {
+        small_prop: '4-6 total colors',
+        character: '8-12 total colors',
+      },
+    })
+    expect(payload.art_constraints.existing_color_count).toBeGreaterThan(0)
+    expect(payload.art_constraints.frame_durations_ms).toEqual([project.frames[0]!.duration])
     expect(readOllamaChatContent({ message: { content: '{"operations":[]}' } })).toBe(
       '{"operations":[]}',
     )

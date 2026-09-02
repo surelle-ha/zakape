@@ -48,17 +48,29 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', closeContextMenu
         @contextmenu="openContextMenu($event, document.id)"
       >
         <button
+          v-tooltip="{
+            text: document.project.name,
+            detail:
+              document.id === activeDocumentId
+                ? 'This document is active.'
+                : 'Switch to this sprite document.',
+            shortcut: 'Ctrl+Tab',
+          }"
           type="button"
           role="tab"
           :aria-selected="document.id === activeDocumentId"
           :tabindex="document.id === activeDocumentId ? 0 : -1"
-          :title="document.project.name"
           @click="emit('activate', document.id)"
         >
           <span class="document-pixel" aria-hidden="true" />
           <span>{{ document.project.name }}</span>
         </button>
         <button
+          v-tooltip="{
+            text: 'Close document',
+            detail: `Close ${document.project.name} after confirmation.`,
+            shortcut: 'Ctrl+W',
+          }"
           type="button"
           class="document-close"
           :aria-label="`Close ${document.project.name}`"
@@ -69,6 +81,11 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', closeContextMenu
       </div>
     </div>
     <button
+      v-tooltip="{
+        text: 'New sprite',
+        detail: 'Open another sprite document in a new tab.',
+        shortcut: 'Ctrl+N',
+      }"
       type="button"
       class="document-new"
       aria-label="Create another sprite"

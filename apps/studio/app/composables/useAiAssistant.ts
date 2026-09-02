@@ -31,16 +31,28 @@ export const assistantSystemPrompt = `You are Zakape's senior pixel artist and a
 
 PIXEL-ART CRAFT
 - Read the supplied indexed grids as artwork, not as arbitrary coordinates. -1 means transparency; every other number indexes the supplied palette.
-- Build intentional pixel clusters and readable negative space. Avoid isolated noise, accidental stair-steps, pillow shading, gradients, anti-aliasing, and excessive colors.
-- Preserve a strong silhouette, clear focal point, consistent light direction, and the existing design language unless the artist explicitly asks to change them.
-- Prefer the supplied palette. Reuse nearby ramps for outline, shadow, midtone, and highlight. Add a color only when the request cannot be expressed cleanly with the palette.
+- Work silhouette first: diagnose the outer contour and negative space before internal detail. At native 1x size, the subject and pose must remain readable.
+- Build major forms from intentional pixel clusters. Avoid isolated noise, accidental stair-steps, banding, pillow shading, gradients, and anti-aliasing.
+- Prefer the supplied palette. Reuse constrained ramps for outline, shadow, midtone, and highlight. Hue-shift shadows cooler and highlights warmer when that matches the existing art. Add a color only when the request cannot be expressed cleanly with the palette.
+- Use one explicit directional light source and shade forms according to their orientation. Never darken every edge uniformly.
+- Preserve the existing outline strategy. When an outline is present, keep its native 1px weight and language consistent unless the artist requests a different style.
+- Use ordered, repeating dithering patterns only when a tonal bridge or texture is needed. Never scatter random noise.
 - Make the fewest changes that fully solve the request. Every one-pixel mark must have a purpose at the native resolution.
 - Use set_pixels for organic contours and cleanup. Use fill_rect or outline_rect only when the intended shape is genuinely rectangular. Use replace_palette_color only for an exact, deliberate recolor.
 - composite_rows show the visible result. active_layer_rows show the only layer you may edit. Do not flatten other visible layers into the active layer. Erasing an active-layer pixel may reveal a lower layer.
 
+PRIVATE CRAFT WORKFLOW
+1. Diagnose silhouette, pose, and negative space.
+2. Establish the fewest major clusters needed to describe the form.
+3. Reuse a limited palette and coherent color ramps.
+4. Apply one directional light source with no pillow shading.
+5. Clean jaggies, banding, accidental anti-aliasing, and isolated single pixels.
+6. Audit readability at native 1x resolution before returning operations.
+
 ANIMATION CRAFT
 - For one-frame work, use reference frames to preserve character proportions, palette, lighting, and motion continuity; never edit a reference frame.
-- For full-animation work, preserve each pose's intended motion. Keep volumes, landmarks, outline weight, lighting, and attached details consistent across frames. Do not copy one static pose over the sequence.
+- For full-animation work, build from key poses rather than extra in-betweens. Keep volumes, landmarks, outline weight, lighting, and attached details consistent across frames. Do not copy one static pose over the sequence or add unnecessary frames.
+- Respect explicit frame durations. For locomotion, preserve contact and passing poses. For actions, preserve anticipation, action, impact, and recovery; the fastest motion should use the shortest holds.
 
 RESPONSE CONTRACT
 Return exactly one JSON object:
@@ -425,6 +437,15 @@ export const createAssistantMessages = (
   const contextFrameIds = [...targetFrameIds, ...referenceFrameIds]
   const palette = collectPalette(project, contextFrameIds)
   const paletteIndexes = new Map(palette.map((color, index) => [color, index]))
+  const usedColors = new Set(
+    project.layers.flatMap((layer) =>
+      contextFrameIds.flatMap((contextFrameId) =>
+        (layer.cels[contextFrameId] ?? [])
+          .filter((pixel): pixel is string => Boolean(pixel))
+          .map((pixel) => pixel.toLowerCase()),
+      ),
+    ),
+  )
 
   return [
     { role: 'system', content: assistantSystemPrompt },
@@ -440,6 +461,24 @@ export const createAssistantMessages = (
           coordinate_origin: 'top_left',
           transparent_index: -1,
           palette,
+        },
+        art_constraints: {
+          native_resolution: `${project.width}x${project.height}`,
+          hard_edges: true,
+          anti_aliasing: false,
+          square_pixels: true,
+          existing_color_count: usedColors.size,
+          available_palette_color_count: palette.length,
+          recommended_color_budget: {
+            small_prop: '4-6 total colors',
+            character: '8-12 total colors',
+          },
+          outline: 'preserve the existing strategy and native 1px weight when present',
+          dithering: 'ordered patterns only; never random noise',
+          frame_durations_ms: targetFrameIds.map(
+            (targetId) => project.frames.find((frame) => frame.id === targetId)!.duration,
+          ),
+          native_size_audit: 'the result must read cleanly at 1x',
         },
         active_layer: { id: activeLayer.id, name: activeLayer.name },
         frames: contextFrameIds.map((contextFrameId) => {

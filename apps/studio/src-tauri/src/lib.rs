@@ -1,13 +1,20 @@
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{fs, path::PathBuf, time::Duration};
+use std::{
+    collections::BTreeMap,
+    fs,
+    io::Cursor,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use tauri::{AppHandle, Manager};
 
 const OLLAMA_CONNECT_TIMEOUT: Duration = Duration::from_secs(4);
 const OLLAMA_DISCOVERY_TIMEOUT: Duration = Duration::from_secs(12);
 const OLLAMA_CHAT_TIMEOUT: Duration = Duration::from_secs(180);
 const MAX_PROJECT_BYTES: usize = 32 * 1024 * 1024;
+const MAX_IMPORTED_PIXELS: usize = 1_048_576;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AssistantMessage {
@@ -72,6 +79,207 @@ struct WorkspaceProject {
     height: u64,
     frame_count: usize,
     updated_at: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportedSprite {
+    source_hash: String,
+    name: String,
+    width: usize,
+    height: usize,
+    color_mode: String,
+    palette: Vec<String>,
+    frames: Vec<ImportedFrame>,
+    layers: Vec<ImportedLayer>,
+}
+
+#[derive(Debug, Serialize)]
+struct ImportedFrame {
+    id: String,
+    name: String,
+    duration: u32,
+}
+
+#[derive(Debug, Serialize)]
+struct ImportedLayer {
+    id: String,
+    name: String,
+    visible: bool,
+    opacity: f32,
+    cels: BTreeMap<String, Vec<Option<String>>>,
+}
+
+fn source_hash(bytes: &[u8]) -> String {
+    let hash = bytes.iter().fold(0xcbf29ce484222325_u64, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+    });
+    format!("{hash:016x}")
+}
+
+fn imported_name(file_name: &str) -> String {
+    let name = Path::new(file_name)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("Imported sprite")
+        .trim()
+        .chars()
+        .take(64)
+        .collect::<String>();
+    if name.is_empty() {
+        "Imported sprite".to_string()
+    } else {
+        name
+    }
+}
+
+fn encode_rgba_image(image: &image::RgbaImage) -> Vec<Option<String>> {
+    image
+        .pixels()
+        .map(|pixel| {
+            let [red, green, blue, alpha] = pixel.0;
+            (alpha > 0).then(|| format!("#{red:02x}{green:02x}{blue:02x}"))
+        })
+        .collect()
+}
+
+fn parse_imported_sprite(bytes: &[u8], file_name: &str) -> Result<ImportedSprite, String> {
+    if bytes.len() < 128 || bytes.len() > MAX_PROJECT_BYTES {
+        return Err("That sprite file is empty, incomplete, or exceeds 32 MB.".to_string());
+    }
+    let magic = u16::from_le_bytes([bytes[4], bytes[5]]);
+    let header_frames = usize::from(u16::from_le_bytes([bytes[6], bytes[7]]));
+    let header_width = usize::from(u16::from_le_bytes([bytes[8], bytes[9]]));
+    let header_height = usize::from(u16::from_le_bytes([bytes[10], bytes[11]]));
+    if magic != 0xA5E0
+        || header_frames == 0
+        || header_frames > 512
+        || header_width == 0
+        || header_height == 0
+        || header_width > 1024
+        || header_height > 1024
+        || header_width.saturating_mul(header_height) > MAX_IMPORTED_PIXELS
+    {
+        return Err(
+            "This sprite file has unsupported dimensions, frames, or header data.".to_string(),
+        );
+    }
+
+    let parsed = ah_asefile::AsepriteFile::read(Cursor::new(bytes))
+        .map_err(|error| format!("Zakape could not decode this sprite file: {error}"))?;
+    if parsed.num_frames() == 0 || parsed.num_frames() > 512 || parsed.num_layers() > 256 {
+        return Err("This sprite file exceeds Zakape's frame or layer limits.".to_string());
+    }
+
+    let frames: Vec<ImportedFrame> = (0..parsed.num_frames())
+        .map(|index| ImportedFrame {
+            id: format!("frame_import_{}", index + 1),
+            name: format!("F{}", index + 1),
+            duration: parsed.frame(index).duration().clamp(1, 60_000),
+        })
+        .collect();
+
+    let mut layers = Vec::new();
+    for source_layer in parsed.layers() {
+        if matches!(source_layer.layer_type(), ah_asefile::LayerType::Group) {
+            continue;
+        }
+        let mut cels = BTreeMap::new();
+        for (frame_index, frame) in frames.iter().enumerate() {
+            let image = source_layer.frame(frame_index as u32).image();
+            cels.insert(frame.id.clone(), encode_rgba_image(&image));
+        }
+        let layer_name = source_layer
+            .name()
+            .trim()
+            .chars()
+            .take(64)
+            .collect::<String>();
+        layers.push(ImportedLayer {
+            id: format!("layer_import_{}", source_layer.id() + 1),
+            name: if layer_name.is_empty() {
+                format!("Imported layer {}", layers.len() + 1)
+            } else {
+                layer_name
+            },
+            visible: source_layer.is_visible(),
+            opacity: f32::from(source_layer.opacity()) / 255.0,
+            cels,
+        });
+    }
+
+    if layers.is_empty() {
+        let cels = frames
+            .iter()
+            .enumerate()
+            .map(|(index, frame)| {
+                let image = parsed.frame(index as u32).image();
+                (frame.id.clone(), encode_rgba_image(&image))
+            })
+            .collect();
+        layers.push(ImportedLayer {
+            id: "layer_import_flattened".to_string(),
+            name: "Imported artwork".to_string(),
+            visible: true,
+            opacity: 1.0,
+            cels,
+        });
+    }
+
+    let mut palette = Vec::new();
+    if let Some(source_palette) = parsed.palette() {
+        for index in 0..256 {
+            let Some(entry) = source_palette.color(index) else {
+                continue;
+            };
+            let [red, green, blue, alpha] = entry.raw_rgba8();
+            if alpha > 0 {
+                let color = format!("#{red:02x}{green:02x}{blue:02x}");
+                if !palette.contains(&color) {
+                    palette.push(color);
+                }
+            }
+        }
+    }
+    for color in layers
+        .iter()
+        .flat_map(|layer| layer.cels.values())
+        .flatten()
+        .flatten()
+    {
+        if palette.len() >= 256 {
+            break;
+        }
+        if !palette.contains(color) {
+            palette.push(color.clone());
+        }
+    }
+    if palette.is_empty() {
+        palette.push("#000000".to_string());
+        palette.push("#ffffff".to_string());
+    }
+
+    let color_mode = match parsed.pixel_format() {
+        ah_asefile::PixelFormat::Rgba => "rgba",
+        ah_asefile::PixelFormat::Grayscale => "grayscale",
+        ah_asefile::PixelFormat::Indexed { .. } => "indexed",
+    };
+
+    Ok(ImportedSprite {
+        source_hash: source_hash(bytes),
+        name: imported_name(file_name),
+        width: parsed.width(),
+        height: parsed.height(),
+        color_mode: color_mode.to_string(),
+        palette,
+        frames,
+        layers,
+    })
+}
+
+#[tauri::command]
+fn import_aseprite_project(bytes: Vec<u8>, file_name: String) -> Result<ImportedSprite, String> {
+    parse_imported_sprite(&bytes, &file_name)
 }
 
 fn workspace_directory_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -435,7 +643,8 @@ pub fn run() {
             workspace_directory,
             workspace_list_projects,
             workspace_read_project,
-            workspace_write_project
+            workspace_write_project,
+            import_aseprite_project
         ])
         .run(tauri::generate_context!())
         .expect("error while running Zakape");
@@ -443,7 +652,27 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{checked_project_id, ollama_endpoint};
+    use super::{checked_project_id, imported_name, ollama_endpoint, parse_imported_sprite};
+
+    fn minimal_sprite_bytes() -> Vec<u8> {
+        let mut bytes = vec![0_u8; 144];
+        bytes[0..4].copy_from_slice(&144_u32.to_le_bytes());
+        bytes[4..6].copy_from_slice(&0xA5E0_u16.to_le_bytes());
+        bytes[6..8].copy_from_slice(&1_u16.to_le_bytes());
+        bytes[8..10].copy_from_slice(&1_u16.to_le_bytes());
+        bytes[10..12].copy_from_slice(&1_u16.to_le_bytes());
+        bytes[12..14].copy_from_slice(&32_u16.to_le_bytes());
+        bytes[14..18].copy_from_slice(&1_u32.to_le_bytes());
+        bytes[18..20].copy_from_slice(&100_u16.to_le_bytes());
+        bytes[34] = 1;
+        bytes[35] = 1;
+        bytes[40..42].copy_from_slice(&1_u16.to_le_bytes());
+        bytes[42..44].copy_from_slice(&1_u16.to_le_bytes());
+        bytes[128..132].copy_from_slice(&16_u32.to_le_bytes());
+        bytes[132..134].copy_from_slice(&0xF1FA_u16.to_le_bytes());
+        bytes[136..138].copy_from_slice(&100_u16.to_le_bytes());
+        bytes
+    }
 
     #[test]
     fn accepts_only_loopback_ollama_addresses() {
@@ -462,5 +691,22 @@ mod tests {
         assert!(checked_project_id("../outside").is_err());
         assert!(checked_project_id("folder/project").is_err());
         assert!(checked_project_id("").is_err());
+    }
+
+    #[test]
+    fn decodes_a_minimal_sprite_file_into_a_safe_project_payload() {
+        let imported = parse_imported_sprite(&minimal_sprite_bytes(), "hero.ase").unwrap();
+
+        assert_eq!(imported.name, "hero");
+        assert_eq!(imported.width, 1);
+        assert_eq!(imported.height, 1);
+        assert_eq!(imported.frames.len(), 1);
+        assert_eq!(imported.layers.len(), 1);
+        assert_eq!(imported.layers[0].cels["frame_import_1"], vec![None]);
+    }
+
+    #[test]
+    fn gives_blank_import_names_a_useful_fallback() {
+        assert_eq!(imported_name("   .ase"), "Imported sprite");
     }
 }

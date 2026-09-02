@@ -19,10 +19,10 @@ Zakape can save the provider, base URL, and model name. It keeps API keys in mem
    ollama pull qwen2.5-coder:7b
    ```
 
-4. In Zakape, open **Assist**, select the connection row, and keep **Ollama** selected.
+4. In Zakape, select **Assist** or press **A**, select the connection row, and keep **Ollama** selected.
 5. Select **Find models**, choose an installed model, and save the settings.
 
-Model size alone does not guarantee good pixel art. Choose a model that reliably follows structured JSON instructions. Zakape supplies the art direction, canvas grids, editable-layer grids, palette, and animation context at request time; it does not fine-tune or retrain the installed model.
+Model size alone does not guarantee good pixel art. Choose a model that reliably follows structured JSON instructions. Zakape supplies native-resolution art constraints, canvas grids, editable-layer grids, palette budgets, frame timing, and animation context at request time; it does not fine-tune or retrain the installed model.
 
 The packaged desktop app talks to Ollama through a native loopback bridge, so it does not require `OLLAMA_ORIGINS=*`. A browser development build calls Ollama directly; if Ollama rejects that browser origin, allow only the exact local development origin instead of using a wildcard.
 

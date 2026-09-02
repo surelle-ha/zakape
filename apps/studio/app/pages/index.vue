@@ -6,6 +6,7 @@ import {
   FileUp,
   Grid2X2,
   Grid3X3,
+  Keyboard,
   Minus,
   Plus,
   Redo2,
@@ -14,19 +15,23 @@ import {
   Undo2,
 } from '@lucide/vue'
 import type { CanvasBackground, ColorMode, ToolId } from '~/types/editor'
-import { cloneProject, createBlankProject, parseSpriteProject } from '~/utils/project'
+import { cloneProject, createBlankProject } from '~/utils/project'
+import { importProjectFile } from '~/utils/import'
 
 const {
   documents,
   activeDocumentId,
   isPlaceholder,
   project,
+  activeFrameId,
+  activeLayerId,
   activeTool,
   activeLayer,
   brushSize,
   zoom,
   showGrid,
   showTransparency,
+  onionSkin,
   dirtyRevision,
   lastAction,
   canUndo,
@@ -38,6 +43,11 @@ const {
   closeDocument,
   swapColors,
   resetColors,
+  addFrame,
+  deleteFrame,
+  addLayer,
+  deleteLayer,
+  requestLayerRename,
   renameProject,
 } = useEditor()
 const { discardProposal } = useAiAssistant()
@@ -48,8 +58,23 @@ const {
   refreshProjects,
   loadProject,
   saveProject,
+  loadPreference,
+  savePreference,
 } = useProjectRepository()
-const { launcherOpen, launcherView, showHome, showEditor, requestNew } = useWorkspace()
+const {
+  launcherOpen,
+  launcherView,
+  assistantOpen,
+  modelConnectionOpen,
+  shortcutGuideOpen,
+  walkthroughOpen,
+  showHome,
+  showEditor,
+  requestNew,
+  toggleAssistant,
+  showShortcutGuide,
+  showWalkthrough,
+} = useWorkspace()
 const { closeRequest, requestProjectClose, requestApplicationClose, cancelClose } =
   useCloseConfirmation()
 const appWindow = useAppWindow()
@@ -60,6 +85,7 @@ const nameDraft = ref(project.value.name)
 const initialized = ref(false)
 const closeBusy = ref(false)
 const closeError = ref('')
+const playing = useState<boolean>('preview-playing', () => true)
 const closingDocument = computed(() => {
   const request = closeRequest.value
   if (request?.kind !== 'project') return null
@@ -100,14 +126,12 @@ const openProjectFile = async (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
   try {
-    if (file.size > 32 * 1024 * 1024) {
-      throw new Error("That project exceeds Zakape's 32 MB project limit.")
-    }
-    const parsed = parseSpriteProject(JSON.parse(await file.text()))
+    const parsed = await importProjectFile(file)
     replaceProject(parsed, `Opened ${file.name}`)
     nameDraft.value = parsed.name
     showEditor()
     await saveProject(parsed)
+    await offerWalkthrough()
   } catch (error) {
     window.alert(error instanceof Error ? error.message : 'The project could not be opened.')
   } finally {
@@ -133,6 +157,7 @@ const createProject = async (spec: {
   nameDraft.value = nextProject.name
   showEditor()
   await saveProject(nextProject)
+  await offerWalkthrough()
 }
 
 const openRecentProject = async (projectId: string) => {
@@ -146,6 +171,17 @@ const openRecentProject = async (projectId: string) => {
   replaceProject(savedProject, `Opened ${savedProject.name}`)
   nameDraft.value = savedProject.name
   showEditor()
+  await offerWalkthrough()
+}
+
+async function offerWalkthrough() {
+  const completed = await loadPreference<boolean>('editor-walkthrough-complete')
+  if (!completed) showWalkthrough()
+}
+
+const completeWalkthrough = async () => {
+  walkthroughOpen.value = false
+  await savePreference('editor-walkthrough-complete', true)
 }
 
 const switchDocument = async (documentId: string) => {
@@ -215,12 +251,30 @@ const keydown = (event: KeyboardEvent) => {
   const commandKey = event.ctrlKey || event.metaKey
   if (editingText) {
     if (!commandKey || ['a', 'c', 'v', 'x', 'y', 'z'].includes(key)) return
-    if (['n', 'o', 's'].includes(key)) return
     event.preventDefault()
     return
   }
+  if (event.key === 'Escape') {
+    if (modelConnectionOpen.value) return
+    if (shortcutGuideOpen.value) shortcutGuideOpen.value = false
+    else if (walkthroughOpen.value) void completeWalkthrough()
+    else if (assistantOpen.value) assistantOpen.value = false
+    else exportOpen.value = false
+    return
+  }
+  if (shortcutGuideOpen.value || walkthroughOpen.value || closeRequest.value) return
   if (['f5', 'f6', 'f11', 'f12'].includes(key) || (event.altKey && key.startsWith('arrow'))) {
     event.preventDefault()
+    return
+  }
+  if (commandKey && event.shiftKey && key === 'n') {
+    event.preventDefault()
+    addLayer()
+    return
+  }
+  if (commandKey && event.shiftKey && key === 'e') {
+    event.preventDefault()
+    exportOpen.value = !exportOpen.value
     return
   }
   if (commandKey && key === 'z') {
@@ -232,6 +286,11 @@ const keydown = (event: KeyboardEvent) => {
   if (commandKey && key === 'y') {
     event.preventDefault()
     redo()
+    return
+  }
+  if (commandKey && key === 'd') {
+    event.preventDefault()
+    addFrame(true)
     return
   }
   if (commandKey && event.key === 'Tab') {
@@ -261,8 +320,66 @@ const keydown = (event: KeyboardEvent) => {
     zoom.value = Math.max(4, zoom.value - 1)
     return
   }
+  if (commandKey && key === '0') {
+    event.preventDefault()
+    zoom.value = 14
+    return
+  }
   if (commandKey) {
     event.preventDefault()
+    return
+  }
+  if (event.key === 'F2') {
+    event.preventDefault()
+    requestLayerRename(activeLayerId.value)
+    return
+  }
+  if (event.key === 'Insert') {
+    event.preventDefault()
+    addFrame(false)
+    return
+  }
+  if (event.key === 'Delete') {
+    event.preventDefault()
+    if (event.shiftKey) deleteLayer(activeLayerId.value)
+    else deleteFrame(activeFrameId.value)
+    return
+  }
+  if (key === '?' || (event.code === 'Slash' && event.shiftKey)) {
+    event.preventDefault()
+    showShortcutGuide()
+    return
+  }
+  if (key === 'a') {
+    event.preventDefault()
+    toggleAssistant()
+    return
+  }
+  if (key === 'k') {
+    event.preventDefault()
+    playing.value = !playing.value
+    return
+  }
+  if (key === 'o') {
+    event.preventDefault()
+    onionSkin.value = !onionSkin.value
+    return
+  }
+  if (key === 'g') {
+    event.preventDefault()
+    if (event.shiftKey) showTransparency.value = !showTransparency.value
+    else showGrid.value = !showGrid.value
+    return
+  }
+  if (key === ',' || key === '.') {
+    event.preventDefault()
+    const frameIndex = project.value.frames.findIndex((frame) => frame.id === activeFrameId.value)
+    const offset = key === ',' ? -1 : 1
+    const nextFrame =
+      project.value.frames[
+        (frameIndex + offset + project.value.frames.length) % project.value.frames.length
+      ]
+    if (nextFrame) activeFrameId.value = nextFrame.id
     return
   }
   const shortcuts: Partial<Record<string, ToolId>> = {
@@ -276,18 +393,39 @@ const keydown = (event: KeyboardEvent) => {
     r: 'rectangle',
     h: 'hand',
   }
-  if (shortcuts[key]) activeTool.value = shortcuts[key]!
-  if (key === 'x') swapColors()
-  if (key === 'd') resetColors()
+  if (shortcuts[key]) {
+    event.preventDefault()
+    activeTool.value = shortcuts[key]!
+  }
+  if (key === 'x') {
+    event.preventDefault()
+    swapColors()
+  }
+  if (key === 'd') {
+    event.preventDefault()
+    resetColors()
+  }
   if (event.code === 'Space' && !temporaryTool) {
     event.preventDefault()
     temporaryTool = activeTool.value
     activeTool.value = 'hand'
   }
-  if (key === '[') brushSize.value = Math.max(1, brushSize.value - 1)
-  if (key === ']') brushSize.value = Math.min(4, brushSize.value + 1)
-  if (key === '=' || key === '+') zoom.value = Math.min(24, zoom.value + 1)
-  if (key === '-') zoom.value = Math.max(4, zoom.value - 1)
+  if (key === '[') {
+    event.preventDefault()
+    brushSize.value = Math.max(1, brushSize.value - 1)
+  }
+  if (key === ']') {
+    event.preventDefault()
+    brushSize.value = Math.min(4, brushSize.value + 1)
+  }
+  if (key === '=' || key === '+') {
+    event.preventDefault()
+    zoom.value = Math.min(24, zoom.value + 1)
+  }
+  if (key === '-') {
+    event.preventDefault()
+    zoom.value = Math.max(4, zoom.value - 1)
+  }
 }
 
 const onCanvasWheel = async (event: WheelEvent) => {
@@ -374,9 +512,12 @@ onBeforeUnmount(() => {
           />
           <button
             v-else
+            v-tooltip="{
+              text: 'Rename project',
+              detail: 'Change the document name used for tabs, saves, and exports.',
+            }"
             type="button"
             class="project-name"
-            title="Rename project"
             @click="editingName = true"
           >
             {{ project.name }}
@@ -399,47 +540,95 @@ onBeforeUnmount(() => {
 
         <div class="app-actions">
           <button
+            v-tooltip="{
+              text: 'Undo',
+              detail: 'Undo the last editable action in this document.',
+              shortcut: 'Ctrl+Z',
+            }"
             type="button"
             class="icon-button"
             :disabled="!canUndo"
             aria-label="Undo"
-            title="Undo · Ctrl Z"
             @click="undo"
           >
             <Undo2 :size="16" />
           </button>
           <button
+            v-tooltip="{
+              text: 'Redo',
+              detail: 'Restore the most recently undone action.',
+              shortcut: 'Ctrl+Shift+Z',
+            }"
             type="button"
             class="icon-button"
             :disabled="!canRedo"
             aria-label="Redo"
-            title="Redo · Ctrl Shift Z"
             @click="redo"
           >
             <Redo2 :size="16" />
           </button>
           <span class="action-divider" />
           <button
+            v-tooltip="{
+              text: 'Open project file',
+              detail: 'Open a Zakape or compatible sprite project.',
+              shortcut: 'Ctrl+O',
+            }"
             type="button"
             class="icon-button"
             aria-label="Open project"
-            title="Open .zakape project"
             @click="fileInput?.click()"
           >
             <FileUp :size="16" />
           </button>
           <button
+            v-tooltip="{
+              text: 'Save project',
+              detail: 'Write the active sprite to the local workspace now.',
+              shortcut: 'Ctrl+S',
+            }"
             type="button"
             class="icon-button"
             aria-label="Save project locally"
-            title="Save project"
             @click="saveNow"
           >
             <Check v-if="persistenceState === 'saved'" :size="16" />
             <Save v-else :size="16" />
           </button>
+          <button
+            v-tooltip="{
+              text: 'Keyboard shortcuts',
+              detail: 'View every drawing and editor command.',
+              shortcut: '?',
+            }"
+            type="button"
+            class="icon-button"
+            aria-label="Keyboard shortcuts"
+            @click="showShortcutGuide"
+          >
+            <Keyboard :size="16" />
+          </button>
+          <button
+            v-tooltip="{
+              text: 'AI art assistant',
+              detail: 'Open the optional drawer for reviewable model-assisted edits.',
+              shortcut: 'A',
+            }"
+            type="button"
+            class="assistant-launch"
+            :class="{ active: assistantOpen }"
+            :aria-pressed="assistantOpen"
+            @click="toggleAssistant"
+          >
+            <Sparkles :size="15" /> Assist
+          </button>
           <div class="export-anchor" @click.stop>
             <button
+              v-tooltip="{
+                text: 'Export',
+                detail: 'Create a PNG frame, sprite sheet, animation, or portable project.',
+                shortcut: 'Ctrl+Shift+E',
+              }"
               type="button"
               class="export-button"
               aria-haspopup="menu"
@@ -491,21 +680,29 @@ onBeforeUnmount(() => {
               <span>{{ Math.round((zoom * 100) / 14) }}%</span>
               <span class="zoom-divider" />
               <button
+                v-tooltip="{
+                  text: 'Pixel grid',
+                  detail: 'Show or hide individual pixel boundaries.',
+                  shortcut: 'G',
+                }"
                 type="button"
                 :class="{ active: showGrid }"
                 :aria-pressed="showGrid"
                 aria-label="Toggle pixel grid"
-                title="Pixel grid"
                 @click="showGrid = !showGrid"
               >
                 <Grid3X3 :size="14" />
               </button>
               <button
+                v-tooltip="{
+                  text: 'Transparency checkerboard',
+                  detail: 'Show or hide the transparent canvas background.',
+                  shortcut: 'Shift+G',
+                }"
                 type="button"
                 :class="{ active: showTransparency }"
                 :aria-pressed="showTransparency"
                 aria-label="Toggle transparency checkerboard"
-                title="Transparency checkerboard"
                 @click="showTransparency = !showTransparency"
               >
                 <Grid2X2 :size="14" />
@@ -556,13 +753,17 @@ onBeforeUnmount(() => {
       @confirm="confirmClose"
     />
 
+    <AssistantDrawer :open="assistantOpen" @close="assistantOpen = false" />
+    <ShortcutGuide :open="shortcutGuideOpen" @close="shortcutGuideOpen = false" />
+    <EditorWalkthrough :open="walkthroughOpen" @complete="completeWalkthrough" />
+
     <input
       ref="fileInput"
       class="sr-only"
       type="file"
       name="project-file"
-      aria-label="Open Zakape project"
-      accept=".zakape,application/json"
+      aria-label="Open sprite project"
+      accept=".zakape,.ase,.aseprite,application/json"
       @change="openProjectFile"
     />
   </div>

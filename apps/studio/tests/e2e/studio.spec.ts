@@ -3,6 +3,7 @@ import { mkdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 const snapshotDirectory = resolve(process.cwd(), '../../docs/ui-snapshots')
+const walkthroughHandled = new WeakSet<import('@playwright/test').Page>()
 
 const enterEditor = async (
   page: import('@playwright/test').Page,
@@ -13,6 +14,7 @@ const enterEditor = async (
     colorMode?: 'rgba' | 'grayscale' | 'indexed'
     background?: 'transparent' | 'black' | 'white'
     captureSetup?: boolean
+    skipWalkthrough?: boolean
   } = {},
 ) => {
   await page.getByRole('button', { name: 'New sprite', exact: true }).click()
@@ -35,6 +37,17 @@ const enterEditor = async (
   await expect(page.getByTestId('project-launcher')).toBeHidden()
   await expect(page.getByTestId('pixel-canvas')).toBeVisible()
   await expect(page.locator('.save-state')).not.toContainText('Restoring', { timeout: 30_000 })
+  if (spec.skipWalkthrough !== false && !walkthroughHandled.has(page)) {
+    await expect(page.getByRole('button', { name: 'Skip tour' })).toBeVisible()
+    await page.getByRole('button', { name: 'Skip tour' }).click()
+    walkthroughHandled.add(page)
+  }
+}
+
+const openAssistant = async (page: import('@playwright/test').Page) => {
+  await page.locator('.assistant-launch').click()
+  await expect(page.getByLabel('AI art assistant')).toBeVisible()
+  await page.waitForTimeout(220)
 }
 
 const openFrameActions = async (page: import('@playwright/test').Page, index = 0) => {
@@ -81,6 +94,98 @@ test('creates a named custom-size sprite from the modal launcher', async ({ page
   await expect(page.locator('.frame-item')).toHaveCount(1)
   await expect(page.getByLabel('Onion silhouette')).toBeChecked()
   expect((await page.locator('.timeline').boundingBox())!.height).toBeLessThanOrEqual(146)
+})
+
+test('introduces the editor on the first project and keeps help available later', async ({
+  page,
+}) => {
+  await enterEditor(page, { name: 'First sprite', skipWalkthrough: false })
+  const tour = page.getByRole('dialog', { name: 'Your tools stay close to the canvas' })
+  await expect(tour).toBeVisible()
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'first-project-walkthrough.png') })
+  await tour.getByRole('button', { name: 'Next' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Layers are independent pixel stacks' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Skip tour' }).click()
+
+  await page.getByRole('button', { name: 'Help' }).click()
+  await page.getByRole('menuitem', { name: 'Keyboard shortcuts ?' }).click()
+  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible()
+  await page.screenshot({ path: resolve(snapshotDirectory, 'shortcut-guide.png') })
+})
+
+test('keeps new layers transparent and independent, then renames the selected layer', async ({
+  page,
+}) => {
+  await enterEditor(page, { name: 'Layer study' })
+  const canvas = page.getByTestId('pixel-canvas')
+  const canvasBox = await canvas.boundingBox()
+  await canvas.click({ position: { x: canvasBox!.width / 2, y: canvasBox!.height / 2 } })
+
+  const layerRows = page.locator('.layer-row')
+  const alphaTotal = async (index: number) =>
+    layerRows
+      .nth(index)
+      .locator('canvas')
+      .evaluate((element: HTMLCanvasElement) => {
+        const pixels = element
+          .getContext('2d')!
+          .getImageData(0, 0, element.width, element.height).data
+        let total = 0
+        for (let offset = 3; offset < pixels.length; offset += 4) total += pixels[offset]!
+        return total
+      })
+
+  expect(await alphaTotal(0)).toBeGreaterThan(0)
+  await page.getByRole('button', { name: 'Add fresh layer' }).click()
+  await expect(layerRows).toHaveCount(2)
+  expect(await alphaTotal(0)).toBe(0)
+  expect(await alphaTotal(1)).toBeGreaterThan(0)
+
+  await canvas.click({ position: { x: canvasBox!.width / 2 + 16, y: canvasBox!.height / 2 } })
+  expect(await alphaTotal(0)).toBeGreaterThan(0)
+  await page.keyboard.press('F2')
+  await page.getByRole('textbox', { name: 'Layer name' }).fill('Highlights')
+  await page.getByRole('textbox', { name: 'Layer name' }).press('Enter')
+  await expect(layerRows.nth(0).getByText('Highlights', { exact: true })).toBeVisible()
+
+  await layerRows.nth(1).getByRole('button', { name: /Hide/ }).click()
+  expect(await alphaTotal(0)).toBeGreaterThan(0)
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'independent-layers.png') })
+})
+
+test('shows accessible custom tooltips and editor command shortcuts', async ({ page }) => {
+  await enterEditor(page)
+  await page.getByTestId('tool-line').focus()
+  const tooltip = page.getByRole('tooltip')
+  await expect(tooltip).toBeVisible()
+  await expect(tooltip).toContainText('Line')
+  await expect(tooltip).toContainText('L')
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'custom-tool-tooltip.png') })
+
+  await page.keyboard.press('m')
+  await expect(page.getByTestId('tool-mirror')).toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.press('Control+Shift+n')
+  await expect(page.locator('.layer-row')).toHaveCount(2)
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: '?',
+        code: 'Slash',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  )
+  await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('a')
+  await expect(page.getByLabel('AI art assistant')).toBeVisible()
 })
 
 test('keeps multiple sprite documents open as switchable tabs', async ({ page }) => {
@@ -382,6 +487,9 @@ test('exports an animated GIF and portable project', async ({ page }) => {
 
 test('discovers installed Ollama models and switches providers', async ({ page }) => {
   await enterEditor(page)
+  await openAssistant(page)
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'assistant-drawer.png') })
   await page.route('http://127.0.0.1:11434/api/tags', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
@@ -405,6 +513,7 @@ test('discovers installed Ollama models and switches providers', async ({ page }
 
 test('explains how to recover when local Ollama is offline', async ({ page }) => {
   await enterEditor(page)
+  await openAssistant(page)
   await page.route('http://127.0.0.1:11434/api/tags', async (route) => {
     await route.abort('connectionrefused')
   })
@@ -417,6 +526,7 @@ test('explains how to recover when local Ollama is offline', async ({ page }) =>
 
 test('asks whether the assistant should edit one frame or the entire sheet', async ({ page }) => {
   await enterEditor(page)
+  await openAssistant(page)
   for (let index = 0; index < 3; index += 1) await copyFrameRight(page, index)
   await expect(page.locator('.frame-item')).toHaveCount(4)
   await page.route('http://127.0.0.1:11434/api/tags', async (route) => {

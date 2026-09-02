@@ -14,6 +14,7 @@ import {
 } from '@lucide/vue'
 import type { Component } from 'vue'
 import type { ToolId } from '~/types/editor'
+import { formatShortcut, toolDefinitions } from '~/utils/commands'
 
 const {
   activeTool,
@@ -25,17 +26,19 @@ const {
   selectDrawingColor,
 } = useEditor()
 
-const tools: Array<{ id: ToolId; label: string; shortcut: string; icon: Component }> = [
-  { id: 'pencil', label: 'Pencil', shortcut: 'P', icon: Pencil },
-  { id: 'mirror', label: 'Mirror pencil', shortcut: 'M', icon: FlipHorizontal2 },
-  { id: 'dither', label: 'Dither pencil', shortcut: 'T', icon: Blend },
-  { id: 'eraser', label: 'Eraser', shortcut: 'E', icon: Eraser },
-  { id: 'fill', label: 'Fill', shortcut: 'F', icon: PaintBucket },
-  { id: 'picker', label: 'Eyedropper', shortcut: 'I', icon: Pipette },
-  { id: 'line', label: 'Line', shortcut: 'L', icon: Minus },
-  { id: 'rectangle', label: 'Rectangle', shortcut: 'R', icon: Square },
-  { id: 'hand', label: 'Hand', shortcut: 'H', icon: Hand },
-]
+const toolIcons: Record<ToolId, Component> = {
+  pencil: Pencil,
+  mirror: FlipHorizontal2,
+  dither: Blend,
+  eraser: Eraser,
+  fill: PaintBucket,
+  picker: Pipette,
+  line: Minus,
+  rectangle: Square,
+  hand: Hand,
+}
+
+const tools = toolDefinitions.map((tool) => ({ ...tool, icon: toolIcons[tool.id] }))
 </script>
 
 <template>
@@ -43,36 +46,50 @@ const tools: Array<{ id: ToolId; label: string; shortcut: string; icon: Componen
     <div class="tool-color-stack" aria-label="Drawing colors">
       <input
         v-model="primaryColor"
+        v-tooltip="{
+          text: 'Primary color',
+          detail: 'Left-click drawing uses this color. Click the swatch to edit it.',
+        }"
         class="tool-color primary"
         :class="{ active: activeDrawingColor === 'primary' }"
         type="color"
         aria-label="Primary drawing color"
-        title="Select primary drawing color"
         @pointerdown="selectDrawingColor('primary')"
       />
       <input
         v-model="secondaryColor"
+        v-tooltip="{
+          text: 'Secondary color',
+          detail: 'Right-click drawing uses this color. Click the swatch to edit it.',
+        }"
         class="tool-color secondary"
         :class="{ active: activeDrawingColor === 'secondary' }"
         type="color"
         aria-label="Secondary drawing color"
-        title="Select secondary drawing color"
         @pointerdown="selectDrawingColor('secondary')"
       />
       <button
+        v-tooltip="{
+          text: 'Swap colors',
+          detail: 'Exchange the primary and secondary drawing colors.',
+          shortcut: 'X',
+        }"
         type="button"
         class="color-swap"
         aria-label="Swap primary and secondary colors"
-        title="Swap colors · X"
         @click="swapColors"
       >
         <ArrowDownUp :size="10" />
       </button>
       <button
+        v-tooltip="{
+          text: 'Reset colors',
+          detail: 'Restore the default black and white drawing colors.',
+          shortcut: 'D',
+        }"
         type="button"
         class="color-reset"
         aria-label="Reset drawing colors"
-        title="Reset colors · D"
         @click="resetColors"
       >
         <RotateCcw :size="9" />
@@ -82,17 +99,22 @@ const tools: Array<{ id: ToolId; label: string; shortcut: string; icon: Componen
     <button
       v-for="tool in tools"
       :key="tool.id"
+      v-tooltip="{
+        text: tool.label,
+        detail: tool.description,
+        shortcut: formatShortcut(tool.shortcut),
+        placement: 'right',
+      }"
       type="button"
       class="tool-button"
       :class="{ active: activeTool === tool.id }"
       :aria-pressed="activeTool === tool.id"
       :aria-label="`${tool.label} (${tool.shortcut})`"
-      :title="`${tool.label} · ${tool.shortcut}`"
       :data-testid="`tool-${tool.id}`"
       @click="activeTool = tool.id"
     >
       <component :is="tool.icon" :size="18" :stroke-width="1.8" />
-      <span>{{ tool.shortcut }}</span>
+      <span>{{ formatShortcut(tool.shortcut) }}</span>
     </button>
   </nav>
 </template>

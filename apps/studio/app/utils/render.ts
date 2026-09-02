@@ -41,3 +41,30 @@ export const drawProjectFrame = (
     context.restore()
   }
 }
+
+export const drawLayerFrame = (
+  context: CanvasRenderingContext2D,
+  project: SpriteProject,
+  frameId: string,
+  layerId: string,
+  scale = 1,
+) => {
+  context.clearRect(0, 0, project.width * scale, project.height * scale)
+  context.imageSmoothingEnabled = false
+  const layer = project.layers.find((item) => item.id === layerId)
+  const pixels = layer?.cels[frameId]
+  if (!layer || !pixels) return
+  context.save()
+  context.globalAlpha = layer.opacity
+  pixels.forEach((pixel, index) => {
+    if (!pixel) return
+    context.fillStyle = pixel
+    context.fillRect(
+      (index % project.width) * scale,
+      Math.floor(index / project.width) * scale,
+      scale,
+      scale,
+    )
+  })
+  context.restore()
+}

@@ -1,11 +1,22 @@
 <script setup lang="ts">
-import { Check, FolderOpen, Grid3X3, Info, RotateCcw, Save, Undo2 } from '@lucide/vue'
+import {
+  Check,
+  CircleHelp,
+  FolderOpen,
+  Grid3X3,
+  Info,
+  Keyboard,
+  RotateCcw,
+  Save,
+  Undo2,
+} from '@lucide/vue'
 
 const props = withDefaults(defineProps<{ menusEnabled?: boolean }>(), {
   menusEnabled: true,
 })
 
-const { screen, requestNew, requestOpen, showHome } = useWorkspace()
+const { screen, requestNew, requestOpen, showHome, showShortcutGuide, showWalkthrough } =
+  useWorkspace()
 const { project, canRedo, canUndo, onionSkin, redo, showGrid, undo } = useEditor()
 const { saveProject, workspaceDirectory } = useProjectRepository()
 const win = useAppWindow()
@@ -202,6 +213,23 @@ watch(
           Help
         </button>
         <div v-if="openMenu === 'help'" class="title-menu" role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            :disabled="screen !== 'editor'"
+            @click="run(showWalkthrough)"
+          >
+            <CircleHelp :size="13" /> Quick tour
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            :disabled="screen !== 'editor'"
+            @click="run(showShortcutGuide)"
+          >
+            <Keyboard :size="13" /> Keyboard shortcuts <kbd>?</kbd>
+          </button>
+          <span class="menu-separator" role="separator" />
           <button type="button" role="menuitem" @click="run(openAbout)">
             <Info :size="13" /> About Zakape
           </button>

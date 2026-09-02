@@ -169,16 +169,24 @@ onBeforeUnmount(() => {
       <div class="section-kicker"><Layers3 :size="14" /> Timeline</div>
       <div class="timeline-controls">
         <button
+          v-tooltip="{
+            text: 'Arrange frames',
+            detail:
+              'Enable drag-and-drop playback ordering. Ctrl+Arrow also moves the active frame.',
+          }"
           type="button"
           class="arrange-toggle"
           :class="{ active: arrangeFrames }"
           :aria-pressed="arrangeFrames"
-          title="Drag frames to change playback order"
           @click="toggleArrangeFrames"
         >
           <GripVertical :size="13" /> Arrange
         </button>
         <button
+          v-tooltip="{
+            text: 'Scroll frames left',
+            detail: 'Move the timeline viewport without changing the active frame.',
+          }"
           type="button"
           class="icon-button"
           aria-label="Previous frames"
@@ -187,6 +195,11 @@ onBeforeUnmount(() => {
           <ChevronLeft :size="15" />
         </button>
         <button
+          v-tooltip="{
+            text: playing ? 'Pause animation' : 'Play animation',
+            detail: 'Preview the timeline using each frame delay.',
+            shortcut: 'K',
+          }"
           type="button"
           class="play-button"
           :aria-label="playing ? 'Pause preview' : 'Play preview'"
@@ -195,7 +208,16 @@ onBeforeUnmount(() => {
           <Pause v-if="playing" :size="14" fill="currentColor" />
           <Play v-else :size="14" fill="currentColor" />
         </button>
-        <button type="button" class="icon-button" aria-label="Next frames" @click="scrollFrames(1)">
+        <button
+          v-tooltip="{
+            text: 'Scroll frames right',
+            detail: 'Move the timeline viewport without changing the active frame.',
+          }"
+          type="button"
+          class="icon-button"
+          aria-label="Next frames"
+          @click="scrollFrames(1)"
+        >
           <ChevronRight :size="15" />
         </button>
         <label class="duration-field">
@@ -210,7 +232,14 @@ onBeforeUnmount(() => {
           />
           <span>ms</span>
         </label>
-        <label class="onion-toggle">
+        <label
+          v-tooltip="{
+            text: 'Onion silhouette',
+            detail: 'Show the previous frame as a muted silhouette while drawing.',
+            shortcut: 'O',
+          }"
+          class="onion-toggle"
+        >
           <input v-model="onionSkin" type="checkbox" />
           <span>Onion silhouette</span>
         </label>
@@ -243,11 +272,16 @@ onBeforeUnmount(() => {
           @contextmenu="openFrameMenu($event, frame.id)"
         >
           <button
+            v-tooltip="{
+              text: `Frame ${index + 1}`,
+              detail: arrangeFrames
+                ? 'Drag this frame to change its sequence.'
+                : 'Select this frame for drawing.',
+            }"
             type="button"
             class="frame-cell"
             :draggable="arrangeFrames"
             :aria-label="`Frame ${index + 1}, ${frame.duration} milliseconds`"
-            :title="arrangeFrames ? 'Drag to rearrange frame' : 'Select frame'"
             @dragstart="startFrameDrag($event, frame.id)"
             @dragend="clearDrag"
             @click="activeFrameId = frame.id"
@@ -257,12 +291,15 @@ onBeforeUnmount(() => {
             <span class="frame-delay">{{ frame.duration }}ms</span>
           </button>
           <button
+            v-tooltip="{
+              text: 'Frame actions',
+              detail: 'Insert a blank or copied frame, move it, or delete it.',
+            }"
             type="button"
             class="frame-menu-trigger"
             :aria-label="`Frame ${index + 1} actions`"
             aria-haspopup="menu"
             :aria-expanded="frameMenu?.frameId === frame.id"
-            title="Blank, copy, or delete frame"
             @click="openFrameMenu($event, frame.id)"
           >
             <Ellipsis :size="14" />

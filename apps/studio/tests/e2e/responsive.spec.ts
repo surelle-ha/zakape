@@ -32,6 +32,7 @@ test.describe('phone workbench', () => {
   test('keeps drawing, tools, layers, and frames reachable by touch', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByTestId('app-titlebar')).toBeHidden()
+    await expect(page.getByRole('contentinfo', { name: 'Application status' })).toBeHidden()
     await openEditor(page, 'Pocket courier')
 
     const canvas = page.getByTestId('pixel-canvas')
@@ -87,6 +88,10 @@ test.describe('tablet workbench', () => {
   test('uses the compact launcher and a side-sheet inspector', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByTestId('app-titlebar')).toBeHidden()
+    await expect(page.getByRole('contentinfo', { name: 'Application status' })).toBeVisible()
+    await expect(page.getByRole('contentinfo', { name: 'Application status' })).toContainText(
+      'v0.5.1',
+    )
     await expect(page.getByTestId('project-launcher')).toBeVisible()
     await expect(page).toHaveScreenshot('tablet-project-launcher.png', {
       animations: 'disabled',

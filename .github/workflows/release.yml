@@ -153,6 +153,18 @@ jobs:
           done
           exit "$missing"
       - run: pnpm install --frozen-lockfile
+      - name: Require updater signing credentials
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) {
+            throw "TAURI_SIGNING_PRIVATE_KEY is required for signed updater artifacts."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD)) {
+            throw "TAURI_SIGNING_PRIVATE_KEY_PASSWORD is required for signed updater artifacts."
+          }
       - name: Build and upload native bundle
         uses: tauri-apps/tauri-action@v1
         env:
@@ -162,11 +174,13 @@ jobs:
           APPLE_ID: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_ID || '' }}
           APPLE_PASSWORD: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: apps/studio
           releaseId: ${{ needs.release.outputs.release_id }}
           args: ${{ matrix.build_args }}
-          uploadUpdaterJson: false
+          uploadUpdaterJson: true
           retryAttempts: 2
       - name: Verify macOS signature and notarization
         if: matrix.platform == 'macos-latest'

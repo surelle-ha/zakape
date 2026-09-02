@@ -1,27 +1,51 @@
-# Release process
+# Release Zakape
 
-Zakape releases use SemVer and Conventional Commits. Every push to `main` runs CI and updates an automated release pull request:
+Zakape uses Semantic Versioning, Conventional Commits, Release Please, and signed Tauri bundles. Every push to `main` runs CI and updates the automated release pull request.
 
 - `fix:` and `perf:` changes produce a patch release.
 - `feat:` changes produce a minor release.
 - `feat!:`, `fix!:`, or a `BREAKING CHANGE:` footer produces a major release.
-- Documentation, test, build, and CI-only commits do not create a version by themselves.
+- Documentation, test, build, and CI-only commits do not change the version by themselves.
 
-Merging the release pull request performs the complete delivery sequence:
+Merging the release pull request starts the complete desktop delivery sequence:
 
-1. Release Please synchronizes the root, website, studio, Tauri, and Cargo versions and updates `CHANGELOG.md`.
-2. A draft `vX.Y.Z` GitHub release and version tag are created.
-3. Tauri builds Windows installers and Linux packages in parallel. It also builds macOS when Apple release credentials are available.
-4. Each native bundle is attached to the draft release.
-5. The release is published only after every platform build succeeds.
+1. Release Please synchronizes the root, website, studio, Tauri, Cargo, and Android versions, then updates `CHANGELOG.md`.
+2. GitHub creates a draft `vX.Y.Z` release and version tag.
+3. Tauri builds the Windows and Linux packages. It also builds macOS when Apple credentials are available.
+4. Each job signs its updater archive and attaches the native bundle, updater signature, and platform metadata.
+5. The release action uploads a merged `latest.json` manifest.
+6. GitHub publishes the release only after all selected platform builds succeed.
 
 If a platform build is interrupted, run the **Desktop release** workflow manually with the existing tag and the **all** target. Do not create version tags by hand.
 
-The workflow needs **Read and write permissions** and **Allow GitHub Actions to create and approve pull requests** under **Settings → Actions → General → Workflow permissions**. A repository administrator must configure these once.
+The workflow needs **Read and write permissions** and **Allow GitHub Actions to create and approve pull requests** under **Settings > Actions > General > Workflow permissions**.
 
-## macOS signing
+## Ship signed desktop updates
 
-macOS releases are universal binaries for Apple Silicon and Intel Macs. The release workflow includes a macOS asset only when it can sign, notarize, and staple the bundle using these repository secrets:
+Installed desktop builds check the [latest update manifest](https://github.com/surelle-ha/zakape/releases/latest/download/latest.json) shortly after launch.
+
+The automatic check is quiet. An available update appears in the bottom status strip, while **Help > Check for updates** performs a manual check. The update dialog reports checking, download, installation, failure, current-version, and relaunch states. Windows may close after starting its installer; macOS and Linux prompt for a relaunch after installation.
+
+Android does not use the Tauri desktop updater. Google Play continues to manage Android updates and signing.
+
+Tauri verifies every archive before installation with this public key:
+
+```text
+dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ1NTI1MjRBMjlGQUIxRUUKUldUdXNmb3BTbEpTMVdSS25ZQko0VG5VUHh6ZVlGU01CZCtpa1QwcG12ZkFjdktoaWxQMC9mU0EK
+```
+
+The repository never stores the corresponding private key. The release workflow reads it from these GitHub Actions secrets:
+
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+The development machine keeps a recovery copy in `.secrets/zakape-updater.key`. It stores the password in `.secrets/zakape-updater-password.txt`. Git ignores the whole `.secrets/` directory. Back up both files in an encrypted password manager or offline vault. GitHub does not allow secret values to be downloaded after upload.
+
+Losing the private key breaks the update path for existing installations: a newly generated key cannot produce signatures accepted by the public key embedded in those builds. Key rotation therefore requires a manually installed bridge release or a new manual installation. Never print, commit, attach, or paste the private key into logs or documentation.
+
+## Sign and notarize macOS builds
+
+macOS releases are universal binaries for Apple Silicon and Intel Macs. The workflow includes a macOS asset only when it can sign, notarize, and staple the bundle using these repository secrets:
 
 - `APPLE_CERTIFICATE`: base64-encoded Developer ID Application `.p12` certificate.
 - `APPLE_CERTIFICATE_PASSWORD`: password used when exporting the certificate.
@@ -29,18 +53,16 @@ macOS releases are universal binaries for Apple Silicon and Intel Macs. The rele
 - `APPLE_PASSWORD`: app-specific password for that Apple ID.
 - `APPLE_TEAM_ID`: team ID from the Apple Developer membership page.
 
-Create the certificate and app-specific password through the paid Apple Developer account. Never use a regular Apple ID password or commit certificate material to the repository. Tauri imports the certificate into a temporary CI keychain, signs the universal application, submits it to Apple for notarization, and staples the accepted ticket before uploading the DMG.
+Create the certificate and app-specific password through the paid Apple Developer account. Never use a regular Apple ID password or commit certificate material. Tauri imports the certificate into a temporary continuous integration (CI) keychain. It signs the universal application, submits it to Apple, and staples the accepted ticket before uploading the Apple disk image (DMG).
 
-Without these secrets, the workflow publishes Windows and Linux assets and adds a macOS availability notice to the release. It does not upload an unsigned macOS bundle. After configuring the secrets, manually run **Desktop release** with the published tag and the **macos** target. The workflow attaches the signed package to the existing release and removes the availability notice.
+Without these secrets, the workflow publishes Windows and Linux assets and adds a macOS availability notice. After configuring the secrets, run **Desktop release** with the published tag and the **macos** target to attach the signed package to the existing release.
 
-The Pages workflow publishes the static site from `apps/site` on updates to `main`.
+## Publish Android builds
 
-## Android delivery
+The **Android** workflow builds and verifies a debug Android package (APK) on relevant pushes and pull requests. Manual dispatch can produce a signed Android App Bundle (AAB). It can upload the bundle after you configure signing and service-account secrets. Upload the first Play Console bundle manually to establish Play App Signing and application programming interface (API) access.
 
-The **Android** workflow builds and verifies a debug APK on relevant pushes and pull requests. Manual dispatch can produce a signed AAB and optionally upload it to a Google Play track after the signing and service-account secrets are configured. The first Play Console bundle should be uploaded manually so the application, Play App Signing, and API access are established before automated track uploads are enabled.
+Release Please synchronizes the SemVer source used to derive Android's numeric `versionCode`. Keystores and signing-property files are ignored. See the [Android build guide](android.md) for local commands, output locations, and required secrets.
 
-Release Please synchronizes the SemVer source used to derive Android's numeric `versionCode`. Keystores and signing-property files are ignored and must never be added to the repository. See the [Android build guide](android.md) for local commands, output locations, and required secrets.
+## Publish the website
 
-Before the first website deployment, a repository administrator must select **GitHub Actions** under **Settings → Pages → Build and deployment → Source**. GitHub does not allow a collaborator or the default workflow token to create the initial Pages site. Later deployments need no manual step.
-
-Older unsigned alpha bundles may trigger operating-system warnings. The current workflow never publishes a new unsigned macOS bundle. Configure code-signing and updater keys as repository secrets before enabling automatic updates.
+The Pages workflow publishes the static site from `apps/site` after updates to `main`. Before the first deployment, a repository administrator must choose **GitHub Actions** under **Settings > Pages > Build and deployment > Source**. Later deployments need no manual step.

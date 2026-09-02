@@ -1,4 +1,9 @@
 import tailwindcss from '@tailwindcss/vite'
+import { readFileSync } from 'node:fs'
+
+const studioPackage = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+) as { version: string }
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-31',
@@ -7,9 +12,15 @@ export default defineNuxtConfig({
   modules: ['@nuxt/eslint'],
   css: [
     '@fontsource-variable/bricolage-grotesque/index.css',
+    '@fontsource-variable/handjet/full.css',
     '@fontsource-variable/azeret-mono/index.css',
     '~/assets/css/main.css',
   ],
+  runtimeConfig: {
+    public: {
+      appVersion: studioPackage.version,
+    },
+  },
   vite: {
     plugins: [tailwindcss() as never],
   },

@@ -65,6 +65,9 @@ importers:
       '@fontsource-variable/bricolage-grotesque':
         specifier: ^5.3.0
         version: 5.3.0
+      '@fontsource-variable/handjet':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@lucide/vue':
         specifier: ^1.38.0
         version: 1.38.0(vue@3.5.42(typescript@5.9.3))
@@ -77,6 +80,12 @@ importers:
       '@tauri-apps/plugin-fs':
         specifier: ^2.4.0
         version: 2.5.2
+      '@tauri-apps/plugin-process':
+        specifier: ^2.3.1
+        version: 2.3.1
+      '@tauri-apps/plugin-updater':
+        specifier: ^2.11.0
+        version: 2.11.0
       gifenc:
         specifier: ^1.0.3
         version: 1.0.3
@@ -773,6 +782,12 @@ packages:
     resolution:
       {
         integrity: sha512-TLi9Q4hJjS2UvoTMRSS2nHu6c4R56lAw60NR9QYtVRCHn0XtsFpiEhNffZ8Glsoxu6wEEwLKBP8lb94J52PNBA==,
+      }
+
+  '@fontsource-variable/handjet@5.3.0':
+    resolution:
+      {
+        integrity: sha512-IQEVbZpn7sPTBQENwJCWyzNxQ+Ac6fzPRKEvSJV87b76XeHNc9aM4qQTW3tj1TnWzCRK9I6PBui61nmTSV0nwQ==,
       }
 
   '@fontsource-variable/jetbrains-mono@5.3.0':
@@ -1904,6 +1919,18 @@ packages:
     resolution:
       {
         integrity: sha512-XXvMSnFiob+G1H+YHCDf+bzWVumseQuEIhzpbOJzevUfL4k0U+sTApZWJHpoLiamggnVPJm5dJ5sDsniRyWxlg==,
+      }
+
+  '@tauri-apps/plugin-process@2.3.1':
+    resolution:
+      {
+        integrity: sha512-nCa4fGVaDL/B9ai03VyPOjfAHRHSBz5v6F/ObsB73r/dA3MHHhZtldaDMIc0V/pnUw9ehzr2iEG+XkSEyC0JJA==,
+      }
+
+  '@tauri-apps/plugin-updater@2.11.0':
+    resolution:
+      {
+        integrity: sha512-AE36XkOoSna24G40jZMY15nzAnkXEPL/73tGoseGrtGOHuI/cZwWzHpZFLjKXDPgzYZ435z1gHu28LgrsBwIxQ==,
       }
 
   '@tybys/wasm-util@0.10.3':
@@ -7811,6 +7838,8 @@ snapshots:
 
   '@fontsource-variable/bricolage-grotesque@5.3.0': {}
 
+  '@fontsource-variable/handjet@5.3.0': {}
+
   '@fontsource-variable/jetbrains-mono@5.3.0': {}
 
   '@fontsource-variable/space-grotesk@5.3.0': {}
@@ -8916,6 +8945,14 @@ snapshots:
       '@tauri-apps/api': 2.11.1
 
   '@tauri-apps/plugin-fs@2.5.2':
+    dependencies:
+      '@tauri-apps/api': 2.11.1
+
+  '@tauri-apps/plugin-process@2.3.1':
+    dependencies:
+      '@tauri-apps/api': 2.11.1
+
+  '@tauri-apps/plugin-updater@2.11.0':
     dependencies:
       '@tauri-apps/api': 2.11.1
 

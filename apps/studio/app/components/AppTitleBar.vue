@@ -6,6 +6,7 @@ import {
   Grid3X3,
   Info,
   Keyboard,
+  RefreshCw,
   RotateCcw,
   Save,
   Undo2,
@@ -19,6 +20,7 @@ const { screen, requestNew, requestOpen, showHome, showShortcutGuide, showWalkth
   useWorkspace()
 const { project, canRedo, canUndo, onionSkin, redo, showGrid, undo } = useEditor()
 const { saveProject, workspaceDirectory } = useProjectRepository()
+const { checkForUpdates, currentVersion, status: updateStatus } = useAppUpdater()
 const win = useAppWindow()
 const menuRoot = ref<HTMLElement | null>(null)
 const openMenu = ref<'file' | 'edit' | 'view' | 'help' | null>(null)
@@ -27,6 +29,9 @@ const aboutTrigger = ref<HTMLButtonElement | null>(null)
 const aboutClose = ref<HTMLButtonElement | null>(null)
 
 const documentTitle = computed(() => (screen.value === 'editor' ? project.value.name : 'Projects'))
+const updateMenuLabel = computed(() =>
+  updateStatus.value === 'checking' ? 'Checking for updates…' : 'Check for updates',
+)
 
 const closeMenus = () => {
   openMenu.value = null
@@ -230,6 +235,15 @@ watch(
             <Keyboard :size="13" /> Keyboard shortcuts <kbd>?</kbd>
           </button>
           <span class="menu-separator" role="separator" />
+          <button
+            type="button"
+            role="menuitem"
+            :disabled="updateStatus === 'checking' || updateStatus === 'downloading'"
+            @click="run(() => checkForUpdates(true))"
+          >
+            <RefreshCw :class="{ spin: updateStatus === 'checking' }" :size="13" />
+            {{ updateMenuLabel }}
+          </button>
           <button type="button" role="menuitem" @click="run(openAbout)">
             <Info :size="13" /> About Zakape
           </button>
@@ -254,7 +268,7 @@ watch(
         <span class="eyebrow">Pixel workbench</span>
         <h2 id="about-heading">Zakape</h2>
         <p>Open-source sprite drawing, animation, and reviewable model-assisted edits.</p>
-        <small>{{ workspaceDirectory }}</small>
+        <small>{{ workspaceDirectory }} · v{{ currentVersion }}</small>
         <button ref="aboutClose" type="button" class="button-primary" @click="closeAbout">
           Close
         </button>

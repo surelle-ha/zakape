@@ -15,6 +15,7 @@
   --mint-strong: #7ed0aa;
   --orange: #ff875f;
   --yellow: #ffd36a;
+  --font-display: 'Handjet Variable', 'Bricolage Grotesque Variable', sans-serif;
   font-family: 'Bricolage Grotesque Variable', system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: geometricPrecision;
@@ -43,7 +44,7 @@ body,
 
 .app-frame {
   display: grid;
-  grid-template-rows: 36px minmax(0, 1fr);
+  grid-template-rows: 36px minmax(0, 1fr) 18px;
   width: 100vw;
   height: 100vh;
   min-width: 1024px;
@@ -85,6 +86,28 @@ canvas:focus-visible {
 button:disabled {
   opacity: 0.32;
   cursor: not-allowed;
+}
+
+.title-identity strong,
+.splash-lockup strong,
+.launcher-brand strong,
+.launcher-heading-row h1,
+.project-name,
+.document-tab > button:first-child > span:nth-child(2),
+.about-card h2,
+.close-confirmation-copy h2,
+.connection-dialog h2,
+.assistant-drawer-heading strong,
+.shortcut-guide h2,
+.walkthrough-copy h2,
+.update-card h2 {
+  font-family: var(--font-display);
+  font-weight: 650;
+  font-variation-settings:
+    'ELGR' 1,
+    'ELSH' 2;
+  letter-spacing: 0.035em;
+  word-spacing: 0.12em;
 }
 
 .studio-shell {
@@ -303,6 +326,212 @@ button:disabled {
     monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.app-statusbar {
+  position: relative;
+  z-index: 115;
+  display: flex;
+  min-width: 0;
+  height: 18px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  border-top: 1px solid #2a302a;
+  color: #7f8a7f;
+  background: #101310;
+  font:
+    7px/1 'Azeret Mono Variable',
+    monospace;
+}
+.app-statusbar > div,
+.statusbar-item,
+.statusbar-update {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+.app-statusbar > div {
+  gap: 11px;
+}
+.statusbar-item {
+  gap: 4px;
+  white-space: nowrap;
+}
+.backup-status i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--mint-strong);
+  box-shadow: 0 0 0 2px rgb(126 208 170 / 8%);
+}
+.statusbar-update {
+  max-width: 250px;
+  gap: 4px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  color: #849084;
+  background: transparent;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.statusbar-update:hover,
+.statusbar-update.active {
+  color: var(--mint);
+}
+.statusbar-version {
+  color: #a6b0a6;
+  white-space: nowrap;
+}
+
+.update-backdrop {
+  position: fixed;
+  inset: 36px 0 18px;
+  z-index: 720;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgb(5 7 5 / 78%);
+  backdrop-filter: blur(4px);
+}
+.update-card {
+  display: grid;
+  width: min(470px, calc(100vw - 44px));
+  max-height: min(610px, calc(100vh - 96px));
+  grid-template-rows: 62px minmax(0, 1fr) 48px;
+  overflow: hidden;
+  border: 1px solid #505c50;
+  border-radius: 7px;
+  color: var(--text);
+  background: #171b17;
+  box-shadow: 0 30px 90px rgb(0 0 0 / 62%);
+}
+.update-card > header {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(90deg, rgb(126 208 170 / 7%), transparent 62%);
+}
+.update-emblem {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #526b58;
+  border-radius: 4px;
+  color: var(--mint);
+  background: rgb(126 208 170 / 7%);
+}
+.update-card h2 {
+  margin: 2px 0 0;
+  font-size: 19px;
+  line-height: 1;
+}
+.update-card > header > button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+.update-card > header > button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--panel-soft);
+}
+.update-copy {
+  display: grid;
+  min-height: 170px;
+  align-content: start;
+  justify-items: center;
+  padding: 28px 30px 24px;
+  overflow: auto;
+  text-align: center;
+}
+.update-state-icon {
+  margin-bottom: 12px;
+  color: var(--muted);
+}
+.update-state-icon.available,
+.update-state-icon.current {
+  color: var(--mint-strong);
+}
+.update-state-icon.error {
+  color: var(--orange);
+}
+.update-copy p {
+  max-width: 350px;
+  margin: 0;
+  color: #acb5ac;
+  font-size: 10px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+.update-copy pre {
+  width: 100%;
+  max-height: 190px;
+  margin: 19px 0 0;
+  padding: 11px 12px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: #9ea89e;
+  background: #121512;
+  font:
+    8px/1.55 'Azeret Mono Variable',
+    monospace;
+  text-align: left;
+  white-space: pre-wrap;
+}
+.update-progress {
+  width: min(300px, 100%);
+  height: 4px;
+  margin-top: 21px;
+  overflow: hidden;
+  background: #303730;
+}
+.update-progress i {
+  display: block;
+  height: 100%;
+  background: var(--mint-strong);
+  transition: width 120ms linear;
+}
+.update-copy small {
+  margin-top: 8px;
+  color: var(--mint);
+  font:
+    8px/1 'Azeret Mono Variable',
+    monospace;
+}
+.update-card > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  border-top: 1px solid var(--line);
+  background: #141714;
+}
+.update-card > footer > span {
+  color: #778277;
+  font:
+    7px/1 'Azeret Mono Variable',
+    monospace;
+}
+.update-card > footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .close-confirmation-backdrop {
@@ -1025,9 +1254,9 @@ button:disabled {
 }
 .launcher-heading-row h1 {
   margin: 7px 0 0;
-  font-size: 24px;
+  font-size: 28px;
   line-height: 1;
-  letter-spacing: -0.035em;
+  letter-spacing: 0.01em;
   text-wrap: balance;
 }
 .launcher-close {
@@ -3461,7 +3690,7 @@ kbd {
     height: 100dvh;
     min-width: 0;
     min-height: 0;
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 18px;
   }
 
   .app-titlebar {
@@ -3470,7 +3699,7 @@ kbd {
 
   .studio-shell {
     width: 100%;
-    height: 100dvh;
+    height: 100%;
     min-width: 0;
     min-height: 0;
     grid-template-rows: 32px 44px minmax(0, 1fr) 136px;
@@ -3658,6 +3887,14 @@ kbd {
 }
 
 @media (max-width: 640px) {
+  .app-frame {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .app-statusbar {
+    display: none;
+  }
+
   .studio-shell {
     grid-template-rows: 32px 46px minmax(0, 1fr) 124px;
   }

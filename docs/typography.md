@@ -1,33 +1,44 @@
-# Typography research
+# Choose Zakape's interface type
 
-Zakape uses **Bricolage Grotesque Variable** for the interface and **Azeret Mono Variable** for precision labels. Both font families are packaged with the application through Fontsource; the desktop UI does not fetch fonts from a CDN.
+Zakape bundles a three-family type system with the application through Fontsource. The interface never fetches fonts from a content delivery network (CDN).
 
-## Selection
+- **Handjet Variable** gives document titles, modal headings, and brand labels a pixel-grid voice.
+- **Bricolage Grotesque Variable** remains the readable interface face for menus, controls, descriptions, and body copy.
+- **Azeret Mono Variable** aligns dimensions, frame timing, shortcuts, status text, and machine-oriented values.
 
-The interface needed a typeface with more authorship than a neutral product sans, without turning every label into a pixel-font novelty. Bricolage Grotesque has expressive proportions and variable optical-size, width, and weight axes, which give headings and compact controls a hand-shaped character while remaining readable in a dense editor.
+## Give pixel art an editorial voice
 
-Azeret Mono is intentionally quieter. Its fixed-width forms keep dimensions, frame delays, percentages, shortcuts, status text, and AI operation counts aligned. The contrast between the two families also makes technical metadata visually distinct from actions and document names.
+The requested reference has a warm, authored editorial tone instead of default product geometry. A direct imitation would depend on commercial brand fonts. It also would not express a sprite editor's materials. Handjet translates that quality into Zakape's medium through letterforms built from a variable element grid.
 
-## Candidates reviewed
+Handjet is deliberately restrained. It appears in document tabs, active project names, launcher and dialog headings, the Zakape wordmark, and the assistant drawer title. Bricolage remains in small controls and paragraphs, where an overt display face would slow scanning. Azeret Mono stays reserved for data.
 
-- **Bricolage Grotesque**: selected for interface and display text; expressive but still practical at editor scale.
-- **Azeret Mono**: selected for technical labels and numeric alignment.
-- **Syne**: strong personality, but its display-first construction is less comfortable across dense controls.
-- **Recursive**: flexible axes and a useful mono mode, but the breadth of stylistic controls would add tuning complexity without a clearer hierarchy.
-- **Oxanium**: energetic and game-adjacent, but too thematic for every workbench label.
-- **Pixelify Sans**: appropriate for occasional artwork, but using it throughout would reduce small-text legibility and make the interface feel ornamental.
+The result is a hierarchy, not a theme applied everywhere. The display face is the memorable gesture; the rest of the editor stays quiet and compact.
 
-The comparison used the official Google Fonts family metadata available on 1 September 2026. The metadata identifies Bricolage Grotesque as a sans-serif variable family with optical-size, width, and weight axes; Azeret Mono is categorized as monospace with a weight axis. Package metadata and font files come from the corresponding Fontsource variable-font packages.
+## Compare the display candidates
 
-## Usage rules
+| Family              | Result                      | Reason                                                                                                                                 |
+| ------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Handjet             | Selected for display roles  | Variable weight plus element-grid and element-shape axes create a crafted pixel character without forcing body text onto a rigid grid. |
+| Pixelify Sans       | Not selected                | Clear and accessible, but its familiar game-lettering silhouette reads more decorative and less editorial.                             |
+| Oxanium             | Not selected                | Strong technology character, though its angled construction pulls the interface toward science-fiction styling.                        |
+| Bricolage Grotesque | Retained for interface text | Expressive proportions and excellent compact readability keep dense controls human without becoming ornamental.                        |
+| Azeret Mono         | Retained for utility text   | Fixed-width forms keep numeric and shortcut information stable across changing values.                                                 |
 
-- Use Bricolage Grotesque for navigation, menus, document names, actions, descriptions, and headings.
-- Use Azeret Mono for dimensions, frame numbers and delays, shortcut hints, status output, field kickers, and machine-oriented values.
-- Keep pixel lettering inside artwork and brand marks rather than applying a novelty pixel font to paragraph text.
-- Preserve local font bundling for deterministic screenshots and offline desktop use.
+Google Fonts classifies Handjet, Pixelify Sans, and Oxanium as display families. Its metadata lists Handjet with `wght`, `ELGR`, and `ELSH` axes and credits Rosetta and David Brezina. The Fontsource package is licensed under the SIL Open Font License 1.1 and is self-hosted for deterministic screenshots and offline use.
 
-Sources:
+## Apply each family by role
+
+- Use Handjet only for names and headings that establish place or hierarchy.
+- Keep buttons, menus, form labels, instructions, and paragraphs in Bricolage Grotesque.
+- Use Azeret Mono for dimensions, percentages, version numbers, status output, shortcuts, frame numbers, and field kickers.
+- Do not convert body copy or every tool label into pixel lettering.
+- Preserve local font bundling so the desktop, Android, and snapshot builds render consistently.
+- Review desktop, tablet, and phone snapshots after changing font packages or type metrics.
+
+Research checked on 3 September 2026:
 
 - [Google Fonts metadata](https://fonts.google.com/metadata/fonts)
+- [Handjet on Google Fonts](https://fonts.google.com/specimen/Handjet)
+- [Handjet on Fontsource](https://fontsource.org/fonts/handjet)
 - [Bricolage Grotesque on Fontsource](https://fontsource.org/fonts/bricolage-grotesque)
 - [Azeret Mono on Fontsource](https://fontsource.org/fonts/azeret-mono)

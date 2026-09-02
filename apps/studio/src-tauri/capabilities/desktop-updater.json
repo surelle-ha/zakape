@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop-updater",
+  "description": "Allows the Zakape desktop window to install signed application updates",
+  "windows": ["main"],
+  "platforms": ["linux", "macOS", "windows"],
+  "permissions": ["updater:default", "process:allow-restart"]
+}

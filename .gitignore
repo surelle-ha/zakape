@@ -16,3 +16,4 @@ blob-report/
 coverage/
 .pnpm-store/
 *.local
+.secrets/

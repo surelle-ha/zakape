@@ -641,9 +641,14 @@ async fn ollama_chat(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_fs::init());
+    #[cfg(desktop)]
+    let builder = builder
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build());
+    builder
         .invoke_handler(tauri::generate_handler![
             ollama_list_models,
             ollama_chat,

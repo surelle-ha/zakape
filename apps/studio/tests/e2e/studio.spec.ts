@@ -68,9 +68,29 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('project-launcher')).toBeVisible()
   await expect(page.getByTestId('pixel-canvas')).toBeVisible()
   await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
+  await page.evaluate(() => document.fonts.ready)
   await expect(page.getByText('Indexing Documents/zakape…', { exact: true })).toBeHidden({
     timeout: 30_000,
   })
+})
+
+test('shows local account status and exposes desktop update controls', async ({ page }) => {
+  const statusbar = page.getByRole('contentinfo', { name: 'Application status' })
+  await expect(statusbar).toBeVisible()
+  await expect(statusbar).toContainText('Guest')
+  await expect(statusbar).toContainText('Local backup')
+  await expect(statusbar).toContainText('v0.5.1')
+  expect(await page.evaluate(() => document.fonts.check('16px "Handjet Variable"'))).toBe(true)
+
+  await page.getByRole('button', { name: 'Help' }).click()
+  await page.getByRole('menuitem', { name: 'Check for updates' }).click()
+  const updateDialog = page.getByRole('dialog', { name: 'Desktop updates' })
+  await expect(updateDialog).toContainText(
+    'Automatic updates are available in the installed desktop app.',
+  )
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'desktop-updater.png') })
+  await updateDialog.getByRole('button', { name: 'Close', exact: true }).click()
 })
 
 test('creates a named custom-size sprite from the modal launcher', async ({ page }) => {

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Copy, Minus, Square, X } from '@lucide/vue'
 
-const { close, isMaximized, minimize, toggleMaximize } = useAppWindow()
+const { isMaximized, minimize, toggleMaximize } = useAppWindow()
+const { requestApplicationClose } = useCloseConfirmation()
 </script>
 
 <template>
@@ -20,7 +21,7 @@ const { close, isMaximized, minimize, toggleMaximize } = useAppWindow()
         <Square v-else :size="7" />
       </span>
     </button>
-    <button type="button" aria-label="Close window" title="Close" @click="close()">
+    <button type="button" aria-label="Close window" title="Close" @click="requestApplicationClose">
       <span class="window-dot close-dot"><X :size="8" /></span>
     </button>
   </div>

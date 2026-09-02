@@ -152,7 +152,7 @@ export const useProjectRepository = () => {
   }
 
   const saveProject = async (project: SpriteProject) => {
-    if (!import.meta.client) return
+    if (!import.meta.client) return false
     try {
       const database = await getDatabase()
       await database.query(
@@ -169,9 +169,11 @@ export const useProjectRepository = () => {
         })
       }
       persistenceState.value = 'saved'
+      return true
     } catch (error) {
       console.warn('Zakape could not save the local project.', error)
       persistenceState.value = 'error'
+      return false
     }
   }
 

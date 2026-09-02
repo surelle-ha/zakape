@@ -33,7 +33,13 @@ Use **File → Projects** to reopen the launcher without closing the active docu
 
 ## Open documents
 
-Every opened project gets a document tab. Opening or creating another sprite keeps the current sprite available, and each document preserves its active frame, active layer, undo/redo history, and dirty state. Use **Ctrl+Tab** and **Ctrl+Shift+Tab** to move between tabs, **Ctrl+W** to close the current tab, or right-click a document tab for document-local actions. Autosave captures the document being left before the next tab becomes active.
+Every opened project gets a document tab above the project title and export bar. Opening or creating another sprite keeps the current sprite available, and each document preserves its active frame, active layer, undo/redo history, and dirty state. Use **Ctrl+Tab** and **Ctrl+Shift+Tab** to move between tabs, **Ctrl+W** to request closing the current tab, or right-click a document tab for document-local actions. Zakape confirms the request and saves the project before removing its tab.
+
+The application close control and the operating system's native close request use the same guarded flow. Zakape lists how many projects will be saved and only exits after explicit confirmation. Canceling returns focus to the control that opened the dialog.
+
+## Timeline order
+
+Enable **Arrange** in the timeline header to drag frames into a new playback sequence. A mint insertion line shows whether the frame will land before or after its target. The frame menu also exposes **Move frame left** and **Move frame right**; use **Ctrl+Left Arrow** or **Ctrl+Right Arrow** to move the active frame directly. Reordering keeps each frame's cel data and duration attached to its frame ID and creates one undo checkpoint.
 
 ## Custom window chrome
 

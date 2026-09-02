@@ -89,7 +89,7 @@ button:disabled {
 
 .studio-shell {
   display: grid;
-  grid-template-rows: 42px 28px minmax(0, 1fr) 146px;
+  grid-template-rows: 28px 42px minmax(0, 1fr) 146px;
   width: 100%;
   height: 100%;
   min-width: 1024px;
@@ -303,6 +303,110 @@ button:disabled {
     monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.close-confirmation-backdrop {
+  position: fixed;
+  inset: 36px 0 0;
+  z-index: 600;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(5 7 5 / 78%);
+  backdrop-filter: blur(4px);
+  overscroll-behavior: contain;
+}
+.close-confirmation-card {
+  position: relative;
+  display: grid;
+  width: min(430px, calc(100vw - 40px));
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 0 12px;
+  padding: 19px;
+  border: 1px solid #4b554b;
+  border-radius: 7px;
+  color: var(--text);
+  background: #191d19;
+  box-shadow: 0 28px 80px rgb(0 0 0 / 58%);
+}
+.close-confirmation-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid rgb(255 135 95 / 42%);
+  border-radius: 4px;
+  color: var(--orange);
+  background: rgb(255 135 95 / 8%);
+}
+.close-confirmation-copy {
+  min-width: 0;
+  padding-right: 24px;
+}
+.close-confirmation-copy h2 {
+  margin: 5px 0 7px;
+  font-size: 17px;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.close-confirmation-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+.close-confirmation-copy .close-confirmation-error {
+  margin-top: 10px;
+  padding: 7px 8px;
+  border-left: 2px solid var(--orange);
+  color: #efaa94;
+  background: rgb(255 135 95 / 7%);
+}
+.close-confirmation-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+.close-confirmation-x:hover {
+  color: var(--text);
+  background: var(--panel-soft);
+}
+.close-confirmation-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 19px;
+}
+.button-danger {
+  display: inline-flex;
+  height: 31px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid #bd6044;
+  border-radius: 4px;
+  color: #fff8f4;
+  background: #a84e35;
+  font-size: 9px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.button-danger:hover:not(:disabled) {
+  border-color: #dc7656;
+  background: #bb583c;
 }
 
 .app-bar {
@@ -2185,6 +2289,29 @@ kbd {
   align-items: center;
   gap: 4px;
 }
+.arrange-toggle {
+  display: inline-flex;
+  height: 22px;
+  align-items: center;
+  gap: 4px;
+  margin-right: 3px;
+  padding: 0 7px 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--muted);
+  background: #111411;
+  font-size: 8px;
+  cursor: pointer;
+}
+.arrange-toggle:hover {
+  border-color: #596559;
+  color: var(--text);
+}
+.arrange-toggle.active {
+  border-color: #6f806f;
+  color: var(--mint);
+  background: rgb(185 245 208 / 7%);
+}
 .play-button {
   display: grid;
   width: 25px;
@@ -2283,6 +2410,34 @@ kbd {
 .frame-item {
   position: relative;
   flex: 0 0 68px;
+}
+.frame-item.arrangeable .frame-cell {
+  cursor: grab;
+}
+.frame-item.arrangeable .frame-cell:active {
+  cursor: grabbing;
+}
+.frame-item.dragging {
+  opacity: 0.42;
+}
+.frame-item.drop-before::before,
+.frame-item.drop-after::after {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--mint);
+  box-shadow: 0 0 0 2px rgb(185 245 208 / 13%);
+  content: '';
+  pointer-events: none;
+}
+.frame-item.drop-before::before {
+  left: -3px;
+}
+.frame-item.drop-after::after {
+  right: -3px;
 }
 .frame-cell {
   display: grid;
@@ -2783,7 +2938,7 @@ kbd {
 
 @media (max-height: 760px) {
   .studio-shell {
-    grid-template-rows: 42px 28px minmax(0, 1fr) 130px;
+    grid-template-rows: 28px 42px minmax(0, 1fr) 130px;
   }
   .inspector {
     grid-template-rows: 174px 38px minmax(0, 1fr);

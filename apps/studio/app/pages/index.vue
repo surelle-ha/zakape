@@ -50,13 +50,27 @@ const {
   saveProject,
 } = useProjectRepository()
 const { launcherOpen, launcherView, showHome, showEditor, requestNew } = useWorkspace()
+const { closeRequest, requestProjectClose, requestApplicationClose, cancelClose } =
+  useCloseConfirmation()
+const appWindow = useAppWindow()
 const exportOpen = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const editingName = ref(false)
 const nameDraft = ref(project.value.name)
 const initialized = ref(false)
+const closeBusy = ref(false)
+const closeError = ref('')
+const closingDocument = computed(() => {
+  const request = closeRequest.value
+  if (request?.kind !== 'project') return null
+  return documents.value.find((document) => document.id === request.documentId) ?? null
+})
+const openProjectCount = computed(
+  () => documents.value.filter((document) => !document.placeholder).length,
+)
 let autosaveTimer: number | null = null
 let temporaryTool: ToolId | null = null
+let unlistenWindowClose: (() => void) | null = null
 const toolHint = computed(() => {
   if (activeTool.value === 'mirror') return 'Vertical mirror · Ctrl horizontal · Shift both axes'
   if (activeTool.value === 'dither') return 'Alternates primary and secondary colors'
@@ -144,14 +158,53 @@ const switchDocument = async (documentId: string) => {
   editingName.value = false
 }
 
-const closeSpriteDocument = async (documentId: string) => {
+const performCloseSpriteDocument = async (documentId: string) => {
   const document = documents.value.find((item) => item.id === documentId)
-  if (document && !document.placeholder) await saveProject(cloneProject(document.project))
+  if (document && !document.placeholder) {
+    const saved = await saveProject(cloneProject(document.project))
+    if (!saved) throw new Error('Zakape could not save this project. Keep it open and try again.')
+  }
   const launcherNeeded = closeDocument(documentId)
   discardProposal()
   nameDraft.value = project.value.name
   editingName.value = false
   if (launcherNeeded) showHome()
+}
+
+const closeSpriteDocument = (documentId: string) => requestProjectClose(documentId)
+
+const confirmClose = async () => {
+  const request = closeRequest.value
+  if (!request || closeBusy.value) return
+  closeBusy.value = true
+  closeError.value = ''
+  try {
+    if (request.kind === 'project') {
+      await performCloseSpriteDocument(request.documentId)
+      cancelClose()
+      return
+    }
+
+    if (autosaveTimer) {
+      window.clearTimeout(autosaveTimer)
+      autosaveTimer = null
+    }
+    for (const document of documents.value.filter((item) => !item.placeholder)) {
+      const saved = await saveProject(cloneProject(document.project))
+      if (!saved) {
+        throw new Error(
+          `Zakape could not save “${document.project.name}”. Keep working and try again.`,
+        )
+      }
+    }
+    cancelClose()
+    await nextTick()
+    await appWindow.closeApproved()
+  } catch (error) {
+    closeError.value = error instanceof Error ? error.message : 'Zakape could not complete closing.'
+  } finally {
+    closeBusy.value = false
+  }
 }
 
 const keydown = (event: KeyboardEvent) => {
@@ -274,7 +327,12 @@ watch(launcherOpen, (open) => {
   if (open) void refreshProjects()
 })
 
+watch(closeRequest, () => {
+  closeError.value = ''
+})
+
 onMounted(async () => {
+  unlistenWindowClose = await appWindow.onCloseRequested(requestApplicationClose)
   await refreshProjects()
   initialized.value = true
   window.addEventListener('keydown', keydown, true)
@@ -283,6 +341,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (autosaveTimer) window.clearTimeout(autosaveTimer)
+  unlistenWindowClose?.()
   window.removeEventListener('keydown', keydown, true)
   window.removeEventListener('keyup', keyup)
 })
@@ -296,6 +355,8 @@ onBeforeUnmount(() => {
       @click="exportOpen = false"
       @contextmenu.prevent
     >
+      <DocumentTabs @activate="switchDocument" @close="closeSpriteDocument" @new="requestNew" />
+
       <header class="app-bar">
         <div class="project-heading">
           <input
@@ -392,8 +453,6 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
-      <DocumentTabs @activate="switchDocument" @close="closeSpriteDocument" @new="requestNew" />
-
       <div class="workspace-grid">
         <ToolRail />
 
@@ -484,6 +543,17 @@ onBeforeUnmount(() => {
       @browse="fileInput?.click()"
       @close="showEditor"
       @update-view="launcherView = $event"
+    />
+
+    <CloseConfirmationDialog
+      v-if="closeRequest"
+      :kind="closeRequest.kind === 'project' ? 'project' : 'application'"
+      :project-name="closingDocument?.project.name"
+      :project-count="openProjectCount"
+      :busy="closeBusy"
+      :error="closeError"
+      @cancel="cancelClose"
+      @confirm="confirmClose"
     />
 
     <input

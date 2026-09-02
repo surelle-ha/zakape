@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import {
+  ArrowLeft,
+  ArrowRight,
   ChevronLeft,
   ChevronRight,
   Copy,
   Ellipsis,
+  GripVertical,
   Layers3,
   Pause,
   Play,
@@ -11,16 +14,32 @@ import {
   Trash2,
 } from '@lucide/vue'
 
-const { project, activeFrameId, onionSkin, addFrame, deleteFrame, activeFrame, dirtyRevision } =
-  useEditor()
+const {
+  project,
+  activeFrameId,
+  onionSkin,
+  addFrame,
+  deleteFrame,
+  moveFrame,
+  activeFrame,
+  dirtyRevision,
+} = useEditor()
 const playing = useState<boolean>('preview-playing', () => true)
+const arrangeFrames = useState<boolean>('arrange-frames', () => false)
 const frameTrack = ref<HTMLElement | null>(null)
 const frameMenu = ref<{ frameId: string; x: number; y: number } | null>(null)
+const draggingFrameId = ref<string | null>(null)
+const dropTarget = ref<{ frameId: string; side: 'before' | 'after' } | null>(null)
 
 const menuStyle = computed(() => ({
   left: `${frameMenu.value?.x ?? 0}px`,
   top: `${frameMenu.value?.y ?? 0}px`,
 }))
+const menuFrameIndex = computed(() =>
+  frameMenu.value
+    ? project.value.frames.findIndex((frame) => frame.id === frameMenu.value?.frameId)
+    : -1,
+)
 
 const updateDuration = (event: Event) => {
   const value = Number((event.target as HTMLInputElement).value)
@@ -43,8 +62,53 @@ const openFrameMenu = (event: MouseEvent, frameId: string) => {
   frameMenu.value = {
     frameId,
     x: Math.max(8, Math.min(requestedX, window.innerWidth - 208)),
-    y: Math.max(8, Math.min(requestedY, window.innerHeight - 228)),
+    y: Math.max(8, Math.min(requestedY, window.innerHeight - 284)),
   }
+}
+
+const clearDrag = () => {
+  draggingFrameId.value = null
+  dropTarget.value = null
+}
+
+const startFrameDrag = (event: DragEvent, frameId: string) => {
+  if (!arrangeFrames.value || !event.dataTransfer) {
+    event.preventDefault()
+    return
+  }
+  draggingFrameId.value = frameId
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', frameId)
+}
+
+const updateDropTarget = (event: DragEvent, frameId: string) => {
+  if (!arrangeFrames.value || !draggingFrameId.value) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  dropTarget.value = {
+    frameId,
+    side: event.clientX < bounds.left + bounds.width / 2 ? 'before' : 'after',
+  }
+}
+
+const dropFrame = (event: DragEvent, targetFrameId: string) => {
+  event.preventDefault()
+  const sourceFrameId = draggingFrameId.value ?? event.dataTransfer?.getData('text/plain')
+  const sourceIndex = project.value.frames.findIndex((frame) => frame.id === sourceFrameId)
+  const targetIndex = project.value.frames.findIndex((frame) => frame.id === targetFrameId)
+  if (sourceIndex >= 0 && targetIndex >= 0) {
+    const side = dropTarget.value?.frameId === targetFrameId ? dropTarget.value.side : 'before'
+    let destinationIndex = targetIndex + (side === 'after' ? 1 : 0)
+    if (sourceIndex < destinationIndex) destinationIndex -= 1
+    moveFrame(sourceFrameId!, destinationIndex)
+  }
+  clearDrag()
+}
+
+const toggleArrangeFrames = () => {
+  arrangeFrames.value = !arrangeFrames.value
+  if (!arrangeFrames.value) clearDrag()
 }
 
 const addAdjacent = (duplicate: boolean, side: 'left' | 'right') => {
@@ -62,19 +126,40 @@ const removeFrame = () => {
   frameMenu.value = null
 }
 
+const moveMenuFrame = (offset: -1 | 1) => {
+  if (!frameMenu.value || menuFrameIndex.value < 0) return
+  moveFrame(frameMenu.value.frameId, menuFrameIndex.value + offset)
+  frameMenu.value = null
+}
+
 const closeFrameMenu = () => (frameMenu.value = null)
-const onEscape = (event: KeyboardEvent) => {
-  if (event.key === 'Escape') closeFrameMenu()
+const onKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') {
+    closeFrameMenu()
+    return
+  }
+  const target = event.target as HTMLElement | null
+  if (
+    !(event.ctrlKey || event.metaKey) ||
+    !['ArrowLeft', 'ArrowRight'].includes(event.key) ||
+    target?.matches('input, textarea, [contenteditable="true"]')
+  ) {
+    return
+  }
+  const index = project.value.frames.findIndex((frame) => frame.id === activeFrameId.value)
+  if (index < 0) return
+  event.preventDefault()
+  moveFrame(activeFrameId.value, index + (event.key === 'ArrowLeft' ? -1 : 1))
 }
 
 onMounted(() => {
   window.addEventListener('pointerdown', closeFrameMenu)
-  window.addEventListener('keydown', onEscape)
+  window.addEventListener('keydown', onKeydown)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('pointerdown', closeFrameMenu)
-  window.removeEventListener('keydown', onEscape)
+  window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
@@ -83,6 +168,16 @@ onBeforeUnmount(() => {
     <header class="timeline-header">
       <div class="section-kicker"><Layers3 :size="14" /> Timeline</div>
       <div class="timeline-controls">
+        <button
+          type="button"
+          class="arrange-toggle"
+          :class="{ active: arrangeFrames }"
+          :aria-pressed="arrangeFrames"
+          title="Drag frames to change playback order"
+          @click="toggleArrangeFrames"
+        >
+          <GripVertical :size="13" /> Arrange
+        </button>
         <button
           type="button"
           class="icon-button"
@@ -134,14 +229,27 @@ onBeforeUnmount(() => {
           v-for="(frame, index) in project.frames"
           :key="frame.id"
           class="frame-item"
-          :class="{ active: frame.id === activeFrameId }"
+          :class="{
+            active: frame.id === activeFrameId,
+            arrangeable: arrangeFrames,
+            dragging: draggingFrameId === frame.id,
+            'drop-before': dropTarget?.frameId === frame.id && dropTarget.side === 'before',
+            'drop-after': dropTarget?.frameId === frame.id && dropTarget.side === 'after',
+          }"
+          :data-frame-id="frame.id"
           role="listitem"
+          @dragover="updateDropTarget($event, frame.id)"
+          @drop="dropFrame($event, frame.id)"
           @contextmenu="openFrameMenu($event, frame.id)"
         >
           <button
             type="button"
             class="frame-cell"
+            :draggable="arrangeFrames"
             :aria-label="`Frame ${index + 1}, ${frame.duration} milliseconds`"
+            :title="arrangeFrames ? 'Drag to rearrange frame' : 'Select frame'"
+            @dragstart="startFrameDrag($event, frame.id)"
+            @dragend="clearDrag"
             @click="activeFrameId = frame.id"
           >
             <span class="frame-number">{{ String(index + 1).padStart(2, '0') }}</span>
@@ -185,6 +293,23 @@ onBeforeUnmount(() => {
         </button>
         <button type="button" role="menuitem" @click="addAdjacent(true, 'right')">
           <Copy :size="13" /><span>Copy frame to right</span><kbd>→</kbd>
+        </button>
+        <span class="menu-separator" role="separator" />
+        <button
+          type="button"
+          role="menuitem"
+          :disabled="menuFrameIndex <= 0"
+          @click="moveMenuFrame(-1)"
+        >
+          <ArrowLeft :size="13" /><span>Move frame left</span><kbd>Ctrl ←</kbd>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          :disabled="menuFrameIndex < 0 || menuFrameIndex >= project.frames.length - 1"
+          @click="moveMenuFrame(1)"
+        >
+          <ArrowRight :size="13" /><span>Move frame right</span><kbd>Ctrl →</kbd>
         </button>
         <span class="menu-separator" role="separator" />
         <button

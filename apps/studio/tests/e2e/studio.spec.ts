@@ -94,7 +94,33 @@ test('keeps multiple sprite documents open as switchable tabs', async ({ page })
   await page.getByRole('tab', { name: 'Run cycle' }).click({ button: 'right' })
   await expect(page.getByRole('menu', { name: 'Document actions' })).toBeVisible()
   await page.getByRole('menuitem', { name: /Close document/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Close “Run cycle”?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Close project' }).click()
   await expect(page.locator('.document-tab [role="tab"]')).toHaveCount(1)
+})
+
+test('confirms project and application close requests before leaving work', async ({ page }) => {
+  await enterEditor(page, { name: 'Confirmation study' })
+
+  await page.getByRole('button', { name: 'Close window' }).click()
+  const applicationDialog = page.getByRole('dialog', { name: 'Exit Zakape?' })
+  await expect(applicationDialog).toBeVisible()
+  await expect(applicationDialog).toContainText('1 open project will be saved')
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'exit-confirmation.png') })
+  await applicationDialog.getByRole('button', { name: 'Keep working' }).click()
+  await expect(applicationDialog).toBeHidden()
+
+  await page.getByRole('button', { name: 'Close Confirmation study' }).click()
+  const projectDialog = page.getByRole('dialog', { name: 'Close “Confirmation study”?' })
+  await expect(projectDialog).toBeVisible()
+  await projectDialog.getByRole('button', { name: 'Keep open' }).click()
+  await expect(page.getByRole('tab', { name: 'Confirmation study' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Close Confirmation study' }).click()
+  await page.getByRole('button', { name: 'Close project' }).click()
+  await expect(page.getByTestId('project-launcher')).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Confirmation study' })).toHaveCount(0)
 })
 
 test('shows shape previews before committing and keeps undo meaningful', async ({ page }) => {
@@ -208,6 +234,49 @@ test('owns frame creation, copying, deletion, and onion skin in each frame menu'
   await page.getByRole('menuitem', { name: 'Delete frame' }).click()
   await expect(page.locator('.frame-item')).toHaveCount(2)
   await expect(page.getByRole('button', { name: /Add frame|Duplicate frame/ })).toHaveCount(0)
+})
+
+test('rearranges frame playback order with drag and undo', async ({ page }) => {
+  await enterEditor(page, { name: 'Frame order study' })
+  await openFrameActions(page)
+  await page.getByRole('menuitem', { name: /Blank frame to right/ }).click()
+  await openFrameActions(page, 1)
+  await page.getByRole('menuitem', { name: /Blank frame to right/ }).click()
+
+  const frames = page.locator('.frame-item')
+  const originalOrder = await frames.evaluateAll((items) =>
+    items.map((item) => item.getAttribute('data-frame-id')),
+  )
+  await page.getByRole('button', { name: 'Arrange' }).click()
+  await expect(page.getByRole('button', { name: 'Arrange' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await frames
+    .nth(0)
+    .locator('.frame-cell')
+    .dragTo(frames.nth(2).locator('.frame-cell'), { targetPosition: { x: 60, y: 35 } })
+  await expect
+    .poll(() =>
+      frames.evaluateAll((items) => items.map((item) => item.getAttribute('data-frame-id'))),
+    )
+    .toEqual([originalOrder[1], originalOrder[2], originalOrder[0]])
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'rearrange-frames.png') })
+
+  await page.getByRole('button', { name: 'Undo' }).click()
+  await expect
+    .poll(() =>
+      frames.evaluateAll((items) => items.map((item) => item.getAttribute('data-frame-id'))),
+    )
+    .toEqual(originalOrder)
+
+  await page.keyboard.press('Control+ArrowLeft')
+  await expect
+    .poll(() =>
+      frames.evaluateAll((items) => items.map((item) => item.getAttribute('data-frame-id'))),
+    )
+    .toEqual([originalOrder[0], originalOrder[2], originalOrder[1]])
 })
 
 test('zooms with Ctrl wheel, scales the work grid, and pans with the hand tool', async ({

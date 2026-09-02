@@ -397,6 +397,19 @@ export const useEditor = () => {
     touch('Deleted frame')
   }
 
+  const moveFrame = (frameId: string, destinationIndex: number) => {
+    const sourceIndex = project.value.frames.findIndex((frame) => frame.id === frameId)
+    if (sourceIndex < 0) return false
+    const boundedIndex = Math.max(0, Math.min(project.value.frames.length - 1, destinationIndex))
+    if (sourceIndex === boundedIndex) return false
+    checkpoint('Reorder frames')
+    const [frame] = project.value.frames.splice(sourceIndex, 1)
+    project.value.frames.splice(boundedIndex, 0, frame!)
+    project.value.frames.forEach((item, index) => (item.name = `F${index + 1}`))
+    touch(`Moved frame to position ${boundedIndex + 1}`)
+    return true
+  }
+
   const addLayer = () => {
     checkpoint('Add layer')
     const id = makeId('layer')
@@ -532,6 +545,7 @@ export const useEditor = () => {
     redo,
     addFrame,
     deleteFrame,
+    moveFrame,
     addLayer,
     deleteLayer,
     toggleLayer,

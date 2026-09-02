@@ -7,8 +7,7 @@ let pendingUpdate: Update | null = null
 let automaticCheckTimer: number | null = null
 
 const isDesktopRuntime = () =>
-  '__TAURI_INTERNALS__' in window &&
-  !/Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent)
+  '__TAURI_INTERNALS__' in window && !/Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent)
 
 export const useAppUpdater = () => {
   const config = useRuntimeConfig()

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/surelle-ha/zakape/compare/v0.5.0...v0.5.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* **studio:** exit after close confirmation ([e416e3b](https://github.com/surelle-ha/zakape/commit/e416e3bccbe309ca90f1331e8c7bcd874099095f))
+
 ## [0.5.0](https://github.com/surelle-ha/zakape/compare/v0.4.0...v0.5.0) (2026-09-02)
 
 

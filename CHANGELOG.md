@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/surelle-ha/zakape/compare/v0.3.0...v0.4.0) (2026-09-01)
+
+
+### Features
+
+* **studio:** expand pixel art workspace tools ([1b0e600](https://github.com/surelle-ha/zakape/commit/1b0e6007d4abd4e833eeac0b56680834ac1b1eae))
+
 ## [0.3.0](https://github.com/surelle-ha/zakape/compare/v0.2.0...v0.3.0) (2026-09-01)
 
 

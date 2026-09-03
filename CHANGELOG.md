@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.0](https://github.com/surelle-ha/zakape/compare/v0.5.1...v0.6.0) (2026-09-02)
+
+
+### Features
+
+* add adaptive Android studio ([1d82baa](https://github.com/surelle-ha/zakape/commit/1d82baac91ddc5eb44e09f2d258da71bfca2eaf4))
+* add signed desktop updates ([606b558](https://github.com/surelle-ha/zakape/commit/606b55844856e444d7b968876f718dd2cc18e478))
+* **studio:** improve assisted sprite workflow ([d38596a](https://github.com/surelle-ha/zakape/commit/d38596a27708e5403791770d9b416da72df1dbc7))
+
+
+### Bug Fixes
+
+* satisfy updater formatting ([faab828](https://github.com/surelle-ha/zakape/commit/faab82857e2099c8a7c877dd569f93fe10e265ac))
+
 ## [0.5.1](https://github.com/surelle-ha/zakape/compare/v0.5.0...v0.5.1) (2026-09-02)
 
 

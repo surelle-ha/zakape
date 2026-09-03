@@ -12,9 +12,10 @@ Merging the release pull request starts the complete desktop delivery sequence:
 1. Release Please synchronizes the root, website, studio, Cargo, and Android versions, then updates `CHANGELOG.md`. Tauri resolves the studio package version directly.
 2. GitHub creates a draft `vX.Y.Z` release and version tag.
 3. Tauri builds the Windows and Linux packages. It also builds macOS when Apple credentials are available.
-4. Each job signs its updater archive and attaches the native bundle, updater signature, and platform metadata.
-5. The release action uploads a merged `latest.json` manifest.
-6. GitHub publishes the release only after all selected platform builds succeed.
+4. A release-owned Android job builds and verifies the ARM64 APK, renames it to `Zakape-X.Y.Z-android-arm64.apk`, and attaches it directly to the same draft release.
+5. Each desktop job signs its updater archive and attaches the native bundle, updater signature, and platform metadata.
+6. The release action uploads a merged `latest.json` manifest.
+7. GitHub publishes the release only after every selected desktop build and the Android APK succeed.
 
 If a platform build is interrupted, run the **Desktop release** workflow manually with the existing tag and the **all** target. Do not create version tags by hand.
 
@@ -59,7 +60,7 @@ Without these secrets, the workflow publishes Windows and Linux assets and adds 
 
 ## Publish Android builds
 
-The **Android** workflow builds and verifies an Android package (APK) on relevant pushes and pull requests. When a push is the exact commit targeted by a versioned GitHub release, the workflow also attaches it as `Zakape-X.Y.Z-android-arm64.apk`, preserving the actual filename on the release page.
+The **Android** workflow builds and verifies an Android package (APK) on relevant pushes and pull requests as a development quality gate. Release attachment belongs to the **Desktop release** workflow itself. The previous independent push job could finish its release lookup before the draft release targeted the new commit, causing a successful APK build to skip its upload. Keeping the APK job behind release creation in the same job graph removes that race and guarantees that a release cannot publish without `Zakape-X.Y.Z-android-arm64.apk`.
 
 Manual dispatch can produce a signed Android App Bundle (AAB). It can upload the bundle after you configure signing and service-account secrets. Upload the first Play Console bundle manually to establish Play App Signing and application programming interface (API) access.
 

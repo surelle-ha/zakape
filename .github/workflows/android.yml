@@ -47,8 +47,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  debug-apk:
-    name: Debug APK
+  apk:
+    name: Android APK
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -79,7 +79,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:android:debug
-      - name: Verify debug package
+      - name: Verify Android package
         id: apk
         shell: bash
         run: |
@@ -90,35 +90,10 @@ jobs:
           echo "path=$apk" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v7
         with:
-          name: zakape-android-debug-${{ github.sha }}
+          name: zakape-android-${{ github.sha }}
           path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
           retention-days: 14
-      - name: Attach APK to matching release
-        if: github.event_name == 'push'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APK_PATH: ${{ steps.apk.outputs.path }}
-        run: |
-          version="$(node -p "require('./package.json').version")"
-          tag="v$version"
-          target=''
-          for attempt in {1..30}; do
-            target="$(gh release view "$tag" --json targetCommitish --jq .targetCommitish 2>/dev/null || true)"
-            [ -n "$target" ] && break
-            sleep 10
-          done
-
-          if [ "$target" != "$GITHUB_SHA" ]; then
-            echo "::notice::Skipping release upload because $tag does not target $GITHUB_SHA."
-            exit 0
-          fi
-
-          release_apk="$RUNNER_TEMP/Zakape-$version-android-arm64.apk"
-          cp "$APK_PATH" "$release_apk"
-          gh release upload "$tag" "$release_apk" --clobber
-
   play-bundle:
     name: Signed Play bundle
     if: github.event_name == 'workflow_dispatch' && inputs.build_play_bundle

@@ -204,8 +204,67 @@ jobs:
           xcrun stapler validate "$app_path"
           xcrun stapler validate "${dmgs[0]}"
 
+  android:
+    name: Android APK
+    needs: release
+    if: needs.release.outputs.release_ready == 'true'
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_NDK_VERSION: 27.2.12479018
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.build_ref }}
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.17.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK and NDK
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' "ndk;$ANDROID_NDK_VERSION"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/studio/src-tauri -> target
+      - uses: gradle/actions/setup-gradle@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:android:debug
+      - name: Verify Android package
+        id: apk
+        shell: bash
+        run: |
+          apk="$(find apps/studio/src-tauri/gen/android/app/build/outputs/apk -type f -name '*.apk' -print -quit)"
+          test -n "$apk"
+          test -s "$apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$apk"
+          version="${{ needs.release.outputs.tag_name }}"
+          version="${version#v}"
+          release_apk="$RUNNER_TEMP/Zakape-$version-android-arm64.apk"
+          cp "$apk" "$release_apk"
+          echo "path=$release_apk" >> "$GITHUB_OUTPUT"
+      - name: Attach APK to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ needs.release.outputs.tag_name }}
+          APK_PATH: ${{ steps.apk.outputs.path }}
+        run: gh release upload "$TAG_NAME" "$APK_PATH" --clobber
+
   publish:
-    needs: [release, build]
+    needs: [release, build, android]
     if: needs.release.outputs.release_ready == 'true'
     runs-on: ubuntu-latest
     steps:

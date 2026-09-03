@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/surelle-ha/zakape/compare/v0.7.0...v0.8.0) (2026-09-03)
+
+
+### Features
+
+* add structured commits and interface motion ([f046af1](https://github.com/surelle-ha/zakape/commit/f046af10a96e1a113949d8163eeb44a253faf233))
+
 ## [0.7.0](https://github.com/surelle-ha/zakape/compare/v0.6.0...v0.7.0) (2026-09-03)
 
 

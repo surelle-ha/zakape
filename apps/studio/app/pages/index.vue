@@ -65,6 +65,7 @@ const {
   savePreference,
 } = useProjectRepository()
 const {
+  screen,
   launcherOpen,
   launcherView,
   assistantOpen,
@@ -224,7 +225,11 @@ const completeWalkthrough = async () => {
 }
 
 const switchDocument = async (documentId: string) => {
-  if (documentId === activeDocumentId.value) return
+  if (documentId === activeDocumentId.value) {
+    showEditor()
+    await fitCompactCanvas()
+    return
+  }
   if (autosaveTimer) window.clearTimeout(autosaveTimer)
   if (!isPlaceholder.value) await saveProject(cloneProject(project.value))
   discardProposal()
@@ -232,6 +237,7 @@ const switchDocument = async (documentId: string) => {
   nameDraft.value = project.value.name
   editingName.value = false
   inspectorOpen.value = false
+  showEditor()
   await fitCompactCanvas()
 }
 
@@ -531,13 +537,31 @@ onBeforeUnmount(() => {
   <div class="studio-page">
     <main
       class="studio-shell"
+      :class="{ 'home-active': screen === 'home' }"
+      :inert="launcherOpen || Boolean(closeRequest)"
       data-testid="app-shell"
       @click="exportOpen = false"
       @contextmenu.prevent
     >
-      <DocumentTabs @activate="switchDocument" @close="closeSpriteDocument" @new="requestNew" />
+      <DocumentTabs
+        :home-active="screen === 'home'"
+        @home="showHome"
+        @activate="switchDocument"
+        @close="closeSpriteDocument"
+        @new="requestNew"
+      />
 
-      <header class="app-bar">
+      <HomeWorkspace
+        v-if="screen === 'home'"
+        :projects="recentProjects"
+        :workspace-directory="workspaceDirectory"
+        :loading="persistenceState === 'loading'"
+        @new="requestNew"
+        @browse="fileInput?.click()"
+        @open-project="openRecentProject"
+      />
+
+      <header v-if="screen === 'editor'" class="app-bar">
         <div class="project-heading">
           <input
             v-if="editingName"
@@ -699,7 +723,7 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
-      <div class="workspace-grid">
+      <div v-if="screen === 'editor'" class="workspace-grid">
         <ToolRail />
 
         <section class="canvas-workspace" aria-label="Canvas workspace">
@@ -809,7 +833,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <TimelineStrip />
+      <TimelineStrip v-if="screen === 'editor'" />
     </main>
 
     <ProjectLauncher
@@ -818,11 +842,11 @@ onBeforeUnmount(() => {
       :workspace-directory="workspaceDirectory"
       :view="launcherView"
       :loading="persistenceState === 'loading'"
-      :can-close="!isPlaceholder"
+      :can-close="true"
       @create-project="createProject"
       @open-project="openRecentProject"
       @browse="fileInput?.click()"
-      @close="showEditor"
+      @close="showHome"
       @update-view="launcherView = $event"
     />
 

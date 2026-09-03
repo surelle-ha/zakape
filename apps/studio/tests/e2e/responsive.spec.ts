@@ -2,12 +2,13 @@ import { expect, test } from '@playwright/test'
 
 const openEditor = async (page: import('@playwright/test').Page, name: string, size = 32) => {
   await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
-  await expect(page.getByTestId('project-launcher')).toBeVisible()
-  await page.getByRole('button', { name: 'New sprite', exact: true }).click()
-  await page.getByRole('textbox', { name: 'Project name' }).fill(name)
-  await page.getByRole('spinbutton', { name: 'Width' }).fill(String(size))
-  await page.getByRole('spinbutton', { name: 'Height' }).fill(String(size))
-  await page.getByRole('button', { name: 'Create sprite', exact: true }).click()
+  const launcher = page.getByTestId('project-launcher')
+  await expect(launcher).toBeVisible()
+  await launcher.getByRole('button', { name: 'New sprite', exact: true }).click()
+  await launcher.getByRole('textbox', { name: 'Project name' }).fill(name)
+  await launcher.getByRole('spinbutton', { name: 'Width' }).fill(String(size))
+  await launcher.getByRole('spinbutton', { name: 'Height' }).fill(String(size))
+  await launcher.getByRole('button', { name: 'Create sprite', exact: true }).click()
   await expect(page.getByTestId('project-launcher')).toBeHidden()
   await expect(page.getByTestId('pixel-canvas')).toBeVisible()
   const skipTour = page.getByRole('button', { name: 'Skip tour' })
@@ -90,7 +91,7 @@ test.describe('tablet workbench', () => {
     await expect(page.getByTestId('app-titlebar')).toBeHidden()
     await expect(page.getByRole('contentinfo', { name: 'Application status' })).toBeVisible()
     await expect(page.getByRole('contentinfo', { name: 'Application status' })).toContainText(
-      'v0.5.1',
+      /v\d+\.\d+\.\d+/,
     )
     await expect(page.getByTestId('project-launcher')).toBeVisible()
     await expect(page).toHaveScreenshot('tablet-project-launcher.png', {

@@ -196,8 +196,8 @@ export const animationCommands: CommandDefinition[] = [
   },
   {
     id: 'onion-skin',
-    label: 'Onion silhouette',
-    description: 'Show or hide the previous frame silhouette.',
+    label: 'Onion skin',
+    description: 'Show or hide the previous frame drawing guide.',
     shortcut: 'O',
   },
 ]

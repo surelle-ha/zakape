@@ -20,11 +20,6 @@
           "jsonpath": "$.version"
         },
         {
-          "type": "json",
-          "path": "apps/studio/src-tauri/tauri.conf.json",
-          "jsonpath": "$.version"
-        },
-        {
           "type": "toml",
           "path": "apps/studio/src-tauri/Cargo.toml",
           "jsonpath": "$.package.version"

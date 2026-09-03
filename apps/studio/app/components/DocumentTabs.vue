@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { FilePlus2, Plus, X } from '@lucide/vue'
+import { FilePlus2, Home, Plus, X } from '@lucide/vue'
+
+defineProps<{ homeActive?: boolean }>()
 
 const emit = defineEmits<{
+  home: []
   activate: [documentId: string]
   close: [documentId: string]
   new: []
@@ -38,8 +41,23 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', closeContextMenu
 
 <template>
   <div class="document-tabs" aria-label="Open sprite documents">
+    <button
+      v-tooltip="{
+        text: 'Home',
+        detail: 'View recent work, release notes, and workspace details.',
+      }"
+      type="button"
+      class="home-document-tab"
+      :class="{ active: homeActive }"
+      role="tab"
+      :aria-selected="homeActive"
+      aria-label="Home"
+      @click="emit('home')"
+    >
+      <Home :size="13" />
+      <span>Home</span>
+    </button>
     <div class="document-tab-list" role="tablist">
-      <span v-if="!visibleDocuments.length" class="document-empty-tab">No document open</span>
       <div
         v-for="document in visibleDocuments"
         :key="document.id"

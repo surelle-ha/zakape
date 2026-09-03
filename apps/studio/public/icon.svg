@@ -1,5 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="88" fill="#141714"/>
-  <path fill="#b9f5d0" d="M112 104h88v88h-88zm200 0h88v88h-88zM200 192h112v112H200zm-88 112h88v88h-88zm200 0h88v88h-88zM200 392h112v16H200z"/>
-  <path fill="#ff875f" d="M312 104h88v88h-88z"/>
+  <rect width="512" height="512" rx="100" fill="#0f120f"/>
+  <rect x="22" y="22" width="468" height="468" rx="82" fill="#171b17" stroke="#344036" stroke-width="6"/>
+  <path
+    d="M114 118h296v64h-72v64h-64v64h-64v64h200v64H114v-72h72v-64h64v-64h64v-56H114z"
+    fill="#ff875f"
+    opacity=".28"
+    transform="translate(10 10)"
+  />
+  <path
+    d="M102 106h296v64h-72v64h-64v64h-64v64h200v64H102v-72h72v-64h64v-64h64v-56H102z"
+    fill="#b9f5d0"
+  />
+  <path d="M334 106h64v64h-64z" fill="#ff875f"/>
+  <path d="M238 234h24v64h-24z" fill="#7ed0aa"/>
+  <path d="M102 362h64v64h-64z" fill="#d9ffe7"/>
 </svg>

@@ -9,7 +9,7 @@ Zakape uses Semantic Versioning, Conventional Commits, Release Please, and signe
 
 Merging the release pull request starts the complete desktop delivery sequence:
 
-1. Release Please synchronizes the root, website, studio, Tauri, Cargo, and Android versions, then updates `CHANGELOG.md`.
+1. Release Please synchronizes the root, website, studio, Cargo, and Android versions, then updates `CHANGELOG.md`. Tauri resolves the studio package version directly.
 2. GitHub creates a draft `vX.Y.Z` release and version tag.
 3. Tauri builds the Windows and Linux packages. It also builds macOS when Apple credentials are available.
 4. Each job signs its updater archive and attaches the native bundle, updater signature, and platform metadata.
@@ -59,7 +59,9 @@ Without these secrets, the workflow publishes Windows and Linux assets and adds 
 
 ## Publish Android builds
 
-The **Android** workflow builds and verifies a debug Android package (APK) on relevant pushes and pull requests. Manual dispatch can produce a signed Android App Bundle (AAB). It can upload the bundle after you configure signing and service-account secrets. Upload the first Play Console bundle manually to establish Play App Signing and application programming interface (API) access.
+The **Android** workflow builds and verifies a debug Android package (APK) on relevant pushes and pull requests. When a push is the exact commit targeted by a versioned GitHub release, the workflow also attaches the ARM64 debug APK to that release. This package is clearly named as a debug build for device testing.
+
+Manual dispatch can produce a signed Android App Bundle (AAB). It can upload the bundle after you configure signing and service-account secrets. Upload the first Play Console bundle manually to establish Play App Signing and application programming interface (API) access.
 
 Release Please synchronizes the SemVer source used to derive Android's numeric `versionCode`. Keystores and signing-property files are ignored. See the [Android build guide](android.md) for local commands, output locations, and required secrets.
 

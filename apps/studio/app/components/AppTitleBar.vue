@@ -268,6 +268,7 @@ watch(
         <span class="eyebrow">Pixel workbench</span>
         <h2 id="about-heading">Zakape</h2>
         <p>Open-source sprite drawing, animation, and reviewable model-assisted edits.</p>
+        <span class="about-author">Created by <strong>surelle-ha</strong></span>
         <small>{{ workspaceDirectory }} · v{{ currentVersion }}</small>
         <button ref="aboutClose" type="button" class="button-primary" @click="closeAbout">
           Close

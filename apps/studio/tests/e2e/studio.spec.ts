@@ -17,23 +17,28 @@ const enterEditor = async (
     skipWalkthrough?: boolean
   } = {},
 ) => {
-  await page.getByRole('button', { name: 'New sprite', exact: true }).click()
-  await page.getByRole('textbox', { name: 'Project name' }).fill(spec.name ?? 'Untitled sprite')
-  if (spec.width) await page.getByRole('spinbutton', { name: 'Width' }).fill(String(spec.width))
-  if (spec.height) await page.getByRole('spinbutton', { name: 'Height' }).fill(String(spec.height))
+  const launcher = page.getByTestId('project-launcher')
+  await launcher.getByRole('button', { name: 'New sprite', exact: true }).click()
+  await launcher.getByRole('textbox', { name: 'Project name' }).fill(spec.name ?? 'Untitled sprite')
+  if (spec.width) await launcher.getByRole('spinbutton', { name: 'Width' }).fill(String(spec.width))
+  if (spec.height)
+    await launcher.getByRole('spinbutton', { name: 'Height' }).fill(String(spec.height))
   if (spec.colorMode) {
     const label =
       spec.colorMode === 'rgba' ? 'RGBA' : spec.colorMode === 'grayscale' ? 'Greyscale' : 'Indexed'
-    await page.locator('.launcher-segments').getByText(label, { exact: true }).click()
+    await launcher.locator('.launcher-segments').getByText(label, { exact: true }).click()
   }
   if (spec.background) {
-    await page.locator('.background-segments').getByText(spec.background, { exact: true }).click()
+    await launcher
+      .locator('.background-segments')
+      .getByText(spec.background, { exact: true })
+      .click()
   }
   if (spec.captureSetup) {
     await mkdir(snapshotDirectory, { recursive: true })
     await page.screenshot({ path: resolve(snapshotDirectory, 'new-canvas-dialog.png') })
   }
-  await page.getByRole('button', { name: 'Create sprite', exact: true }).click()
+  await launcher.getByRole('button', { name: 'Create sprite', exact: true }).click()
   await expect(page.getByTestId('project-launcher')).toBeHidden()
   await expect(page.getByTestId('pixel-canvas')).toBeVisible()
   await expect(page.locator('.save-state')).not.toContainText('Restoring', { timeout: 30_000 })
@@ -66,7 +71,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await expect(page.getByTestId('app-titlebar')).toBeVisible()
   await expect(page.getByTestId('project-launcher')).toBeVisible()
-  await expect(page.getByTestId('pixel-canvas')).toBeVisible()
+  await expect(page.locator('.home-workspace')).toBeVisible()
   await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
   await page.evaluate(() => document.fonts.ready)
   await expect(page.getByText('Indexing Documents/zakape…', { exact: true })).toBeHidden({
@@ -79,7 +84,7 @@ test('shows local account status and exposes desktop update controls', async ({ 
   await expect(statusbar).toBeVisible()
   await expect(statusbar).toContainText('Guest')
   await expect(statusbar).toContainText('Local backup')
-  await expect(statusbar).toContainText('v0.5.1')
+  await expect(statusbar).toContainText(/v\d+\.\d+\.\d+/)
   expect(await page.evaluate(() => document.fonts.check('16px "Handjet Variable"'))).toBe(true)
 
   await page.getByRole('button', { name: 'Help' }).click()
@@ -91,12 +96,39 @@ test('shows local account status and exposes desktop update controls', async ({ 
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'desktop-updater.png') })
   await updateDialog.getByRole('button', { name: 'Close', exact: true }).click()
+
+  await page.getByRole('button', { name: 'Help' }).click()
+  await page.getByRole('menuitem', { name: 'About Zakape' }).click()
+  await expect(page.getByRole('dialog', { name: 'Zakape' })).toContainText('surelle-ha')
+})
+
+test('keeps an indismissable Home tab with recent work and release notes', async ({ page }) => {
+  await page.getByRole('button', { name: 'Close project launcher' }).click()
+  const homeTab = page.getByRole('tab', { name: 'Home', exact: true })
+  await expect(homeTab).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('heading', { name: 'Recent work' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Changelog' })).toBeVisible()
+  await expect(page.getByLabel('Workspace details')).toContainText('Documents/zakape')
+
+  await page.getByRole('button', { name: 'New sprite', exact: true }).click()
+  await enterEditor(page, { name: 'Home tab study' })
+  await homeTab.click()
+  await expect(page.getByLabel('Home workspace')).toBeVisible()
+  await expect(page.locator('.home-document-tab .document-close')).toHaveCount(0)
+  await expect(homeTab).toHaveAttribute('aria-selected', 'true')
+  await page.mouse.move(700, 700)
+  await page.waitForTimeout(180)
+  await page.screenshot({ path: resolve(snapshotDirectory, 'workspace-home-tab.png') })
+
+  await page.getByRole('tab', { name: 'Home tab study' }).click()
+  await expect(page.getByTestId('pixel-canvas')).toBeVisible()
 })
 
 test('creates a named custom-size sprite from the modal launcher', async ({ page }) => {
-  await expect(page.getByText('Continue your work')).toBeVisible()
-  await expect(page.getByText('Documents/zakape', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'New sprite', exact: true }).click()
+  const launcher = page.getByTestId('project-launcher')
+  await expect(launcher.getByText('Continue your work')).toBeVisible()
+  await expect(launcher.getByText('Documents/zakape', { exact: true })).toBeVisible()
+  await launcher.getByRole('button', { name: 'New sprite', exact: true }).click()
   await expect(page.getByRole('radiogroup', { name: 'Canvas presets' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Recent projects' }).click()
   await enterEditor(page, {
@@ -112,7 +144,7 @@ test('creates a named custom-size sprite from the modal launcher', async ({ page
   await expect(page.getByText('48×24', { exact: true })).toBeVisible()
   await expect(page.locator('.canvas-status')).toContainText('GRAYSCALE')
   await expect(page.locator('.frame-item')).toHaveCount(1)
-  await expect(page.getByLabel('Onion silhouette')).toBeChecked()
+  await expect(page.getByLabel('Onion skin')).toBeChecked()
   expect((await page.locator('.timeline').boundingBox())!.height).toBeLessThanOrEqual(146)
 })
 
@@ -244,7 +276,7 @@ test('confirms project and application close requests before leaving work', asyn
 
   await page.getByRole('button', { name: 'Close Confirmation study' }).click()
   await page.getByRole('button', { name: 'Close project' }).click()
-  await expect(page.getByTestId('project-launcher')).toBeVisible()
+  await expect(page.getByLabel('Home workspace')).toBeVisible()
   await expect(page.getByRole('tab', { name: 'Confirmation study' })).toHaveCount(0)
 })
 
@@ -298,15 +330,24 @@ test('paints with mouse-selected colors, mirror axes, and dithering', async ({ p
     )
 
   const secondary = page.getByLabel('Secondary drawing color')
-  await secondary.fill('#00ff00')
   await secondary.click()
+  const secondaryPicker = page.getByRole('dialog', { name: 'Secondary color picker' })
+  await secondaryPicker.getByRole('textbox', { name: 'Hex color' }).fill('#00ff00')
+  await secondaryPicker.getByRole('textbox', { name: 'Hex color' }).press('Enter')
+  await expect(secondaryPicker).toContainText('#00FF00')
+  await secondaryPicker.getByRole('button', { name: 'Close color picker' }).click()
   await expect(secondary).toHaveClass(/active/)
   await clickPixel(3, 4)
   expect((await readPixel(3, 4)).slice(0, 3)).toEqual([0, 255, 0])
 
   const primary = page.getByLabel('Primary drawing color')
-  await primary.fill('#ff0000')
   await primary.click()
+  const primaryPicker = page.getByRole('dialog', { name: 'Primary color picker' })
+  await primaryPicker.getByRole('textbox', { name: 'Hex color' }).fill('#ff0000')
+  await primaryPicker.getByRole('textbox', { name: 'Hex color' }).press('Enter')
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'custom-color-picker.png') })
+  await primaryPicker.getByRole('button', { name: 'Close color picker' }).click()
   await page.getByTestId('tool-mirror').click()
   await clickPixel(5, 7)
   expect((await readPixel(5, 7)).slice(0, 3)).toEqual([255, 0, 0])
@@ -347,7 +388,7 @@ test('owns frame creation, copying, deletion, and onion skin in each frame menu'
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'frame-actions-onion-skin.png') })
   await page.keyboard.press('Escape')
-  await page.getByLabel('Onion silhouette').uncheck()
+  await page.getByLabel('Onion skin').uncheck()
   const withoutSilhouette = await canvas.evaluate((element: HTMLCanvasElement) =>
     element.toDataURL(),
   )
@@ -372,11 +413,7 @@ test('rearranges frame playback order with drag and undo', async ({ page }) => {
   const originalOrder = await frames.evaluateAll((items) =>
     items.map((item) => item.getAttribute('data-frame-id')),
   )
-  await page.getByRole('button', { name: 'Arrange' }).click()
-  await expect(page.getByRole('button', { name: 'Arrange' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
+  await expect(page.getByRole('button', { name: 'Arrange' })).toHaveCount(0)
   await frames
     .nth(0)
     .locator('.frame-cell')
@@ -605,7 +642,7 @@ test('asks whether the assistant should edit one frame or the entire sheet', asy
 
 test('keeps the complete toolset compact at the minimum desktop size', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 720 })
-  await expect(page.getByTestId('project-launcher')).toBeVisible()
+  await expect(page.getByLabel('Home workspace')).toBeVisible()
   const launcherBounds = await page.getByTestId('project-launcher').locator('section').boundingBox()
   expect(launcherBounds!.width).toBeLessThan(1024)
   expect(launcherBounds!.height).toBeLessThan(684)

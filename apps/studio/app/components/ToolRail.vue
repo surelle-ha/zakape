@@ -17,6 +17,7 @@ import type { ToolId } from '~/types/editor'
 import { formatShortcut, toolDefinitions } from '~/utils/commands'
 
 const {
+  project,
   activeTool,
   primaryColor,
   secondaryColor,
@@ -25,6 +26,15 @@ const {
   swapColors,
   selectDrawingColor,
 } = useEditor()
+const colorPicker = ref<'primary' | 'secondary' | null>(null)
+const swapDrawingColors = () => {
+  colorPicker.value = null
+  swapColors()
+}
+const resetDrawingColors = () => {
+  colorPicker.value = null
+  resetColors()
+}
 
 const toolIcons: Record<ToolId, Component> = {
   pencil: Pencil,
@@ -44,29 +54,27 @@ const tools = toolDefinitions.map((tool) => ({ ...tool, icon: toolIcons[tool.id]
 <template>
   <nav class="tool-rail" aria-label="Drawing tools">
     <div class="tool-color-stack" aria-label="Drawing colors">
-      <input
+      <ColorPicker
         v-model="primaryColor"
-        v-tooltip="{
-          text: 'Primary color',
-          detail: 'Left-click drawing uses this color. Click the swatch to edit it.',
-        }"
-        class="tool-color primary"
-        :class="{ active: activeDrawingColor === 'primary' }"
-        type="color"
-        aria-label="Primary drawing color"
-        @pointerdown="selectDrawingColor('primary')"
+        label="Primary color"
+        swatch-class="primary"
+        :palette="project.palette"
+        :open="colorPicker === 'primary'"
+        :active="activeDrawingColor === 'primary'"
+        @select="selectDrawingColor('primary')"
+        @toggle="colorPicker = colorPicker === 'primary' ? null : 'primary'"
+        @close="colorPicker = null"
       />
-      <input
+      <ColorPicker
         v-model="secondaryColor"
-        v-tooltip="{
-          text: 'Secondary color',
-          detail: 'Right-click drawing uses this color. Click the swatch to edit it.',
-        }"
-        class="tool-color secondary"
-        :class="{ active: activeDrawingColor === 'secondary' }"
-        type="color"
-        aria-label="Secondary drawing color"
-        @pointerdown="selectDrawingColor('secondary')"
+        label="Secondary color"
+        swatch-class="secondary"
+        :palette="project.palette"
+        :open="colorPicker === 'secondary'"
+        :active="activeDrawingColor === 'secondary'"
+        @select="selectDrawingColor('secondary')"
+        @toggle="colorPicker = colorPicker === 'secondary' ? null : 'secondary'"
+        @close="colorPicker = null"
       />
       <button
         v-tooltip="{
@@ -77,7 +85,7 @@ const tools = toolDefinitions.map((tool) => ({ ...tool, icon: toolIcons[tool.id]
         type="button"
         class="color-swap"
         aria-label="Swap primary and secondary colors"
-        @click="swapColors"
+        @click="swapDrawingColors"
       >
         <ArrowDownUp :size="10" />
       </button>
@@ -90,7 +98,7 @@ const tools = toolDefinitions.map((tool) => ({ ...tool, icon: toolIcons[tool.id]
         type="button"
         class="color-reset"
         aria-label="Reset drawing colors"
-        @click="resetColors"
+        @click="resetDrawingColors"
       >
         <RotateCcw :size="9" />
       </button>

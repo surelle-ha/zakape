@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Copy,
   Ellipsis,
-  GripVertical,
   Layers3,
   Pause,
   Play,
@@ -25,7 +24,6 @@ const {
   dirtyRevision,
 } = useEditor()
 const playing = useState<boolean>('preview-playing', () => true)
-const arrangeFrames = useState<boolean>('arrange-frames', () => false)
 const frameTrack = ref<HTMLElement | null>(null)
 const frameMenu = ref<{ frameId: string; x: number; y: number } | null>(null)
 const draggingFrameId = ref<string | null>(null)
@@ -72,7 +70,7 @@ const clearDrag = () => {
 }
 
 const startFrameDrag = (event: DragEvent, frameId: string) => {
-  if (!arrangeFrames.value || !event.dataTransfer) {
+  if (!event.dataTransfer) {
     event.preventDefault()
     return
   }
@@ -82,7 +80,7 @@ const startFrameDrag = (event: DragEvent, frameId: string) => {
 }
 
 const updateDropTarget = (event: DragEvent, frameId: string) => {
-  if (!arrangeFrames.value || !draggingFrameId.value) return
+  if (!draggingFrameId.value) return
   event.preventDefault()
   if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
   const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect()
@@ -104,11 +102,6 @@ const dropFrame = (event: DragEvent, targetFrameId: string) => {
     moveFrame(sourceFrameId!, destinationIndex)
   }
   clearDrag()
-}
-
-const toggleArrangeFrames = () => {
-  arrangeFrames.value = !arrangeFrames.value
-  if (!arrangeFrames.value) clearDrag()
 }
 
 const addAdjacent = (duplicate: boolean, side: 'left' | 'right') => {
@@ -170,20 +163,6 @@ onBeforeUnmount(() => {
       <div class="timeline-controls">
         <button
           v-tooltip="{
-            text: 'Arrange frames',
-            detail:
-              'Enable drag-and-drop playback ordering. Ctrl+Arrow also moves the active frame.',
-          }"
-          type="button"
-          class="arrange-toggle"
-          :class="{ active: arrangeFrames }"
-          :aria-pressed="arrangeFrames"
-          @click="toggleArrangeFrames"
-        >
-          <GripVertical :size="13" /> <span class="control-label">Arrange</span>
-        </button>
-        <button
-          v-tooltip="{
             text: 'Scroll frames left',
             detail: 'Move the timeline viewport without changing the active frame.',
           }"
@@ -234,14 +213,14 @@ onBeforeUnmount(() => {
         </label>
         <label
           v-tooltip="{
-            text: 'Onion silhouette',
-            detail: 'Show the previous frame as a muted silhouette while drawing.',
+            text: 'Onion skin',
+            detail: 'Show the previous frame as a muted drawing guide.',
             shortcut: 'O',
           }"
           class="onion-toggle"
         >
           <input v-model="onionSkin" type="checkbox" />
-          <span class="control-label">Onion silhouette</span>
+          <span class="control-label">Onion skin</span>
         </label>
       </div>
     </header>
@@ -260,7 +239,6 @@ onBeforeUnmount(() => {
           class="frame-item"
           :class="{
             active: frame.id === activeFrameId,
-            arrangeable: arrangeFrames,
             dragging: draggingFrameId === frame.id,
             'drop-before': dropTarget?.frameId === frame.id && dropTarget.side === 'before',
             'drop-after': dropTarget?.frameId === frame.id && dropTarget.side === 'after',
@@ -274,13 +252,11 @@ onBeforeUnmount(() => {
           <button
             v-tooltip="{
               text: `Frame ${index + 1}`,
-              detail: arrangeFrames
-                ? 'Drag this frame to change its sequence.'
-                : 'Select this frame for drawing.',
+              detail: 'Select this frame, or drag it to change the playback sequence.',
             }"
             type="button"
             class="frame-cell"
-            :draggable="arrangeFrames"
+            draggable="true"
             :aria-label="`Frame ${index + 1}, ${frame.duration} milliseconds`"
             @dragstart="startFrameDrag($event, frame.id)"
             @dragend="clearDrag"

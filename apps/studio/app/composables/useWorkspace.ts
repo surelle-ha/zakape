@@ -1,25 +1,27 @@
 export type LauncherView = 'recent' | 'new'
+export type WorkspaceScreen = 'home' | 'editor'
 
 export const useWorkspace = () => {
   const launcherOpen = useState<boolean>('workspace-launcher-open', () => true)
   const launcherView = useState<LauncherView>('workspace-launcher-view', () => 'recent')
+  const screen = useState<WorkspaceScreen>('workspace-screen', () => 'home')
   const assistantOpen = useState<boolean>('workspace-assistant-open', () => false)
   const modelConnectionOpen = useState<boolean>('workspace-model-connection-open', () => false)
   const shortcutGuideOpen = useState<boolean>('workspace-shortcut-guide-open', () => false)
   const walkthroughOpen = useState<boolean>('workspace-walkthrough-open', () => false)
-  const screen = computed(() => (launcherOpen.value ? 'home' : 'editor'))
-
   const showHome = () => {
     assistantOpen.value = false
     modelConnectionOpen.value = false
     shortcutGuideOpen.value = false
     walkthroughOpen.value = false
     launcherView.value = 'recent'
-    launcherOpen.value = true
+    launcherOpen.value = false
+    screen.value = 'home'
   }
 
   const showEditor = () => {
     launcherOpen.value = false
+    screen.value = 'editor'
   }
 
   const requestOpen = () => {

@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { Pause, Play } from '@lucide/vue'
 
-const { project } = useEditor()
+const { project, activeFrame, dirtyRevision } = useEditor()
 const playing = useState<boolean>('preview-playing', () => true)
+
+const updateDuration = (event: Event) => {
+  const value = Number((event.target as HTMLInputElement).value)
+  if (!activeFrame.value || !Number.isFinite(value)) return
+  activeFrame.value.duration = Math.max(40, Math.min(2000, Math.round(value)))
+  dirtyRevision.value += 1
+}
 </script>
 
 <template>
@@ -29,9 +36,20 @@ const playing = useState<boolean>('preview-playing', () => true)
       <PreviewCanvas :size="138" :animate="playing" />
     </div>
     <footer>
-      <span>{{ project.width }} × {{ project.height }}</span>
-      <span>{{ project.frames.length }} frame{{ project.frames.length === 1 ? '' : 's' }}</span>
-      <span>{{ Math.round(1000 / (project.frames[0]?.duration ?? 120)) }} fps</span>
+      <span>{{ project.width }} × {{ project.height }} · {{ project.frames.length }}f</span>
+      <label class="preview-delay">
+        <span>Delay</span>
+        <input
+          :value="activeFrame?.duration ?? 120"
+          type="number"
+          min="40"
+          max="2000"
+          step="10"
+          aria-label="Active frame delay in milliseconds"
+          @change="updateDuration"
+        />
+        <span>ms</span>
+      </label>
     </footer>
   </section>
 </template>

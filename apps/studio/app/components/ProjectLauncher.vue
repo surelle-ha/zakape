@@ -32,6 +32,7 @@ const emit = defineEmits<{
       height: number
       colorMode: ColorMode
       background: CanvasBackground
+      checkerSize: number
       palette: string[]
     },
   ]
@@ -46,6 +47,7 @@ const width = ref(32)
 const height = ref(32)
 const colorMode = ref<ColorMode>('rgba')
 const background = ref<CanvasBackground>('transparent')
+const checkerSize = ref(2)
 const selectedPaletteId = ref(palettePresets[0]!.id)
 const customPalette = ref(normalizePalette(palettePresets[0]!.colors))
 const customColor = ref('#8B5CF6')
@@ -54,6 +56,7 @@ const formError = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
 const previewStyle = computed(() => ({
   aspectRatio: `${Math.max(1, width.value)} / ${Math.max(1, height.value)}`,
+  '--checker-preview-size': `${Math.max(4, Math.min(24, checkerSize.value * 3))}px`,
 }))
 const selectedPalette = computed(() =>
   selectedPaletteId.value === 'custom'
@@ -101,6 +104,15 @@ const submit = () => {
     formError.value = 'The canvas can contain at most 1,048,576 pixels.'
     return
   }
+  const transparencyCheckerSize = Math.round(Number(checkerSize.value))
+  if (
+    !Number.isInteger(transparencyCheckerSize) ||
+    transparencyCheckerSize < 1 ||
+    transparencyCheckerSize > 32
+  ) {
+    formError.value = 'Checker tile size must be between 1 and 32 pixels.'
+    return
+  }
   if (!selectedPalette.value.length) {
     formError.value = 'Choose at least one palette color.'
     return
@@ -112,6 +124,7 @@ const submit = () => {
     height: canvasHeight,
     colorMode: colorMode.value,
     background: background.value,
+    checkerSize: transparencyCheckerSize,
     palette: selectedPalette.value,
   })
 }
@@ -288,6 +301,22 @@ watch(
               </div>
             </fieldset>
 
+            <label class="launcher-field checker-size-field">
+              <span>Checker tile size</span>
+              <div>
+                <input
+                  v-model.number="checkerSize"
+                  name="checker-size"
+                  type="number"
+                  min="1"
+                  max="32"
+                  inputmode="numeric"
+                  autocomplete="off"
+                /><small>px</small>
+              </div>
+              <small>Pixels in each light and dark transparency square.</small>
+            </label>
+
             <fieldset class="launcher-choice-group palette-choice-group">
               <legend>Starting palette</legend>
               <div class="palette-preset-grid" role="radiogroup" aria-label="Starting palette">
@@ -379,6 +408,9 @@ watch(
                     : 'Palette indexed'
               }}
               · {{ background }} background · {{ selectedPalette.length }} colors · 1 frame
+              <template v-if="background === 'transparent'">
+                · {{ checkerSize }}px checker</template
+              >
             </p>
 
             <button type="submit" class="launcher-create">

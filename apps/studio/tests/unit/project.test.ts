@@ -57,6 +57,7 @@ describe('project helpers', () => {
     const project = createBlankProject(96, 48, 'Forest runner')
 
     expect(project).toMatchObject({ width: 96, height: 48, name: 'Forest runner' })
+    expect(project.checkerSize).toBe(2)
     expect(project.frames).toHaveLength(1)
     expect(project.layers).toHaveLength(1)
     expect(project.layers[0]!.cels[project.frames[0]!.id]).toHaveLength(96 * 48)
@@ -100,5 +101,10 @@ describe('project helpers', () => {
         layers: [{ ...project.layers[0]!, cels: { [project.frames[0]!.id]: [] } }],
       }),
     ).toThrow(/invalid/)
+
+    const legacy = { ...project } as Record<string, unknown>
+    delete legacy.checkerSize
+    expect(parseSpriteProject(legacy).checkerSize).toBe(2)
+    expect(() => parseSpriteProject({ ...project, checkerSize: 0 })).toThrow(/invalid/)
   })
 })

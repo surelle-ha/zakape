@@ -2,29 +2,18 @@
 import {
   ArrowLeft,
   ArrowRight,
-  ChevronLeft,
-  ChevronRight,
+  ChevronDown,
   Copy,
   Ellipsis,
   Layers3,
-  Pause,
-  Play,
   Plus,
   Trash2,
 } from '@lucide/vue'
 
-const {
-  project,
-  activeFrameId,
-  onionSkin,
-  addFrame,
-  deleteFrame,
-  moveFrame,
-  activeFrame,
-  dirtyRevision,
-} = useEditor()
-const playing = useState<boolean>('preview-playing', () => true)
-const frameTrack = ref<HTMLElement | null>(null)
+defineProps<{ collapsed?: boolean }>()
+const emit = defineEmits<{ toggle: [] }>()
+
+const { project, activeFrameId, addFrame, deleteFrame, moveFrame } = useEditor()
 const frameMenu = ref<{ frameId: string; x: number; y: number } | null>(null)
 const draggingFrameId = ref<string | null>(null)
 const dropTarget = ref<{ frameId: string; side: 'before' | 'after' } | null>(null)
@@ -44,17 +33,6 @@ const menuFrameIndex = computed(() =>
     ? project.value.frames.findIndex((frame) => frame.id === frameMenu.value?.frameId)
     : -1,
 )
-
-const updateDuration = (event: Event) => {
-  const value = Number((event.target as HTMLInputElement).value)
-  if (activeFrame.value && Number.isFinite(value)) {
-    activeFrame.value.duration = Math.max(40, Math.min(2000, value))
-    dirtyRevision.value += 1
-  }
-}
-
-const scrollFrames = (direction: number) =>
-  frameTrack.value?.scrollBy({ left: direction * 180, behavior: 'smooth' })
 
 const openFrameMenu = (event: MouseEvent, frameId: string) => {
   event.preventDefault()
@@ -148,7 +126,11 @@ const startHoldDrag = (event: PointerEvent, frameId: string) => {
     if (holdPointerId !== event.pointerId || holdPendingFrameId.value !== frameId) return
     draggingFrameId.value = frameId
     frameMenu.value = null
-    holdCaptureTarget?.setPointerCapture(event.pointerId)
+    try {
+      holdCaptureTarget?.setPointerCapture(event.pointerId)
+    } catch {
+      // Synthetic accessibility tests do not register a browser-level active pointer.
+    }
     updateHoldTarget(event)
     holdTimer = null
   }, 400)
@@ -244,71 +226,28 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="timeline" aria-label="Animation timeline" @contextmenu.prevent>
+  <section
+    class="timeline"
+    :class="{ collapsed }"
+    aria-label="Animation timeline"
+    @contextmenu.prevent
+  >
     <header class="timeline-header">
-      <div class="section-kicker"><Layers3 :size="14" /> Timeline</div>
-      <div class="timeline-controls">
+      <div class="timeline-title">
+        <div class="section-kicker"><Layers3 :size="14" /> Timeline</div>
         <button
           v-tooltip="{
-            text: 'Scroll frames left',
-            detail: 'Move the timeline viewport without changing the active frame.',
+            text: collapsed ? 'Show timeline' : 'Hide timeline',
+            detail: 'Collapse or restore the animation frame strip.',
           }"
           type="button"
-          class="icon-button"
-          aria-label="Previous frames"
-          @click="scrollFrames(-1)"
+          class="timeline-collapse"
+          :aria-label="collapsed ? 'Show timeline' : 'Hide timeline'"
+          :aria-expanded="!collapsed"
+          @click="emit('toggle')"
         >
-          <ChevronLeft :size="15" />
+          <ChevronDown :size="14" />
         </button>
-        <button
-          v-tooltip="{
-            text: playing ? 'Pause animation' : 'Play animation',
-            detail: 'Preview the timeline using each frame delay.',
-            shortcut: 'K',
-          }"
-          type="button"
-          class="play-button"
-          :aria-label="playing ? 'Pause preview' : 'Play preview'"
-          @click="playing = !playing"
-        >
-          <Pause v-if="playing" :size="14" fill="currentColor" />
-          <Play v-else :size="14" fill="currentColor" />
-        </button>
-        <button
-          v-tooltip="{
-            text: 'Scroll frames right',
-            detail: 'Move the timeline viewport without changing the active frame.',
-          }"
-          type="button"
-          class="icon-button"
-          aria-label="Next frames"
-          @click="scrollFrames(1)"
-        >
-          <ChevronRight :size="15" />
-        </button>
-        <label class="duration-field">
-          <span class="control-label">Delay</span>
-          <input
-            :value="activeFrame?.duration ?? 120"
-            type="number"
-            min="40"
-            max="2000"
-            step="10"
-            @change="updateDuration"
-          />
-          <span class="control-label">ms</span>
-        </label>
-        <label
-          v-tooltip="{
-            text: 'Onion skin',
-            detail: 'Show the previous frame as a muted drawing guide.',
-            shortcut: 'O',
-          }"
-          class="onion-toggle"
-        >
-          <input v-model="onionSkin" type="checkbox" />
-          <span class="control-label">Onion skin</span>
-        </label>
       </div>
     </header>
 
@@ -319,7 +258,7 @@ onBeforeUnmount(() => {
           <strong>All layers</strong><small>{{ project.layers.length }} visible stack</small>
         </div>
       </div>
-      <div ref="frameTrack" class="frame-track" role="list" aria-label="Frames">
+      <div class="frame-track" role="list" aria-label="Frames">
         <article
           v-for="(frame, index) in project.frames"
           :key="frame.id"

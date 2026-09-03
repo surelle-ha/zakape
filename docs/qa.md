@@ -3,8 +3,8 @@
 ## Automated gates
 
 - Nuxt/Vue type checks for the studio and website.
-- Unit coverage for rectangular project construction, bounded recent-art previews, rasterized line, rectangle, box-selection, and lasso-selection output, custom color-space conversion, color normalization, imported-payload validation, assistant operation/action validation, frame/layer creation, art-direction constraints, animation frame targeting, and Ollama request construction.
-- Playwright journeys for the launcher-hidden Home startup, the modal new-project flow, researched preset and custom palettes, the permanent Home tab, real recent-art thumbnails, in-app changelog, the custom color mixer, the first-project tour, desktop command shortcuts, touch-hidden shortcut labels, accessible custom tooltips, independent layer creation/visibility/renaming, named custom canvases, color mode and background selection, mouse-selected drawing colors, mirrored and dithered strokes, brush-size dots, responsive document tabs, project/application close confirmation, mouse and touch-hold frame ordering with undo, shape previews, frame-local insertion/copy/deletion, onion skinning, hand panning, Ctrl-wheel and two-finger pinch zoom, zoom-linked grids, custom scrollbars, contextual menus, browser-behavior suppression, assistant drawer and entire-sheet edits, exports, and desktop/tablet/phone visual snapshots.
+- Unit coverage for rectangular project construction and checker-size migration, bounded recent-art previews, rasterized line, rectangle, circle, box-selection, lasso-selection, nearest-neighbor selection resize, and rotation output, custom color-space conversion, color normalization, imported-payload validation, assistant operation/action validation, frame/layer creation, art-direction constraints, animation frame targeting, and Ollama request construction.
+- Playwright journeys for the launcher-hidden Home startup, the modal new-project flow and checker size, researched preset and custom palettes, the permanent Home tab, real recent-art thumbnails, in-app changelog, the custom color mixer, the first-project tour, desktop command shortcuts, touch-hidden shortcut labels, accessible custom tooltips, independent layer creation/visibility/renaming, named custom canvases, color mode and background selection, mouse-selected drawing colors, mirrored and dithered strokes, brush-size dots, responsive document tabs, project/application close confirmation, mouse and touch-hold frame ordering with undo, line/rectangle/circle previews, resizable and rotatable selections, frame-local insertion/copy/deletion, onion skinning, timeline collapse, hand panning, pointer-anchored wheel and two-finger pinch zoom, zoom-linked grids, custom scrollbars, contextual menus, browser-behavior suppression, assistant drawer and entire-sheet edits, exports, and desktop/tablet/phone visual snapshots.
 - Static generation for both Nuxt applications.
 - Cargo check, rustfmt, and Clippy for the Tauri shell.
 - Rust importer tests decode a minimal binary sprite fixture and assert bounded, deterministic conversion.
@@ -13,7 +13,7 @@
 
 ## Snapshot baselines
 
-Reviewed 3 September 2026 at 1440 px desktop width:
+Reviewed 4 September 2026 at 1440 px desktop width:
 
 - `docs/ui-snapshots/app-splash.png`
 - `docs/ui-snapshots/project-launcher.png`
@@ -27,7 +27,9 @@ Reviewed 3 September 2026 at 1440 px desktop width:
 - `docs/ui-snapshots/independent-layers.png`
 - `docs/ui-snapshots/assistant-drawer.png`
 - `docs/ui-snapshots/line-tool-preview.png`
+- `docs/ui-snapshots/circle-tool-preview.png`
 - `docs/ui-snapshots/box-selection.png`
+- `docs/ui-snapshots/selection-transform-handles.png`
 - `docs/ui-snapshots/frame-actions-onion-skin.png`
 - `docs/ui-snapshots/rearrange-frames.png`
 - `docs/ui-snapshots/exit-confirmation.png`
@@ -51,14 +53,14 @@ The Playwright baselines live beside the end-to-end tests so CI can detect unint
 - Controls expose visible labels, tooltips, or accessible names.
 - Tooltips appear for pointer and keyboard focus, describe the control's purpose, and show its shortcut when available.
 - Project launcher, document tabs, timeline, inspector, and canvas remain usable at the minimum 1024 × 720 window.
-- Line and rectangle previews match their committed pixels; left-click paints with the primary color and right-click paints with the secondary color without opening a native context menu.
-- Box and lasso selection boundaries match the chosen region; dragging inside moves all selected pixels, empty selected pixels clear the corresponding destination, bounds stay inside the canvas, and Delete clears the selection before it can delete a frame.
+- Line, rectangle, and circle previews match their committed pixels; left-click paints with the primary color and right-click paints with the secondary color without opening a native context menu.
+- Box and lasso selection boundaries match the chosen region; dragging inside moves all selected pixels, corner handles resize with nearest-neighbor sampling, the round handle rotates without smoothing, transformed bounds stay inside the canvas, and Delete clears the selection before it can delete a frame.
 - Primary and secondary swatches can each be selected with the pointer; the active swatch is visually explicit, and neither opens the browser's native color dialog.
 - Mirror-pencil output is symmetrical across the requested axis combination, and dithering alternates both selected colors without gaps in fast strokes.
 - The previous-frame silhouette disappears when onion skinning is unchecked and never wraps from frame one to the last frame.
 - Direct frame dragging exposes a clear insertion marker, retains frame content and duration after a move, and restores the prior sequence with one undo.
 - Touch frame ordering waits for a deliberate 400 ms hold, keeps horizontal timeline scrolling available before activation, and suppresses the release click after a move.
-- The work-surface grid changes interval with zoom, Ctrl-wheel changes zoom, and hand dragging pans an overflowing canvas.
+- The work-surface grid changes interval with zoom, wheel zoom keeps the pointed canvas pixel stable when scrolling is available, two-finger pinch uses the gesture midpoint, and hand dragging pans an overflowing canvas.
 - Native browser context menus, application-wide text selection, Ctrl+A, reload, print, source, location, history, and developer-tool shortcuts do not leak into the workbench. Text editing shortcuts remain available inside form controls.
 - The assistant is clearly optional; its small model-management control, persistent chat, scope, agent-pass activity, proposal, discard, and apply states are distinct.
 - The assistant opens without canned prompt suggestions, leaving art direction entirely to the artist.
@@ -72,7 +74,8 @@ The Playwright baselines live beside the end-to-end tests so CI can detect unint
 - The frameless desktop window remains draggable and exposes minimize, maximize/restore, and close controls from the right side of the titlebar.
 - Document tabs remain above the project title/export bar on desktop and below the timeline on phone/tablet; project/application close controls always open the save-before-close confirmation dialog.
 - Phone layouts omit the footer, keyboard-only labels, and shortcut dialog; Live Preview remains visible outside the independently hideable Layers drawer.
-- The violet titlebar controls, Layers drawer, and Timeline glass retain adequate contrast while visibly separating themselves from the canvas.
+- Charcoal surfaces remain visually neutral; violet is limited to focus, selection, borders, and active controls. The matching Layers and Assistant drawers plus Timeline glass retain adequate contrast while separating themselves from the canvas.
+- The timeline collapse control restores the frame strip without losing selection, frame delay edits live in Live Preview, and the footer update monitor rechecks periodically and after the app regains focus or network access.
 - Desktop autosaves create only validated `.zakape` files inside the operating system's `Documents/zakape` directory.
 - Reopening the desktop executable focuses the existing main window instead of creating another editor process.
 - The generated Android icon shows the supplied Zakape mark at every density, and the ARM64 APK reports the expected package ID, version, SDK range, ABI, and signature.

@@ -17,6 +17,7 @@ export const createBlankProject = (
   colorMode: ColorMode = 'rgba',
   background: CanvasBackground = 'transparent',
   selectedPalette: string[] = defaultPalette,
+  checkerSize = 2,
 ): SpriteProject => {
   const canvasWidth = Math.max(1, Math.min(1024, Math.round(width)))
   const canvasHeight = Math.max(1, Math.min(1024, Math.round(height)))
@@ -42,6 +43,7 @@ export const createBlankProject = (
     height: canvasHeight,
     colorMode,
     background,
+    checkerSize: Math.max(1, Math.min(32, Math.round(checkerSize))),
     palette,
     frames: [{ id: frameId, name: 'F1', duration: 120 }],
     layers: [
@@ -138,6 +140,7 @@ export const createDemoProject = (): SpriteProject => {
     height,
     colorMode: 'rgba',
     background: 'transparent',
+    checkerSize: 2,
     palette: [
       '#1c1628',
       '#5b3f82',
@@ -226,6 +229,10 @@ export const parseSpriteProject = (input: unknown): SpriteProject => {
       !['rgba', 'grayscale', 'indexed'].includes(String(input.colorMode))) ||
     (input.background !== undefined &&
       !['transparent', 'black', 'white'].includes(String(input.background))) ||
+    (input.checkerSize !== undefined &&
+      (!Number.isInteger(Number(input.checkerSize)) ||
+        Number(input.checkerSize) < 1 ||
+        Number(input.checkerSize) > 32)) ||
     typeof input.createdAt !== 'string' ||
     typeof input.updatedAt !== 'string' ||
     !Array.isArray(input.palette) ||
@@ -295,5 +302,6 @@ export const parseSpriteProject = (input: unknown): SpriteProject => {
   const project = cloneProject(input as unknown as SpriteProject)
   project.colorMode ??= 'rgba'
   project.background ??= 'transparent'
+  project.checkerSize ??= 2
   return project
 }

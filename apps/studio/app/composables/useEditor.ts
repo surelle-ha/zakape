@@ -2,6 +2,7 @@ import type {
   ArtProposal,
   Pixel,
   PixelPoint,
+  PixelSample,
   PixelSelection,
   SpriteProject,
   ToolId,
@@ -14,7 +15,7 @@ import {
   emptyPixels,
   makeId,
 } from '~/utils/project'
-import { rasterLine, rasterRectangle } from '~/utils/raster'
+import { rasterCircle, rasterLine, rasterRectangle } from '~/utils/raster'
 
 const HISTORY_LIMIT = 60
 
@@ -379,6 +380,20 @@ export const useEditor = () => {
     touch('Drew rectangle')
   }
 
+  const drawCircle = (
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    color: Pixel = primaryColor.value,
+  ) => {
+    checkpoint('Draw circle')
+    rasterCircle({ x: fromX, y: fromY }, { x: toX, y: toY }).forEach((point) =>
+      paintPixel(point.x, point.y, color),
+    )
+    touch('Drew circle')
+  }
+
   const setSelection = (kind: PixelSelection['kind'], points: PixelPoint[]) => {
     const unique = new Map<string, PixelPoint>()
     points.forEach((point) => {
@@ -432,6 +447,38 @@ export const useEditor = () => {
     })
     selection.value = { ...current, points: movedPoints }
     touch(`Moved selection ${offsetX}, ${offsetY}`)
+    return true
+  }
+
+  const transformSelection = (samples: PixelSample[], action: string) => {
+    const current = activeSelection.value
+    const pixels = activeLayer.value?.cels[activeFrameId.value]
+    if (!current || !pixels || !samples.length) return false
+    const transformed = new Map<string, PixelSample>()
+    samples.forEach((sample) => {
+      if (
+        sample.x >= 0 &&
+        sample.y >= 0 &&
+        sample.x < project.value.width &&
+        sample.y < project.value.height
+      ) {
+        transformed.set(`${sample.x}:${sample.y}`, sample)
+      }
+    })
+    if (!transformed.size) return false
+
+    checkpoint(action)
+    current.points.forEach((point) => {
+      pixels[point.y * project.value.width + point.x] = null
+    })
+    transformed.forEach((sample) => {
+      pixels[sample.y * project.value.width + sample.x] = sample.color
+    })
+    selection.value = {
+      ...current,
+      points: [...transformed.values()].map(({ x, y }) => ({ x, y })),
+    }
+    touch(action)
     return true
   }
 
@@ -667,9 +714,11 @@ export const useEditor = () => {
     floodFill,
     drawLine,
     drawRectangle,
+    drawCircle,
     setSelection,
     clearSelection,
     moveSelection,
+    transformSelection,
     deleteSelectionPixels,
     undo,
     redo,

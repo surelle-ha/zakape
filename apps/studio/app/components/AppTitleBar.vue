@@ -11,6 +11,7 @@ import {
   Save,
   Undo2,
 } from '@lucide/vue'
+import zakapeMark from '../../../../assets/brand/zakape-icon.png'
 
 const props = withDefaults(defineProps<{ menusEnabled?: boolean }>(), {
   menusEnabled: true,
@@ -119,7 +120,7 @@ watch(
     @dblclick="onTitleDoubleClick"
   >
     <div class="title-identity" data-tauri-drag-region>
-      <span class="brand-mark title-mark" aria-hidden="true"><i /><i /><i /><i /></span>
+      <img class="title-mark" :src="zakapeMark" alt="" aria-hidden="true" />
       <strong data-tauri-drag-region>ZAKAPE</strong>
       <span data-tauri-drag-region>{{ documentTitle }}</span>
     </div>

@@ -24,6 +24,7 @@ export interface SpriteProject {
   height: number
   colorMode: ColorMode
   background: CanvasBackground
+  checkerSize: number
   palette: string[]
   frames: Frame[]
   layers: Layer[]
@@ -40,6 +41,7 @@ export type ToolId =
   | 'picker'
   | 'line'
   | 'rectangle'
+  | 'circle'
   | 'select-rect'
   | 'select-lasso'
   | 'hand'
@@ -47,6 +49,10 @@ export type ToolId =
 export interface PixelPoint {
   x: number
   y: number
+}
+
+export interface PixelSample extends PixelPoint {
+  color: Pixel
 }
 
 export interface PixelSelection {

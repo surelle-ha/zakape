@@ -11,6 +11,7 @@ const enterEditor = async (
     name?: string
     width?: number
     height?: number
+    checkerSize?: number
     colorMode?: 'rgba' | 'grayscale' | 'indexed'
     background?: 'transparent' | 'black' | 'white'
     captureSetup?: boolean
@@ -28,6 +29,11 @@ const enterEditor = async (
   if (spec.width) await launcher.getByRole('spinbutton', { name: 'Width' }).fill(String(spec.width))
   if (spec.height)
     await launcher.getByRole('spinbutton', { name: 'Height' }).fill(String(spec.height))
+  if (spec.checkerSize) {
+    await launcher
+      .getByRole('spinbutton', { name: 'Checker tile size' })
+      .fill(String(spec.checkerSize))
+  }
   if (spec.colorMode) {
     const label =
       spec.colorMode === 'rgba' ? 'RGBA' : spec.colorMode === 'grayscale' ? 'Greyscale' : 'Indexed'
@@ -88,7 +94,7 @@ test('shows local account status and exposes desktop update controls', async ({ 
   const statusbar = page.getByRole('contentinfo', { name: 'Application status' })
   await expect(statusbar).toBeVisible()
   await expect(statusbar).toContainText('Guest')
-  await expect(statusbar).toContainText('Local backup')
+  await expect(statusbar).not.toContainText('Local backup')
   await expect(statusbar).toContainText(/v\d+\.\d+\.\d+/)
   expect(await page.evaluate(() => document.fonts.check('16px "Handjet Variable"'))).toBe(true)
 
@@ -160,6 +166,7 @@ test('creates a named custom-size sprite from the modal launcher', async ({ page
     name: 'Moonlit courier',
     width: 48,
     height: 24,
+    checkerSize: 3,
     colorMode: 'grayscale',
     background: 'white',
     captureSetup: true,
@@ -169,7 +176,10 @@ test('creates a named custom-size sprite from the modal launcher', async ({ page
   await expect(page.getByText('48×24', { exact: true })).toBeVisible()
   await expect(page.locator('.canvas-status')).toContainText('GRAYSCALE')
   await expect(page.locator('.frame-item')).toHaveCount(1)
-  await expect(page.getByLabel('Onion skin')).toBeChecked()
+  await expect(page.getByRole('button', { name: 'Toggle onion skin' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   expect((await page.locator('.timeline').boundingBox())!.height).toBeLessThanOrEqual(146)
 })
 
@@ -328,7 +338,7 @@ test('confirms project and application close requests before leaving work', asyn
   await expect(page.getByRole('tab', { name: 'Confirmation study' })).toHaveCount(0)
 })
 
-test('shows shape previews before committing and keeps undo meaningful', async ({ page }) => {
+test('shows line, rectangle, and circle previews before committing', async ({ page }) => {
   await enterEditor(page)
   await page.getByTestId('tool-line').click()
   const canvas = page.getByTestId('pixel-canvas')
@@ -357,6 +367,19 @@ test('shows shape previews before committing and keeps undo meaningful', async (
     rectangleBase,
   )
   await page.mouse.up()
+
+  await page.getByRole('button', { name: 'Undo' }).click()
+  await page.getByTestId('tool-circle').click()
+  const circleBase = await canvas.evaluate((element: HTMLCanvasElement) => element.toDataURL())
+  await page.mouse.move(box!.x + box!.width * 0.3, box!.y + box!.height * 0.28)
+  await page.mouse.down()
+  await page.mouse.move(box!.x + box!.width * 0.68, box!.y + box!.height * 0.68)
+  expect(await canvas.evaluate((element: HTMLCanvasElement) => element.toDataURL())).not.toBe(
+    circleBase,
+  )
+  await page.screenshot({ path: resolve(snapshotDirectory, 'circle-tool-preview.png') })
+  await page.mouse.up()
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled()
 })
 
 test('paints with mouse-selected colors, mirror axes, and dithering', async ({ page }) => {
@@ -429,7 +452,7 @@ test('paints with mouse-selected colors, mirror axes, and dithering', async ({ p
   await page.screenshot({ path: resolve(snapshotDirectory, 'mirror-dither-tools.png') })
 })
 
-test('selects rectangular and lasso regions and moves selected pixels', async ({ page }) => {
+test('moves, resizes, and rotates rectangular or lasso selections', async ({ page }) => {
   await enterEditor(page)
   const canvas = page.getByTestId('pixel-canvas')
   const zoom = Number(await page.getByLabel('Canvas zoom').inputValue())
@@ -449,6 +472,34 @@ test('selects rectangular and lasso regions and moves selected pixels', async ({
   await page.mouse.down()
   await canvas.hover({ position: point(8, 7) })
   await page.mouse.up()
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled()
+
+  const canvasBox = (await canvas.boundingBox())!
+  const resizedSelectionBefore = await canvas.evaluate((element: HTMLCanvasElement) =>
+    element.toDataURL(),
+  )
+  await page.mouse.move(canvasBox.x + 11 * zoom - 5, canvasBox.y + 10 * zoom - 5)
+  await page.mouse.down()
+  await page.mouse.move(canvasBox.x + point(14, 12).x, canvasBox.y + point(14, 12).y)
+  await page.mouse.up()
+  expect(await canvas.evaluate((element: HTMLCanvasElement) => element.toDataURL())).not.toBe(
+    resizedSelectionBefore,
+  )
+
+  const rotationStart = { x: canvasBox.x + 11 * zoom, y: canvasBox.y + 6 * zoom - 11 }
+  const rotatedSelectionBefore = await canvas.evaluate((element: HTMLCanvasElement) =>
+    element.toDataURL(),
+  )
+  await page.mouse.move(rotationStart.x, rotationStart.y)
+  await page.mouse.down()
+  await page.keyboard.down('Shift')
+  await page.mouse.move(canvasBox.x + 16 * zoom, canvasBox.y + 9.5 * zoom)
+  await page.keyboard.up('Shift')
+  await page.mouse.up()
+  expect(await canvas.evaluate((element: HTMLCanvasElement) => element.toDataURL())).not.toBe(
+    rotatedSelectionBefore,
+  )
+  await page.screenshot({ path: resolve(snapshotDirectory, 'selection-transform-handles.png') })
   await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled()
 
   await page.keyboard.press('q')
@@ -472,7 +523,10 @@ test('owns frame creation, copying, deletion, and onion skin in each frame menu'
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'frame-actions-onion-skin.png') })
   await page.keyboard.press('Escape')
-  await page.getByLabel('Onion skin').uncheck()
+  const onionSkin = page.getByRole('button', { name: 'Toggle onion skin' })
+  await expect(onionSkin).toHaveAttribute('aria-pressed', 'true')
+  await onionSkin.click()
+  await expect(onionSkin).toHaveAttribute('aria-pressed', 'false')
   const withoutSilhouette = await canvas.evaluate((element: HTMLCanvasElement) =>
     element.toDataURL(),
   )
@@ -484,6 +538,22 @@ test('owns frame creation, copying, deletion, and onion skin in each frame menu'
   await page.getByRole('menuitem', { name: 'Delete frame' }).click()
   await expect(page.locator('.frame-item')).toHaveCount(2)
   await expect(page.getByRole('button', { name: /Add frame|Duplicate frame/ })).toHaveCount(0)
+})
+
+test('collapses the timeline and keeps frame delay with Live Preview', async ({ page }) => {
+  await enterEditor(page)
+  const timeline = page.getByRole('region', { name: 'Animation timeline' })
+  await expect(
+    timeline.getByRole('button', { name: /Scroll frames|Play animation|Pause animation/ }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole('spinbutton', { name: 'Active frame delay in milliseconds' }),
+  ).toHaveValue('120')
+  await timeline.getByRole('button', { name: 'Hide timeline' }).click()
+  await expect(timeline).toHaveClass(/collapsed/)
+  await expect(page.getByTestId('app-shell')).toHaveClass(/timeline-collapsed/)
+  await timeline.getByRole('button', { name: 'Show timeline' }).click()
+  await expect(timeline).not.toHaveClass(/collapsed/)
 })
 
 test('rearranges frame playback order with drag and undo', async ({ page }) => {
@@ -525,7 +595,7 @@ test('rearranges frame playback order with drag and undo', async ({ page }) => {
     .toEqual([originalOrder[0], originalOrder[2], originalOrder[1]])
 })
 
-test('zooms with Ctrl wheel, scales the work grid, and pans with the hand tool', async ({
+test('zooms toward the pointer, scales the work grid, and pans with the hand tool', async ({
   page,
 }) => {
   await enterEditor(page, { width: 64, height: 64 })
@@ -540,12 +610,33 @@ test('zooms with Ctrl wheel, scales the work grid, and pans with the hand tool',
   await transparencyToggle.click()
   await expect(transparencyToggle).toHaveAttribute('aria-pressed', 'false')
   await expect(scrollHost).toHaveCSS('background-size', '14px 14px, 14px 14px')
-  await scrollHost.hover()
-  await page.keyboard.down('Control')
+  await zoomInput.fill('20')
+  await expect(scrollHost).toHaveCSS('background-size', '20px 20px, 20px 20px')
+  await scrollHost.evaluate((element) => {
+    element.scrollLeft = 160
+    element.scrollTop = 160
+  })
+  const hostBoxBefore = (await scrollHost.boundingBox())!
+  const pointer = {
+    x: hostBoxBefore.x + hostBoxBefore.width * 0.66,
+    y: hostBoxBefore.y + hostBoxBefore.height * 0.58,
+  }
+  const canvasBoxBefore = (await page.getByTestId('pixel-canvas').boundingBox())!
+  const focusedPixelBefore = {
+    x: (pointer.x - canvasBoxBefore.x) / 20,
+    y: (pointer.y - canvasBoxBefore.y) / 20,
+  }
+  await page.mouse.move(pointer.x, pointer.y)
   await page.mouse.wheel(0, -120)
-  await page.keyboard.up('Control')
-  await expect(zoomInput).toHaveValue('15')
-  await expect(scrollHost).toHaveCSS('background-size', '15px 15px, 15px 15px')
+  await expect(zoomInput).toHaveValue('21')
+  await expect(scrollHost).toHaveCSS('background-size', '21px 21px, 21px 21px')
+  const canvasBoxAfter = (await page.getByTestId('pixel-canvas').boundingBox())!
+  const focusedPixelAfter = {
+    x: (pointer.x - canvasBoxAfter.x) / 21,
+    y: (pointer.y - canvasBoxAfter.y) / 21,
+  }
+  expect(focusedPixelAfter.x).toBeCloseTo(focusedPixelBefore.x, 0)
+  expect(focusedPixelAfter.y).toBeCloseTo(focusedPixelBefore.y, 0)
 
   await zoomInput.fill('24')
   await page.getByTestId('tool-hand').click()

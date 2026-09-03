@@ -7,6 +7,7 @@ import {
   Grid2X2,
   Grid3X3,
   Keyboard,
+  Layers2,
   Layers3,
   Maximize2,
   Minus,
@@ -89,6 +90,7 @@ const { closeRequest, requestProjectClose, requestApplicationClose, cancelClose 
 const appWindow = useAppWindow()
 const exportOpen = ref(false)
 const inspectorOpen = ref(false)
+const timelineOpen = useState<boolean>('timeline-open', () => true)
 const fileInput = ref<HTMLInputElement | null>(null)
 const canvasScroll = ref<HTMLElement | null>(null)
 const editingName = ref(false)
@@ -195,6 +197,7 @@ const createProject = async (spec: {
   height: number
   colorMode: ColorMode
   background: CanvasBackground
+  checkerSize: number
   palette: string[]
 }) => {
   const nextProject = createBlankProject(
@@ -204,6 +207,7 @@ const createProject = async (spec: {
     spec.colorMode,
     spec.background,
     spec.palette,
+    spec.checkerSize,
   )
   replaceProject(nextProject, `Created ${spec.width}×${spec.height} sprite`)
   nameDraft.value = nextProject.name
@@ -456,6 +460,7 @@ const keydown = (event: KeyboardEvent) => {
     i: 'picker',
     l: 'line',
     r: 'rectangle',
+    c: 'circle',
     s: 'select-rect',
     q: 'select-lasso',
     h: 'hand',
@@ -496,22 +501,27 @@ const keydown = (event: KeyboardEvent) => {
 }
 
 const onCanvasWheel = async (event: WheelEvent) => {
-  if (!event.ctrlKey && !event.metaKey) return
   event.preventDefault()
   const host = event.currentTarget as HTMLElement
-  const bounds = host.getBoundingClientRect()
-  const focusX = event.clientX - bounds.left
-  const focusY = event.clientY - bounds.top
+  const canvasElement = host.querySelector<HTMLCanvasElement>('.pixel-canvas')
+  if (!canvasElement) return
+  const canvasBounds = canvasElement.getBoundingClientRect()
   const oldZoom = zoom.value
   const nextZoom = Math.max(4, Math.min(24, oldZoom + (event.deltaY < 0 ? 1 : -1)))
   if (nextZoom === oldZoom) return
-  const contentX = host.scrollLeft + focusX
-  const contentY = host.scrollTop + focusY
+  const focusPixelX = Math.max(
+    0,
+    Math.min(project.value.width, (event.clientX - canvasBounds.left) / oldZoom),
+  )
+  const focusPixelY = Math.max(
+    0,
+    Math.min(project.value.height, (event.clientY - canvasBounds.top) / oldZoom),
+  )
   zoom.value = nextZoom
   await nextTick()
-  const scale = nextZoom / oldZoom
-  host.scrollLeft = contentX * scale - focusX
-  host.scrollTop = contentY * scale - focusY
+  const nextCanvasBounds = canvasElement.getBoundingClientRect()
+  host.scrollLeft += nextCanvasBounds.left + focusPixelX * nextZoom - event.clientX
+  host.scrollTop += nextCanvasBounds.top + focusPixelY * nextZoom - event.clientY
 }
 
 const keyup = (event: KeyboardEvent) => {
@@ -556,7 +566,7 @@ onBeforeUnmount(() => {
   <div class="studio-page">
     <main
       class="studio-shell"
-      :class="{ 'home-active': screen === 'home' }"
+      :class="{ 'home-active': screen === 'home', 'timeline-collapsed': !timelineOpen }"
       :inert="launcherOpen || Boolean(closeRequest)"
       data-testid="app-shell"
       @click="exportOpen = false"
@@ -793,6 +803,20 @@ onBeforeUnmount(() => {
               <span class="zoom-divider" />
               <button
                 v-tooltip="{
+                  text: 'Onion skin',
+                  detail: 'Show the previous frame as a muted drawing guide.',
+                  shortcut: 'O',
+                }"
+                type="button"
+                :class="{ active: onionSkin }"
+                :aria-pressed="onionSkin"
+                aria-label="Toggle onion skin"
+                @click="onionSkin = !onionSkin"
+              >
+                <Layers2 :size="14" />
+              </button>
+              <button
+                v-tooltip="{
                   text: 'Pixel grid',
                   detail: 'Show or hide individual pixel boundaries.',
                   shortcut: 'G',
@@ -868,7 +892,11 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <TimelineStrip v-if="screen === 'editor'" />
+      <TimelineStrip
+        v-if="screen === 'editor'"
+        :collapsed="!timelineOpen"
+        @toggle="timelineOpen = !timelineOpen"
+      />
     </main>
 
     <ProjectLauncher

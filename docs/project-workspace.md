@@ -26,6 +26,7 @@ From the project launcher you can:
 - create a named canvas with explicit width and height values up to 1,024 pixels per side and 1,048,576 pixels total
 - choose RGBA, Greyscale, or Indexed color handling
 - initialize the first frame with a transparent, black, or white background
+- choose how many source pixels make up each light or dark transparency-checker tile
 - start with Zakape Violet or a researched PICO-8, Sweetie 16, DawnBringer 16, Endesga 32, or Game Boy BGB palette
 - create a custom project palette with Zakape's own color mixer
 - import a `.zakape` file, which is copied into the working directory on save
@@ -42,7 +43,7 @@ The permanent, non-dismissible **Home** tab sits before every project. It collec
 
 Every opened project gets a document tab above the project title and export bar on desktop. Phone and tablet layouts move the same tab strip beneath the timeline where it remains reachable without competing with canvas controls. Opening or creating another sprite keeps the current sprite available, and each document preserves its active frame, active layer, undo/redo history, and dirty state. Use **Ctrl+Tab** and **Ctrl+Shift+Tab** to move between project tabs on keyboard devices, **Ctrl+W** to request closing the current project tab, or right-click a project tab for document-local actions. Zakape confirms the request and saves the project before removing its tab. Touch layouts hide keyboard-only shortcut badges and the shortcut guide.
 
-The first project opened on a device presents a four-step editor tour. It explains tools and their shortcuts, independent layers, timeline operations, and the optional assistant drawer. The completed state is stored as a non-secret local preference. Use the Help menu to show the quick tour again or open the complete keyboard command map.
+The first project opened on a device presents a four-step editor tour. It explains tools and their shortcuts, independent layers, timeline operations, and the optional assistant drawer. The completed state is stored as a non-secret local preference. Use the Help menu to show the guided tour again or open the complete keyboard command map.
 
 The application close control and the operating system's native close request use the same guarded flow. Zakape lists how many projects will be saved and only exits after explicit confirmation. Canceling returns focus to the control that opened the dialog.
 
@@ -50,11 +51,13 @@ The application close control and the operating system's native close request us
 
 Drag any frame directly into a new playback sequence. On touch screens, press and hold a frame for 400 ms, then drag it. A violet insertion line shows whether the frame will land before or after its target. The frame menu also exposes **Move frame left** and **Move frame right**; use **Ctrl+Left Arrow** or **Ctrl+Right Arrow** to move the active frame directly. Reordering keeps each frame's cel data and duration attached to its frame ID and creates one undo checkpoint.
 
+Use the arrow beside **Timeline** to collapse the frame strip when the canvas needs more room. Playback and the active frame's delay live in **Live Preview**, so the timeline itself stays focused on selecting, inserting, copying, deleting, and arranging frames.
+
 ## Canvas palette, preview, and layers
 
 The compact strip below the canvas shows the active project's color blocks instead of implementation-oriented cel status. Choosing a block makes it the primary drawing color. The color-mode and sRGB readout stays at the opposite edge on larger screens.
 
-Live Preview floats over the canvas, so it remains visible on phones without opening another panel. Layers live in a separate hideable drawer on desktop, tablet, and phone. The desktop drawer leaves the rest of the editor interactive; touch layouts use a dismissible scrim. The Layers and Timeline surfaces use translucent violet glass with backdrop blur so the canvas context remains perceptible beneath them.
+Live Preview floats over the canvas, so it remains visible on phones without opening another panel. Layers and the optional Assistant live in matching hideable drawers on desktop, tablet, and phone. The desktop drawer leaves the rest of the editor interactive; touch layouts use a dismissible scrim. These surfaces and the Timeline use neutral charcoal glass with a restrained violet edge, leaving the accent for active controls and selection.
 
 The standard animation term **onion skin** labels the previous-frame drawing guide throughout the interface and keyboard guide.
 
@@ -62,7 +65,7 @@ The standard animation term **onion skin** labels the previous-frame drawing gui
 
 Desktop builds use a frameless Tauri window. Zakape's own 36 px titlebar owns:
 
-- the application and current project title on the left
+- the current Zakape icon, application name, and project title on the left
 - File, Edit, View, and Help menus
 - the draggable empty region and double-click maximize behavior
 - circular minimize, maximize/restore, and close controls on the right

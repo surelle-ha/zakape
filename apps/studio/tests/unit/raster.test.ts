@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   rasterFilledRectangle,
+  rasterCircle,
   rasterLassoSelection,
   rasterLine,
   rasterRectangle,
+  resizePixelSamples,
+  rotatePixelSamples,
 } from '~/utils/raster'
 
 describe('raster previews', () => {
@@ -40,5 +43,28 @@ describe('raster previews', () => {
     )
     expect(lasso).toContainEqual({ x: 2, y: 2 })
     expect(lasso).not.toContainEqual({ x: 6, y: 6 })
+  })
+
+  it('creates a crisp circle outline inside the dragged bounds', () => {
+    const points = rasterCircle({ x: 1, y: 1 }, { x: 7, y: 7 })
+
+    expect(points).toContainEqual({ x: 4, y: 1 })
+    expect(points).toContainEqual({ x: 7, y: 4 })
+    expect(points).not.toContainEqual({ x: 4, y: 4 })
+  })
+
+  it('resizes and rotates selection pixels with nearest-neighbor sampling', () => {
+    const samples = [
+      { x: 1, y: 1, color: '#ffffff' },
+      { x: 2, y: 1, color: '#000000' },
+    ]
+    const resized = resizePixelSamples(samples, { left: 2, right: 5, top: 2, bottom: 3 })
+    expect(resized).toHaveLength(8)
+    expect(resized.filter((sample) => sample.color === '#ffffff')).toHaveLength(4)
+    expect(resized.filter((sample) => sample.color === '#000000')).toHaveLength(4)
+
+    const rotated = rotatePixelSamples(samples, Math.PI / 2, 8, 8)
+    expect(rotated).toHaveLength(2)
+    expect(new Set(rotated.map((sample) => sample.x))).toHaveLength(1)
   })
 })

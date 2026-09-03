@@ -61,6 +61,12 @@ export const toolDefinitions: ToolDefinition[] = [
     shortcut: 'R',
   },
   {
+    id: 'circle',
+    label: 'Circle',
+    description: 'Drag a crisp pixel circle or ellipse; release to commit the preview.',
+    shortcut: 'C',
+  },
+  {
     id: 'select-rect',
     label: 'Box select',
     description: 'Drag a box around pixels, then drag inside the selection to move them.',

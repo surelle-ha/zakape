@@ -4,7 +4,14 @@ export type AppUpdateStatus =
   'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'current' | 'unsupported' | 'error'
 
 let pendingUpdate: Update | null = null
-let automaticCheckTimer: number | null = null
+let initialCheckTimer: number | null = null
+let automaticCheckInterval: number | null = null
+let visibilityListener: (() => void) | null = null
+let onlineListener: (() => void) | null = null
+let lastAutomaticCheck = 0
+
+const UPDATE_POLL_INTERVAL = 10 * 60 * 1000
+const UPDATE_RESUME_THRESHOLD = 2 * 60 * 1000
 
 const isDesktopRuntime = () =>
   '__TAURI_INTERNALS__' in window && !/Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent)
@@ -29,7 +36,7 @@ export const useAppUpdater = () => {
     if (status.value === 'current') return 'Zakape is up to date'
     if (status.value === 'error') return 'Update check failed'
     if (status.value === 'unsupported') return 'Desktop updates only'
-    return ''
+    return supported.value ? 'Updates monitored' : ''
   })
 
   const checkForUpdates = async (manual = true) => {
@@ -66,7 +73,21 @@ export const useAppUpdater = () => {
           : 'Zakape could not reach the signed update manifest.'
       status.value = manual ? 'error' : 'idle'
       if (!manual) dialogOpen.value = false
+    } finally {
+      if (!manual) lastAutomaticCheck = Date.now()
     }
+  }
+
+  const checkInBackground = () => {
+    if (
+      !supported.value ||
+      document.visibilityState === 'hidden' ||
+      ['checking', 'available', 'downloading', 'ready'].includes(status.value) ||
+      Date.now() - lastAutomaticCheck < UPDATE_RESUME_THRESHOLD
+    ) {
+      return
+    }
+    void checkForUpdates(false)
   }
 
   const installUpdate = async () => {
@@ -119,12 +140,26 @@ export const useAppUpdater = () => {
     } catch {
       // The package version remains an accurate fallback in browser-based QA.
     }
-    automaticCheckTimer = window.setTimeout(() => void checkForUpdates(false), 2_500)
+    initialCheckTimer = window.setTimeout(checkInBackground, 2_500)
+    automaticCheckInterval = window.setInterval(checkInBackground, UPDATE_POLL_INTERVAL)
+    visibilityListener = () => {
+      if (document.visibilityState === 'visible') checkInBackground()
+    }
+    onlineListener = checkInBackground
+    document.addEventListener('visibilitychange', visibilityListener)
+    window.addEventListener('online', onlineListener)
   }
 
   const dispose = () => {
-    if (automaticCheckTimer !== null) window.clearTimeout(automaticCheckTimer)
-    automaticCheckTimer = null
+    if (initialCheckTimer !== null) window.clearTimeout(initialCheckTimer)
+    if (automaticCheckInterval !== null) window.clearInterval(automaticCheckInterval)
+    if (visibilityListener) document.removeEventListener('visibilitychange', visibilityListener)
+    if (onlineListener) window.removeEventListener('online', onlineListener)
+    initialCheckTimer = null
+    automaticCheckInterval = null
+    visibilityListener = null
+    onlineListener = null
+    initialized.value = false
   }
 
   return {

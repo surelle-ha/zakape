@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/surelle-ha/zakape/compare/v0.6.0...v0.7.0) (2026-09-03)
+
+
+### Features
+
+* add workspace home and custom color tools ([0a5065b](https://github.com/surelle-ha/zakape/commit/0a5065bdcd640631be7981ea014d8267f7b7674a))
+
 ## [0.6.0](https://github.com/surelle-ha/zakape/compare/v0.5.1...v0.6.0) (2026-09-02)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/surelle-ha/zakape/compare/v0.8.0...v0.9.0) (2026-09-03)
+
+
+### Features
+
+* refresh branding and mobile canvas experience ([f5b71c0](https://github.com/surelle-ha/zakape/commit/f5b71c0fd1f9511873f995385e73606d74bad25b))
+
 ## [0.8.0](https://github.com/surelle-ha/zakape/compare/v0.7.0...v0.8.0) (2026-09-03)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/surelle-ha/zakape/compare/v0.10.1...v0.11.0) (2026-09-03)
+
+
+### Features
+
+* refine responsive sprite workspace ([aaad9a4](https://github.com/surelle-ha/zakape/commit/aaad9a4f514b1e46904970d52bd4f0a19f4fe4dc))
+
 ## [0.10.1](https://github.com/surelle-ha/zakape/compare/v0.10.0...v0.10.1) (2026-09-03)
 
 

@@ -1,38 +1,27 @@
 <script setup lang="ts">
 import { animate, stagger } from 'animejs'
+import zakapeBase from '../../../../assets/brand/zakape-base.png'
 
 defineProps<{ visible: boolean }>()
 
-const spriteElement = ref<HTMLElement | null>(null)
+const spriteElement = ref<HTMLImageElement | null>(null)
 const copyElement = ref<HTMLElement | null>(null)
 const progressElement = ref<HTMLElement | null>(null)
 const statusElement = ref<HTMLElement | null>(null)
 const animations: ReturnType<typeof animate>[] = []
 
-const sprite = [
-  '..m..m..',
-  '...mm...',
-  '..mmmm..',
-  '.md..dm.',
-  '.mmmmmm.',
-  '..moom..',
-  '..m..m..',
-  '.mm..mm.',
-]
-
 onMounted(async () => {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
   await nextTick()
 
-  const pixels = spriteElement.value?.querySelectorAll<HTMLElement>('.pixel-m, .pixel-d, .pixel-o')
-  if (pixels?.length) {
+  if (spriteElement.value) {
     animations.push(
-      animate(pixels, {
+      animate(spriteElement.value, {
         opacity: { from: 0 },
-        scale: { from: 0.45 },
-        delay: stagger(16, { grid: [8, 8], from: 'center' }),
-        duration: 210,
-        ease: 'outQuad',
+        scale: { from: 0.72 },
+        rotate: { from: '-3deg' },
+        duration: 430,
+        ease: 'outBack',
       }),
     )
   }
@@ -67,11 +56,15 @@ onBeforeUnmount(() => animations.forEach((animation) => animation.revert()))
     >
       <div class="splash-field" aria-hidden="true" />
       <div class="splash-lockup">
-        <div ref="spriteElement" class="splash-sprite" aria-hidden="true">
-          <template v-for="(row, y) in sprite" :key="y">
-            <i v-for="(pixel, x) in row" :key="`${x}-${y}`" :class="[`pixel-${pixel}`]" />
-          </template>
-        </div>
+        <img
+          ref="spriteElement"
+          class="splash-sprite"
+          :src="zakapeBase"
+          width="72"
+          height="72"
+          fetchpriority="high"
+          alt=""
+        />
         <div ref="copyElement">
           <span>PIXEL WORKBENCH</span>
           <strong>ZAKAPE</strong>

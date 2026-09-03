@@ -29,4 +29,5 @@ opt-level = 2
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-process = "2.3.1"
+tauri-plugin-single-instance = "2.4.4"
 tauri-plugin-updater = "2.11.0"

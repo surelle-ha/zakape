@@ -135,7 +135,7 @@ const features = [
           </header>
           <div class="prompt-line">
             <small>REQUEST</small>
-            <p>Add a warm rim light. Preserve the mint silhouette and 8-color palette.</p>
+            <p>Add an orchid rim light. Preserve the violet silhouette and 8-color palette.</p>
           </div>
           <div class="operation-list">
             <p><span>01</span><code>set_pixels</code><b>8 coordinates</b></p>

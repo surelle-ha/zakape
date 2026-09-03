@@ -203,6 +203,7 @@ watch(
                     min="1"
                     max="1024"
                     inputmode="numeric"
+                    autocomplete="off"
                   /><small>px</small>
                 </div>
               </label>
@@ -217,6 +218,7 @@ watch(
                     min="1"
                     max="1024"
                     inputmode="numeric"
+                    autocomplete="off"
                   /><small>px</small>
                 </div>
               </label>
@@ -291,9 +293,7 @@ watch(
               class="launcher-recent-card"
               @click="emit('openProject', project.id)"
             >
-              <span class="recent-thumb" aria-hidden="true">
-                <i /><i /><i /><i /><i /><i /><i /><i /><i />
-              </span>
+              <ProjectThumbnail class="recent-thumb" :preview="project.preview" />
               <span class="recent-copy">
                 <strong>{{ project.name }}</strong>
                 <small

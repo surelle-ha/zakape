@@ -93,8 +93,8 @@ export const useEditor = () => {
   })
   const isPlaceholder = computed(() => currentDocument.value.placeholder)
   const activeTool = useState<ToolId>('active-tool', () => 'pencil')
-  const primaryColor = useState<string>('primary-color', () => '#ff875f')
-  const secondaryColor = useState<string>('secondary-color', () => '#16221c')
+  const primaryColor = useState<string>('primary-color', () => '#d946ef')
+  const secondaryColor = useState<string>('secondary-color', () => '#1c1628')
   const activeDrawingColor = useState<'primary' | 'secondary'>(
     'active-drawing-color',
     () => 'primary',
@@ -185,7 +185,7 @@ export const useEditor = () => {
   }
 
   const resetColors = () => {
-    primaryColor.value = '#16221c'
+    primaryColor.value = '#1c1628'
     secondaryColor.value = '#ffffff'
     lastAction.value = 'Reset drawing colors'
   }
@@ -268,6 +268,16 @@ export const useEditor = () => {
     touch(action)
   }
 
+  const cancelStroke = () => {
+    const previous = history.value.pop()
+    if (!previous) return false
+    project.value = previous
+    future.value = []
+    dirtyRevision.value += 1
+    lastAction.value = 'Cancelled touch stroke'
+    return true
+  }
+
   const pickColor = (x: number, y: number, target: 'primary' | 'secondary' = 'primary') => {
     for (const layer of [...project.value.layers].reverse()) {
       if (!layer.visible) continue
@@ -283,10 +293,10 @@ export const useEditor = () => {
 
   const floodFill = (x: number, y: number, color: Pixel) => {
     const pixels = activeLayer.value?.cels[activeFrameId.value]
-    if (!pixels) return
+    if (!pixels) return false
     const fillColor = coercePixelToColorMode(project.value, color)
     const target = pixels[y * project.value.width + x]
-    if (target === fillColor) return
+    if (target === fillColor) return false
     checkpoint('Fill area')
     const queue: Array<[number, number]> = [[x, y]]
     const visited = new Set<string>()
@@ -313,6 +323,7 @@ export const useEditor = () => {
       )
     }
     touch('Filled area')
+    return true
   }
 
   const drawLine = (
@@ -567,6 +578,7 @@ export const useEditor = () => {
     paintPixel,
     paintDitherPixel,
     endStroke,
+    cancelStroke,
     pickColor,
     floodFill,
     drawLine,

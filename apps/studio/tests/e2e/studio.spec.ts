@@ -112,10 +112,29 @@ test('keeps an indismissable Home tab with recent work and release notes', async
 
   await page.getByRole('button', { name: 'New sprite', exact: true }).click()
   await enterEditor(page, { name: 'Home tab study' })
+  const canvas = page.getByTestId('pixel-canvas')
+  const canvasBox = await canvas.boundingBox()
+  await canvas.click({ position: { x: canvasBox!.width / 2, y: canvasBox!.height / 2 } })
+  await page.waitForTimeout(900)
   await homeTab.click()
   await expect(page.getByLabel('Home workspace')).toBeVisible()
   await expect(page.locator('.home-document-tab .document-close')).toHaveCount(0)
   await expect(homeTab).toHaveAttribute('aria-selected', 'true')
+  const recentCard = page.locator('.home-recent-item').filter({ hasText: 'Home tab study' })
+  await expect(recentCard).toBeVisible()
+  expect(
+    await recentCard.locator('canvas').evaluate((element: HTMLCanvasElement) => {
+      const pixels = element
+        .getContext('2d')!
+        .getImageData(0, 0, element.width, element.height).data
+      for (let offset = 0; offset < pixels.length; offset += 4) {
+        if (pixels[offset] === 217 && pixels[offset + 1] === 70 && pixels[offset + 2] === 239) {
+          return true
+        }
+      }
+      return false
+    }),
+  ).toBe(true)
   await page.mouse.move(700, 700)
   await page.waitForTimeout(180)
   await page.screenshot({ path: resolve(snapshotDirectory, 'workspace-home-tab.png') })
@@ -364,6 +383,8 @@ test('paints with mouse-selected colors, mirror axes, and dithering', async ({ p
   expect((await readPixel(21, 22)).slice(0, 3)).toEqual([255, 0, 0])
 
   await page.getByTestId('tool-dither').click()
+  await expect(page.locator('.brush-control .brush-dot')).toHaveCount(4)
+  await expect(page.getByRole('button', { name: '1 pixel brush' })).toHaveText('')
   await page.getByRole('button', { name: '4 pixel brush' }).click()
   await clickPixel(15, 15)
   expect((await readPixel(14, 14)).slice(0, 3)).toEqual([255, 0, 0])

@@ -28,7 +28,7 @@ export const createBlankProject = (
   const palette =
     colorMode === 'grayscale'
       ? ['#000000', '#333333', '#666666', '#999999', '#cccccc', '#ffffff']
-      : ['#16221c', '#456b5a', '#7ed0aa', '#b9f5d0', '#d9ffe7', '#ff875f', '#ffd36a', '#fff1bd']
+      : ['#1c1628', '#5b3f82', '#8b5cf6', '#c4b5fd', '#ede9fe', '#d946ef', '#e9d5ff', '#fae8ff']
   return {
     version: 1,
     id: makeId('project'),
@@ -89,20 +89,20 @@ export const createDemoProject = (): SpriteProject => {
     const bounce = frameIndex === 1 ? -1 : frameIndex === 3 ? 1 : 0
     const leg = frameIndex % 2
 
-    paintRect(body, width, 11, 10 + bounce, 10, 11, '#b9f5d0')
-    paintRect(body, width, 9, 13 + bounce, 2, 6, '#7ed0aa')
-    paintRect(body, width, 21, 13 + bounce, 2, 6, '#7ed0aa')
-    paintRect(body, width, 12 + leg * 4, 21 + bounce, 3, 4, '#456b5a')
-    paintRect(body, width, 17 - leg * 4, 21 + bounce, 3, 4, '#456b5a')
-    paintRect(body, width, 13, 7 + bounce, 2, 3, '#b9f5d0')
-    paintRect(body, width, 18, 7 + bounce, 2, 3, '#b9f5d0')
-    paintRect(body, width, 12, 11 + bounce, 8, 1, '#d9ffe7')
+    paintRect(body, width, 11, 10 + bounce, 10, 11, '#c4b5fd')
+    paintRect(body, width, 9, 13 + bounce, 2, 6, '#8b5cf6')
+    paintRect(body, width, 21, 13 + bounce, 2, 6, '#8b5cf6')
+    paintRect(body, width, 12 + leg * 4, 21 + bounce, 3, 4, '#5b3f82')
+    paintRect(body, width, 17 - leg * 4, 21 + bounce, 3, 4, '#5b3f82')
+    paintRect(body, width, 13, 7 + bounce, 2, 3, '#c4b5fd')
+    paintRect(body, width, 18, 7 + bounce, 2, 3, '#c4b5fd')
+    paintRect(body, width, 12, 11 + bounce, 8, 1, '#ede9fe')
 
-    paintRect(detail, width, 13, 13 + bounce, 2, 2, '#16221c')
-    paintRect(detail, width, 18, 13 + bounce, 2, 2, '#16221c')
-    paintRect(detail, width, 15, 17 + bounce, 3, 1, '#ff875f')
-    detail[(9 + bounce) * width + (frameIndex % 2 ? 23 : 8)] = '#ffd36a'
-    detail[(8 + bounce) * width + (frameIndex % 2 ? 24 : 7)] = '#fff1bd'
+    paintRect(detail, width, 13, 13 + bounce, 2, 2, '#1c1628')
+    paintRect(detail, width, 18, 13 + bounce, 2, 2, '#1c1628')
+    paintRect(detail, width, 15, 17 + bounce, 3, 1, '#d946ef')
+    detail[(9 + bounce) * width + (frameIndex % 2 ? 23 : 8)] = '#e9d5ff'
+    detail[(8 + bounce) * width + (frameIndex % 2 ? 24 : 7)] = '#fae8ff'
 
     bodyCels[frame.id] = body
     detailCels[frame.id] = detail
@@ -134,14 +134,14 @@ export const createDemoProject = (): SpriteProject => {
     colorMode: 'rgba',
     background: 'transparent',
     palette: [
-      '#16221c',
-      '#456b5a',
-      '#7ed0aa',
-      '#b9f5d0',
-      '#d9ffe7',
-      '#ff875f',
-      '#ffd36a',
-      '#fff1bd',
+      '#1c1628',
+      '#5b3f82',
+      '#8b5cf6',
+      '#c4b5fd',
+      '#ede9fe',
+      '#d946ef',
+      '#e9d5ff',
+      '#fae8ff',
     ],
     frames,
     layers,

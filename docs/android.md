@@ -34,7 +34,7 @@ The debug build permits cleartext traffic so development endpoints can be tested
 - Tablet widths retain the canvas, vertical tool rail, document tabs, and timeline. Layers and live preview open in a right-side sheet so the canvas stays usable.
 - Phone portrait moves the drawing tools into a horizontally scrollable touch dock. The layer stack opens as a bottom sheet, nonessential titlebar actions collapse, and the timeline remains directly available.
 - Short phone landscape layouts use the horizontal touch dock and a reduced timeline height.
-- Canvas controls include fit-to-screen zoom, dedicated zoom buttons, grid and transparency toggles. Drawing uses Pointer Events and the hand tool supports touch panning.
+- Canvas controls include fit-to-screen zoom, dedicated zoom buttons, grid and transparency toggles. Drawing uses Pointer Events, two-finger pinch changes zoom around the gesture midpoint, and the hand tool supports touch panning.
 - Mobile overlays account for display cutouts and system navigation safe areas. Interactive drawing and timeline controls use touch-sized targets.
 
 Android projects are mirrored to the app's private data directory and remain indexed in local PGlite storage. Desktop packages continue to mirror projects to `Documents/zakape`.

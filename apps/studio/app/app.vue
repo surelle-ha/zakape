@@ -1,13 +1,13 @@
 <script setup lang="ts">
 const splashVisible = ref(true)
 const updater = useAppUpdater()
+const splashDurationMs = 4_800
 let splashTimer: number | null = null
 
 onMounted(() => {
   void updater.initialize()
   if (new URLSearchParams(window.location.search).get('splash') === 'hold') return
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  splashTimer = window.setTimeout(() => (splashVisible.value = false), reducedMotion ? 350 : 1100)
+  splashTimer = window.setTimeout(() => (splashVisible.value = false), splashDurationMs)
 })
 
 onBeforeUnmount(() => {

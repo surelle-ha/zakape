@@ -736,16 +736,17 @@ onBeforeUnmount(() => {
                 v-if="['pencil', 'mirror', 'dither', 'eraser'].includes(activeTool)"
                 class="brush-control"
               >
-                <span>Size</span>
+                <span class="brush-label">Size</span>
                 <button
                   v-for="size in 4"
                   :key="size"
                   type="button"
+                  :data-size="size"
                   :class="{ active: brushSize === size }"
                   :aria-label="`${size} pixel brush`"
                   @click="brushSize = size"
                 >
-                  {{ size }}
+                  <span class="brush-dot" aria-hidden="true" />
                 </button>
               </label>
               <span class="context-hint">{{ toolHint }}</span>

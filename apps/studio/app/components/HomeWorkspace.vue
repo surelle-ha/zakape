@@ -2,17 +2,22 @@
 import {
   ArrowRight,
   Clock3,
+  Download,
   FilePlus2,
+  Film,
   FolderOpen,
   HardDrive,
   History,
+  Layers3,
+  Palette,
   ShieldCheck,
   Sparkles,
 } from '@lucide/vue'
 import type { WorkspaceProjectSummary } from '~/composables/useProjectRepository'
+import zakapeMark from '../../../../assets/brand/zakape-icon.png'
 import changelogSource from '../../../../CHANGELOG.md?raw'
 
-defineProps<{
+const props = defineProps<{
   projects: WorkspaceProjectSummary[]
   workspaceDirectory: string
   loading?: boolean
@@ -25,6 +30,12 @@ const emit = defineEmits<{
 }>()
 
 const { currentVersion } = useAppUpdater()
+const totalFrames = computed(() =>
+  props.projects.reduce((total, project) => total + project.frameCount, 0),
+)
+const latestUpdate = computed(() =>
+  props.projects[0] ? updatedLabel(props.projects[0].updatedAt) : 'Ready for a first canvas',
+)
 
 const releaseNotes = changelogSource
   .split(/^## /m)
@@ -57,7 +68,7 @@ const releaseNotes = changelogSource
     }
   })
 
-const updatedLabel = (value: string) => {
+function updatedLabel(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return 'Saved locally'
   const elapsed = Date.now() - date.getTime()
@@ -73,28 +84,63 @@ const updatedLabel = (value: string) => {
   <section v-motion-enter="'surface'" class="home-workspace" aria-label="Home workspace">
     <header class="home-hero">
       <div class="home-hero-copy">
-        <span class="eyebrow">Local sprite studio</span>
-        <h1>Pick up the next frame.</h1>
-        <p>Recent work, release notes, and your local workspace—one tab away from every sprite.</p>
+        <span class="eyebrow">Your local sprite desk</span>
+        <h1>Make the next frame count.</h1>
+        <p>
+          Reopen a canvas, shape a new motion study, or start clean. Every project stays close to
+          the tools that made it.
+        </p>
+        <div class="home-actions">
+          <button type="button" class="home-new-action" @click="emit('new')">
+            <FilePlus2 :size="16" /> New sprite
+          </button>
+          <button type="button" class="home-open-action" @click="emit('browse')">
+            <FolderOpen :size="16" /> Open file
+          </button>
+        </div>
       </div>
-      <div class="home-actions">
-        <button type="button" class="home-new-action" @click="emit('new')">
-          <FilePlus2 :size="16" /> New sprite
-        </button>
-        <button type="button" class="home-open-action" @click="emit('browse')">
-          <FolderOpen :size="16" /> Open file
-        </button>
-      </div>
-      <div class="home-pixel-ribbon" aria-hidden="true">
-        <i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i />
+
+      <div class="home-brand-canvas" aria-hidden="true">
+        <span class="home-brand-label">Active workspace</span>
+        <img :src="zakapeMark" width="148" height="148" fetchpriority="high" alt="" />
+        <div class="home-brand-swatches"><i /><i /><i /><i /></div>
+        <small>{{ workspaceDirectory }}</small>
       </div>
     </header>
+
+    <section class="home-ledger" aria-label="Workspace summary">
+      <article>
+        <HardDrive :size="15" />
+        <span
+          ><strong>{{ projects.length }}</strong
+          ><small>local projects</small></span
+        >
+      </article>
+      <article>
+        <Film :size="15" />
+        <span
+          ><strong>{{ totalFrames }}</strong
+          ><small>animation frames</small></span
+        >
+      </article>
+      <article>
+        <Clock3 :size="15" />
+        <span
+          ><strong>{{ latestUpdate }}</strong
+          ><small>latest workspace activity</small></span
+        >
+      </article>
+      <article>
+        <ShieldCheck :size="15" />
+        <span><strong>On device</strong><small>private by default</small></span>
+      </article>
+    </section>
 
     <div class="home-columns">
       <section class="home-recents" aria-labelledby="recent-work-heading">
         <header class="home-section-heading">
           <div>
-            <span class="eyebrow"><Clock3 :size="12" /> On this device</span>
+            <span class="eyebrow"><Clock3 :size="12" /> Canvas shelf</span>
             <h2 id="recent-work-heading">Recent work</h2>
           </div>
           <span>{{ projects.length }} indexed</span>
@@ -109,10 +155,9 @@ const updatedLabel = (value: string) => {
             class="home-recent-item"
             @click="emit('openProject', project.id)"
           >
-            <span class="home-recent-art" aria-hidden="true">
-              <i /><i /><i /><i /><i /><i /><i /><i /><i />
-            </span>
+            <ProjectThumbnail class="home-recent-art" :preview="project.preview" />
             <span class="home-recent-copy">
+              <span class="home-recent-meta">{{ updatedLabel(project.updatedAt) }}</span>
               <strong>{{ project.name }}</strong>
               <small>
                 {{ project.width }} × {{ project.height }} · {{ project.frameCount }} frame{{
@@ -120,14 +165,13 @@ const updatedLabel = (value: string) => {
                 }}
               </small>
             </span>
-            <span class="home-recent-time">{{ updatedLabel(project.updatedAt) }}</span>
             <ArrowRight :size="14" />
           </button>
         </div>
         <div v-else class="home-empty">
           <span class="empty-pixel" aria-hidden="true" />
-          <strong>Your next sprite starts here</strong>
-          <p>Create a canvas or open a project file. Work stays on this device.</p>
+          <strong>Your canvas shelf is ready</strong>
+          <p>Create a sprite or open a project file. Its first frame will appear here.</p>
           <button type="button" @click="emit('new')">Create a sprite</button>
         </div>
       </section>
@@ -136,7 +180,7 @@ const updatedLabel = (value: string) => {
         <section class="home-changelog" aria-labelledby="changelog-heading">
           <header class="home-section-heading">
             <div>
-              <span class="eyebrow"><History :size="12" /> What changed</span>
+              <span class="eyebrow"><History :size="12" /> Build notes</span>
               <h2 id="changelog-heading">Changelog</h2>
             </div>
             <span>v{{ currentVersion }}</span>
@@ -147,7 +191,7 @@ const updatedLabel = (value: string) => {
               ><time>{{ release.date }}</time>
             </header>
             <ul>
-              <li v-for="item in release.items" :key="item">{{ item }}</li>
+              <li v-for="item in release.items.slice(0, 4)" :key="item">{{ item }}</li>
             </ul>
           </article>
         </section>
@@ -165,10 +209,51 @@ const updatedLabel = (value: string) => {
           <Sparkles :size="15" />
           <div>
             <strong>Assistant stays optional</strong>
-            <p>Connect a local model only when you want a reviewable art pass.</p>
+            <p>Connect your model only when you want a reviewable pixel pass.</p>
           </div>
         </section>
       </aside>
     </div>
+
+    <section class="home-workflow" aria-labelledby="home-workflow-heading">
+      <header>
+        <span class="eyebrow">A complete sprite loop</span>
+        <h2 id="home-workflow-heading">From first pixel to playback</h2>
+      </header>
+      <div>
+        <article>
+          <span><Palette :size="16" /></span>
+          <div>
+            <strong>Draw with intent</strong>
+            <p>Pixel tools, mirror strokes, dither, and palettes stay one shortcut away.</p>
+          </div>
+          <kbd>P</kbd>
+        </article>
+        <article>
+          <span><Layers3 :size="16" /></span>
+          <div>
+            <strong>Build in layers</strong>
+            <p>Keep silhouettes, color, and detail separate without breaking frame timing.</p>
+          </div>
+          <kbd>F2</kbd>
+        </article>
+        <article>
+          <span><Film :size="16" /></span>
+          <div>
+            <strong>Read the motion</strong>
+            <p>Sequence frames, use onion skin, then preview the loop at its real cadence.</p>
+          </div>
+          <kbd>O</kbd>
+        </article>
+        <article>
+          <span><Download :size="16" /></span>
+          <div>
+            <strong>Ship clean output</strong>
+            <p>Export a frame, sprite sheet, GIF, or portable project when it is ready.</p>
+          </div>
+          <kbd>⇧E</kbd>
+        </article>
+      </div>
+    </section>
   </section>
 </template>

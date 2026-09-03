@@ -6,7 +6,7 @@ import { Eraser, PaintBucket, Pencil, Pipette, Sparkles } from '@lucide/vue'
   <div class="studio-mock" aria-label="Zakape editor preview">
     <div class="mock-titlebar">
       <span class="mock-brand"><i /><i /><i /> ZAKAPE</span>
-      <span>mint-runner.zakape</span>
+      <span>violet-runner.zakape</span>
       <span class="mock-status"><i /> Saved locally</span>
       <button type="button">Export</button>
     </div>
@@ -22,7 +22,7 @@ import { Eraser, PaintBucket, Pencil, Pipette, Sparkles } from '@lucide/vue'
           <svg
             viewBox="0 0 320 320"
             role="img"
-            aria-label="Mint runner pixel sprite"
+            aria-label="Violet runner pixel sprite"
             shape-rendering="crispEdges"
           >
             <defs>
@@ -34,18 +34,18 @@ import { Eraser, PaintBucket, Pencil, Pipette, Sparkles } from '@lucide/vue'
             </defs>
             <rect width="320" height="320" fill="url(#mock-checker)" />
             <g>
-              <rect x="100" y="80" width="120" height="140" fill="#b9f5d0" />
-              <rect x="80" y="120" width="20" height="70" fill="#87d5ae" />
-              <rect x="220" y="120" width="20" height="70" fill="#87d5ae" />
-              <rect x="120" y="50" width="30" height="30" fill="#b9f5d0" />
-              <rect x="180" y="50" width="30" height="30" fill="#b9f5d0" />
-              <rect x="120" y="110" width="20" height="20" fill="#18221c" />
-              <rect x="180" y="110" width="20" height="20" fill="#18221c" />
-              <rect x="140" y="160" width="50" height="10" fill="#ff875f" />
-              <rect x="110" y="220" width="40" height="50" fill="#51745f" />
-              <rect x="180" y="220" width="40" height="50" fill="#51745f" />
-              <rect x="250" y="70" width="20" height="20" fill="#ffd36a" />
-              <rect x="260" y="60" width="10" height="10" fill="#fff4c8" />
+              <rect x="100" y="80" width="120" height="140" fill="#c4b5fd" />
+              <rect x="80" y="120" width="20" height="70" fill="#8b5cf6" />
+              <rect x="220" y="120" width="20" height="70" fill="#8b5cf6" />
+              <rect x="120" y="50" width="30" height="30" fill="#c4b5fd" />
+              <rect x="180" y="50" width="30" height="30" fill="#c4b5fd" />
+              <rect x="120" y="110" width="20" height="20" fill="#1f1930" />
+              <rect x="180" y="110" width="20" height="20" fill="#1f1930" />
+              <rect x="140" y="160" width="50" height="10" fill="#d946ef" />
+              <rect x="110" y="220" width="40" height="50" fill="#6d28d9" />
+              <rect x="180" y="220" width="40" height="50" fill="#6d28d9" />
+              <rect x="250" y="70" width="20" height="20" fill="#f0abfc" />
+              <rect x="260" y="60" width="10" height="10" fill="#fae8ff" />
             </g>
           </svg>
         </div>

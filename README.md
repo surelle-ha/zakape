@@ -1,3 +1,5 @@
+![Zakape — open-source pixel workbench](assets/brand/zakape-banner.png)
+
 # Zakape
 
 Zakape is an open-source pixel-art and sprite-animation workbench for desktop, Android phones, and tablets. It keeps the dependable parts of a traditional sprite editor: precise tools, layers, frames, onion skinning, palettes, and production exports. An optional model assistant proposes reviewable pixel operations through local Ollama or a compatible API you choose.
@@ -34,6 +36,7 @@ pnpm build:android:bundle  # signed Play bundle when a keystore is configured
 ```text
 apps/studio/        Nuxt sprite editor and Tauri shell
 apps/site/          Public project website
+assets/brand/       Canonical source artwork, generated banner, and icon manifest
 docs/               Architecture, AI, release, and QA notes
 .github/             CI, release, Pages, and contribution workflows
 ```
@@ -46,7 +49,7 @@ docs/               Architecture, AI, release, and QA notes
 - Exports are ordinary files: PNG, sprite-sheet PNG + JSON, GIF, and `.zakape` project JSON.
 - Visual quality and keyboard accessibility are tested as product behavior, not treated as polish debt.
 
-Before making a large change, read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [project workspace](docs/project-workspace.md), [Android build guide](docs/android.md), [model assistant guide](docs/ai/model-assistant.md), and [release process](docs/release.md) cover their respective workflows.
+Before making a large change, read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [project workspace](docs/project-workspace.md), [brand guide](docs/brand.md), [Android build guide](docs/android.md), [model assistant guide](docs/ai/model-assistant.md), and [release process](docs/release.md) cover their respective workflows.
 
 ## License
 

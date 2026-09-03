@@ -20,6 +20,17 @@ def main():
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
+        splash = browser.new_page(viewport={"width": 1440, "height": 960})
+        splash.goto(f"{BASE_URL}/?splash=hold")
+        splash.get_by_test_id("app-splash").wait_for(state="visible")
+        splash.wait_for_function("document.fonts.status === 'loaded'")
+        splash.wait_for_function(
+            "document.querySelector('.splash-sprite')?.naturalWidth > 0"
+        )
+        splash.wait_for_timeout(600)
+        splash.screenshot(path=OUTPUT_DIRECTORY / "splash-desktop.png")
+        splash.close()
+
         desktop = browser.new_page(viewport={"width": 1440, "height": 960})
         desktop.on(
             "console",
@@ -64,6 +75,15 @@ def main():
         wait_for_studio(mobile)
         mobile.get_by_role("button", name="Close project launcher").click()
         mobile.get_by_role("heading", name="Recent work").wait_for(state="visible")
+        home = mobile.locator(".home-workspace")
+        home.evaluate("element => { element.scrollTop = 120 }")
+        mobile.wait_for_function(
+            "document.querySelector('.home-workspace')?.classList.contains('is-scrolling')"
+        )
+        mobile.wait_for_timeout(1_000)
+        assert "is-scrolling" not in (home.get_attribute("class") or "")
+        home.evaluate("element => { element.scrollTop = 0 }")
+        mobile.wait_for_timeout(1_000)
         has_horizontal_overflow = mobile.evaluate(
             "document.documentElement.scrollWidth > window.innerWidth"
         )

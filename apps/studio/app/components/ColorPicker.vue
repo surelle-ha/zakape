@@ -40,11 +40,11 @@ const paletteOptions = computed(() => {
   const colors = [
     props.modelValue,
     ...(props.palette ?? []),
-    '#16221c',
+    '#1c1628',
     '#ffffff',
-    '#ff875f',
-    '#ffd36a',
-    '#7ed0aa',
+    '#d946ef',
+    '#e9d5ff',
+    '#8b5cf6',
     '#5e81ac',
     '#b48ead',
   ]

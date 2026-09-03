@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createProjectPreview } from '~/composables/useProjectRepository'
 import {
   createBlankProject,
   createDemoProject,
@@ -34,6 +35,22 @@ describe('project helpers', () => {
     pixels[0] = '#ffffff'
 
     expect(pixels).toEqual(['#ffffff', null, null, null])
+  })
+
+  it('creates bounded recent-project previews from composited artwork', () => {
+    const project = createBlankProject(2, 2, 'Preview study')
+    const frameId = project.frames[0]!.id
+    project.layers[0]!.cels[frameId] = ['#8b5cf6', null, null, '#d946ef']
+
+    expect(createProjectPreview(project)).toEqual({
+      width: 2,
+      height: 2,
+      pixels: ['#8b5cf6', null, null, '#d946ef'],
+    })
+
+    const large = createProjectPreview(createBlankProject(96, 48, 'Large preview'))
+    expect(large).toMatchObject({ width: 48, height: 24 })
+    expect(large.pixels).toHaveLength(48 * 24)
   })
 
   it('creates a named rectangular project within the canvas limits', () => {

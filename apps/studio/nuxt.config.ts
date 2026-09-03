@@ -29,13 +29,13 @@ export default defineNuxtConfig({
       title: 'Zakape — Pixel workbench',
       meta: [
         { name: 'description', content: 'An open-source pixel art and animation workbench.' },
-        { name: 'theme-color', content: '#111411' },
+        { name: 'theme-color', content: '#0f0d17' },
         {
           name: 'viewport',
           content: 'width=device-width, initial-scale=1, viewport-fit=cover',
         },
       ],
-      link: [{ rel: 'icon', href: '/icon.svg', type: 'image/svg+xml' }],
+      link: [{ rel: 'icon', href: '/icon.png', type: 'image/png' }],
     },
   },
 })

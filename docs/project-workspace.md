@@ -1,6 +1,6 @@
 # Project workspace
 
-Zakape opens with a short branded splash, then presents the project launcher as a modal over the workbench Home tab. The launcher keeps project selection and document creation separate from drawing. Dismissing it reveals the Home workspace.
+Zakape opens with a 4.8-second branded splash, then presents the project launcher as a modal over the workbench Home tab. The launcher keeps project selection and document creation separate from drawing. Dismissing it reveals the Home workspace.
 
 ## Working directory
 
@@ -36,7 +36,7 @@ Use **File → Projects** to reopen the launcher without closing the active docu
 
 ## Open documents
 
-The permanent, non-dismissible **Home** tab sits before every project. It collects recent work, the in-app changelog, workspace location and local-save status, plus a direct path to new and imported sprites.
+The permanent, non-dismissible **Home** tab sits before every project. It collects recent work with real first-frame artwork, the in-app changelog, project and frame activity, workspace location, local-save status, workflow reminders, and direct paths to new and imported sprites.
 
 Every opened project gets a document tab above the project title and export bar. Opening or creating another sprite keeps the current sprite available, and each document preserves its active frame, active layer, undo/redo history, and dirty state. Use **Ctrl+Tab** and **Ctrl+Shift+Tab** to move between project tabs, **Ctrl+W** to request closing the current project tab, or right-click a project tab for document-local actions. Zakape confirms the request and saves the project before removing its tab.
 
@@ -46,7 +46,7 @@ The application close control and the operating system's native close request us
 
 ## Timeline order
 
-Drag any frame directly into a new playback sequence. A mint insertion line shows whether the frame will land before or after its target. The frame menu also exposes **Move frame left** and **Move frame right**; use **Ctrl+Left Arrow** or **Ctrl+Right Arrow** to move the active frame directly. Reordering keeps each frame's cel data and duration attached to its frame ID and creates one undo checkpoint.
+Drag any frame directly into a new playback sequence. A violet insertion line shows whether the frame will land before or after its target. The frame menu also exposes **Move frame left** and **Move frame right**; use **Ctrl+Left Arrow** or **Ctrl+Right Arrow** to move the active frame directly. Reordering keeps each frame's cel data and duration attached to its frame ID and creates one undo checkpoint.
 
 The standard animation term **onion skin** labels the previous-frame drawing guide throughout the interface and keyboard guide.
 

@@ -1,15 +1,15 @@
 @import 'tailwindcss';
 
 :root {
-  --paper: #f0ecdf;
-  --paper-deep: #e5dfd0;
-  --ink: #171a16;
-  --muted: #686b62;
-  --line: #bdb8aa;
-  --mint: #b9f5d0;
-  --green: #456b5a;
-  --orange: #ef714b;
-  --yellow: #f2c95f;
+  --paper: #f5f2fb;
+  --paper-deep: #e9e3f4;
+  --ink: #171321;
+  --muted: #6f667a;
+  --line: #c9c0d8;
+  --mint: #c4b5fd;
+  --green: #6d28d9;
+  --orange: #a855f7;
+  --yellow: #d946ef;
   font-family: 'Space Grotesk Variable', system-ui, sans-serif;
   color: var(--ink);
   background: var(--paper);
@@ -141,7 +141,7 @@ button:focus-visible {
   background: var(--orange);
 }
 .site-kicker.light {
-  color: #bfc8bd;
+  color: #c7bfd2;
 }
 .hero-copy h1,
 .section-intro h2,
@@ -163,7 +163,7 @@ h2 em {
 .hero-lede {
   max-width: 610px;
   margin: 31px 0;
-  color: #51554d;
+  color: #625a6e;
   font-size: 17px;
   line-height: 1.62;
 }
@@ -184,8 +184,8 @@ h2 em {
   font-weight: 700;
 }
 .cta-primary {
-  color: #21130f;
-  border-color: #c65636;
+  color: #fff;
+  border-color: #6d28d9;
   background: var(--orange);
   box-shadow: 5px 5px 0 var(--ink);
 }
@@ -266,18 +266,18 @@ h2 em {
 
 .studio-mock {
   overflow: hidden;
-  border: 1px solid #252a25;
-  background: #111411;
+  border: 1px solid #2b2538;
+  background: #0f0d17;
   box-shadow: 15px 18px 0 #cbc5b6;
-  color: #edf2eb;
+  color: #f5f2fb;
 }
 .mock-titlebar {
   display: grid;
   grid-template-columns: 120px minmax(130px, 1fr) auto auto;
   align-items: center;
   min-height: 37px;
-  border-bottom: 1px solid #313731;
-  color: #98a198;
+  border-bottom: 1px solid #383047;
+  color: #a49bad;
   font:
     7px/1 'JetBrains Mono Variable',
     monospace;
@@ -310,14 +310,14 @@ h2 em {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: #7ed0aa;
+  background: #8b5cf6;
 }
 .mock-titlebar button {
   align-self: stretch;
   border: 0;
-  border-left: 1px solid #6c3b2b;
+  border-left: 1px solid #4c1d95;
   color: #fff;
-  background: #a75037;
+  background: #7c3aed;
   font-size: 8px;
 }
 .mock-body {
@@ -331,17 +331,17 @@ h2 em {
   align-items: center;
   gap: 5px;
   padding: 7px 4px;
-  border-right: 1px solid #313731;
+  border-right: 1px solid #383047;
 }
 .mock-tools span {
   display: grid;
   width: 27px;
   height: 29px;
   place-items: center;
-  color: #96a096;
+  color: #a49bad;
 }
 .mock-tools span.active {
-  color: #132019;
+  color: #1c1628;
   background: var(--mint);
 }
 .mock-canvas-wrap {
@@ -349,12 +349,12 @@ h2 em {
   min-width: 0;
   place-items: center;
   padding: 35px;
-  background: #0e110e;
+  background: #100d17;
 }
 .mock-canvas-mat {
   padding: 11px;
-  border: 1px solid #394139;
-  background: #181c18;
+  border: 1px solid #514466;
+  background: #201b2d;
   box-shadow: 0 15px 35px rgb(0 0 0 / 45%);
 }
 .mock-canvas-mat svg {
@@ -368,8 +368,8 @@ h2 em {
   flex-direction: column;
   gap: 10px;
   padding: 16px 13px;
-  border-left: 1px solid #313731;
-  background: #191d19;
+  border-left: 1px solid #383047;
+  background: #181422;
 }
 .mock-kicker {
   display: flex;
@@ -388,9 +388,9 @@ h2 em {
 .mock-assist > p {
   margin: 3px 0;
   padding: 9px;
-  border: 1px solid #3e463e;
-  color: #d2d9d2;
-  background: #111411;
+  border: 1px solid #514466;
+  color: #e9e3f4;
+  background: #0f0d17;
   font-size: 9px;
   line-height: 1.45;
 }
@@ -399,8 +399,8 @@ h2 em {
   align-items: center;
   gap: 8px;
   padding: 8px;
-  border: 1px solid #456b5a;
-  background: #1d2b22;
+  border: 1px solid #6d28d9;
+  background: #211c2d;
 }
 .mock-proposal i {
   width: 7px;
@@ -415,7 +415,7 @@ h2 em {
   font-size: 8px;
 }
 .mock-proposal small {
-  color: #8ca292;
+  color: #a49bad;
   font:
     6px/1 'JetBrains Mono Variable',
     monospace;
@@ -424,7 +424,7 @@ h2 em {
   height: 30px;
   margin-top: auto;
   border: 0;
-  color: #21120e;
+  color: #fff;
   background: var(--orange);
   font-size: 8px;
   font-weight: 800;
@@ -435,11 +435,11 @@ h2 em {
   gap: 6px;
   min-height: 82px;
   padding: 8px 12px;
-  border-top: 1px solid #3a423a;
+  border-top: 1px solid #383047;
 }
 .mock-timeline > span {
   width: 75px;
-  color: #8d978d;
+  color: #a49bad;
   font:
     7px/1 'JetBrains Mono Variable',
     monospace;
@@ -451,9 +451,9 @@ h2 em {
   height: 55px;
   place-items: start;
   padding: 5px;
-  border: 1px solid #3b423b;
-  color: #828b82;
-  background: #171a17;
+  border: 1px solid #383047;
+  color: #91889e;
+  background: #181422;
   font:
     6px/1 'JetBrains Mono Variable',
     monospace;
@@ -468,8 +468,8 @@ h2 em {
   width: 60px;
   height: 55px;
   place-items: center;
-  border: 1px dashed #3b423b;
-  color: #7b847b;
+  border: 1px dashed #383047;
+  color: #81788f;
   font-size: 7px;
   font-weight: 500;
 }
@@ -557,8 +557,8 @@ h2 em {
   grid-template-columns: 0.85fr 1.15fr;
   gap: 10vw;
   padding: 130px max(24px, calc((100vw - 1420px) / 2));
-  color: #ecf1ea;
-  background: #171b17;
+  color: #f5f2fb;
+  background: #181422;
 }
 .assistant-copy h2 {
   font-size: clamp(54px, 5.5vw, 84px);
@@ -569,7 +569,7 @@ h2 em {
 .assistant-copy > p:not(.site-kicker) {
   max-width: 530px;
   margin: 27px 0;
-  color: #aab4aa;
+  color: #b9b1c4;
   font-size: 15px;
   line-height: 1.65;
 }
@@ -585,7 +585,7 @@ h2 em {
   grid-template-columns: 28px 1fr;
   align-items: start;
   padding-top: 13px;
-  border-top: 1px solid #343c34;
+  border-top: 1px solid #383047;
 }
 .assistant-copy li svg {
   color: var(--orange);
@@ -598,21 +598,21 @@ h2 em {
   font-size: 11px;
 }
 .assistant-copy li small {
-  color: #899489;
+  color: #91889e;
   font-size: 9px;
 }
 .operation-sheet {
   align-self: center;
-  border: 1px solid #526052;
-  background: #1d221d;
-  box-shadow: 10px 10px 0 #0e100e;
+  border: 1px solid #514466;
+  background: #201b2d;
+  box-shadow: 10px 10px 0 #0f0d17;
 }
 .operation-sheet > header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 13px 16px;
-  border-bottom: 1px solid #3b443b;
+  border-bottom: 1px solid #383047;
 }
 .operation-sheet > header span {
   display: flex;
@@ -632,10 +632,10 @@ h2 em {
 }
 .prompt-line {
   padding: 20px;
-  border-bottom: 1px solid #3b443b;
+  border-bottom: 1px solid #383047;
 }
 .prompt-line small {
-  color: #7f897f;
+  color: #81788f;
   font:
     7px/1 'JetBrains Mono Variable',
     monospace;
@@ -650,7 +650,7 @@ h2 em {
 }
 .operation-list {
   padding: 10px 20px;
-  border-bottom: 1px solid #3b443b;
+  border-bottom: 1px solid #383047;
 }
 .operation-list p {
   display: grid;
@@ -658,13 +658,13 @@ h2 em {
   align-items: center;
   min-height: 38px;
   margin: 0;
-  border-bottom: 1px solid #303730;
+  border-bottom: 1px solid #383047;
 }
 .operation-list p:last-child {
   border-bottom: 0;
 }
 .operation-list span {
-  color: #748074;
+  color: #81788f;
   font:
     7px/1 'JetBrains Mono Variable',
     monospace;
@@ -676,7 +676,7 @@ h2 em {
     monospace;
 }
 .operation-list b {
-  color: #9aa49a;
+  color: #a49bad;
   font:
     8px/1 'JetBrains Mono Variable',
     monospace;
@@ -694,12 +694,12 @@ h2 em {
   grid-template-rows: repeat(8, 9px);
   gap: 2px;
   padding: 7px;
-  border: 1px solid #414a41;
-  background: #131613;
+  border: 1px solid #514466;
+  background: #0f0d17;
 }
 .mini-grid i {
   display: block;
-  background: #242a24;
+  background: #282139;
 }
 .mini-grid i.mint {
   background: var(--mint);
@@ -716,7 +716,7 @@ h2 em {
   font-weight: 630;
 }
 .operation-preview small {
-  color: #869086;
+  color: #91889e;
   font:
     7px/1 'JetBrains Mono Variable',
     monospace;
@@ -727,13 +727,13 @@ h2 em {
   justify-content: flex-end;
   gap: 7px;
   padding: 12px 16px;
-  border-top: 1px solid #3b443b;
+  border-top: 1px solid #383047;
 }
 .operation-sheet button {
   min-height: 34px;
   padding: 0 14px;
-  border: 1px solid #4b554b;
-  color: #b5beb5;
+  border: 1px solid #514466;
+  color: #c4bdcc;
   background: transparent;
   font-size: 9px;
 }
@@ -741,8 +741,8 @@ h2 em {
   display: flex;
   align-items: center;
   gap: 6px;
-  border-color: #c45d3d;
-  color: #21120e;
+  border-color: #7c3aed;
+  color: #fff;
   background: var(--orange);
   font-weight: 700;
 }
@@ -760,7 +760,7 @@ h2 em {
   align-content: center;
   gap: 8px;
   padding: 27px 5vw;
-  border-right: 1px solid #92792e;
+  border-right: 1px solid #86198f;
 }
 .output-band div:last-child {
   border-right: 0;
@@ -776,7 +776,7 @@ h2 em {
   letter-spacing: -0.05em;
 }
 .output-band small {
-  color: #62521f;
+  color: #3b1747;
   font-size: 9px;
 }
 
@@ -982,7 +982,7 @@ h2 em {
   }
   .output-band div {
     min-height: 135px;
-    border-bottom: 1px solid #92792e;
+    border-bottom: 1px solid #86198f;
   }
   .open-section {
     min-height: auto;

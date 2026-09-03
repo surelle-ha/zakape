@@ -1,6 +1,7 @@
 import type { PGlite } from '@electric-sql/pglite'
-import type { SpriteProject } from '~/types/editor'
+import type { Pixel, SpriteProject } from '~/types/editor'
 import { parseSpriteProject } from '~/utils/project'
+import { getCompositePixels } from '~/utils/render'
 
 let databasePromise: Promise<PGlite> | null = null
 
@@ -11,6 +12,31 @@ export interface WorkspaceProjectSummary {
   height: number
   frameCount: number
   updatedAt: string
+  preview?: WorkspaceProjectPreview
+}
+
+export interface WorkspaceProjectPreview {
+  width: number
+  height: number
+  pixels: Pixel[]
+}
+
+const previewEdge = 48
+
+export const createProjectPreview = (project: SpriteProject): WorkspaceProjectPreview => {
+  const frameId = project.frames[0]!.id
+  const source = getCompositePixels(project, frameId)
+  const scale = Math.min(1, previewEdge / project.width, previewEdge / project.height)
+  const width = Math.max(1, Math.round(project.width * scale))
+  const height = Math.max(1, Math.round(project.height * scale))
+  const pixels = Array.from({ length: width * height }, (_, index) => {
+    const x = index % width
+    const y = Math.floor(index / width)
+    const sourceX = Math.min(project.width - 1, Math.floor(((x + 0.5) / width) * project.width))
+    const sourceY = Math.min(project.height - 1, Math.floor(((y + 0.5) / height) * project.height))
+    return source[sourceY * project.width + sourceX] ?? null
+  })
+  return { width, height, pixels }
 }
 
 const isTauriRuntime = () => import.meta.client && '__TAURI_INTERNALS__' in window
@@ -70,6 +96,7 @@ export const useProjectRepository = () => {
             height: project.height,
             frameCount: project.frames.length,
             updatedAt: project.updatedAt,
+            preview: createProjectPreview(project),
           },
         ]
       } catch {
@@ -93,10 +120,30 @@ export const useProjectRepository = () => {
         desktopProjects = projects
       }
       const projectsById = new Map(browserProjects.map((project) => [project.id, project]))
-      desktopProjects.forEach((project) => projectsById.set(project.id, project))
-      recentProjects.value = [...projectsById.values()]
+      desktopProjects.forEach((project) => {
+        const browserProject = projectsById.get(project.id)
+        projectsById.set(project.id, { ...project, preview: browserProject?.preview })
+      })
+      let projects = [...projectsById.values()]
         .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
         .slice(0, 100)
+      if (isTauriRuntime()) {
+        projects = await Promise.all(
+          projects.map(async (summary, index) => {
+            if (summary.preview || index >= 16) return summary
+            try {
+              const contents = await invokeDesktop<string>('workspace_read_project', {
+                projectId: summary.id,
+              })
+              const project = parseSpriteProject(JSON.parse(contents))
+              return { ...summary, preview: createProjectPreview(project) }
+            } catch {
+              return summary
+            }
+          }),
+        )
+      }
+      recentProjects.value = projects
       persistenceState.value = 'idle'
       return recentProjects.value
     } catch (error) {
@@ -168,6 +215,21 @@ export const useProjectRepository = () => {
           contents: JSON.stringify(project, null, 2),
         })
       }
+      const summary: WorkspaceProjectSummary = {
+        id: project.id,
+        name: project.name,
+        width: project.width,
+        height: project.height,
+        frameCount: project.frames.length,
+        updatedAt: project.updatedAt,
+        preview: createProjectPreview(project),
+      }
+      recentProjects.value = [
+        summary,
+        ...recentProjects.value.filter((entry) => entry.id !== project.id),
+      ]
+        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+        .slice(0, 100)
       persistenceState.value = 'saved'
       return true
     } catch (error) {

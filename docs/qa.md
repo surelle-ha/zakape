@@ -3,8 +3,8 @@
 ## Automated gates
 
 - Nuxt/Vue type checks for the studio and website.
-- Unit coverage for rectangular project construction, rasterized line and rectangle previews, custom color-space conversion, color normalization, imported-payload validation, assistant operation validation, art-direction constraints, animation frame targeting, and Ollama request construction.
-- Playwright journeys for modal launcher startup, the permanent Home tab, in-app changelog, the custom color mixer, the first-project tour, command shortcuts, accessible custom tooltips, independent layer creation/visibility/renaming, named custom canvases, color mode and background selection, mouse-selected drawing colors, mirrored and dithered strokes, multiple document tabs, project/application close confirmation, direct drag-and-drop frame ordering with undo, shape previews, frame-local insertion/copy/deletion, onion skinning, hand panning, Ctrl-wheel zoom, zoom-linked grids, custom scrollbars, contextual menus, browser-behavior suppression, assistant drawer and entire-sheet edits, exports, and desktop-size visual snapshots.
+- Unit coverage for rectangular project construction, bounded recent-art previews, rasterized line and rectangle previews, custom color-space conversion, color normalization, imported-payload validation, assistant operation validation, art-direction constraints, animation frame targeting, and Ollama request construction.
+- Playwright journeys for modal launcher startup, the permanent Home tab, real recent-art thumbnails, in-app changelog, the custom color mixer, the first-project tour, command shortcuts, accessible custom tooltips, independent layer creation/visibility/renaming, named custom canvases, color mode and background selection, mouse-selected drawing colors, mirrored and dithered strokes, brush-size dots, multiple document tabs, project/application close confirmation, direct drag-and-drop frame ordering with undo, shape previews, frame-local insertion/copy/deletion, onion skinning, hand panning, Ctrl-wheel and two-finger pinch zoom, zoom-linked grids, custom scrollbars, contextual menus, browser-behavior suppression, assistant drawer and entire-sheet edits, exports, and desktop/tablet/phone visual snapshots.
 - Static generation for both Nuxt applications.
 - Cargo check, rustfmt, and Clippy for the Tauri shell.
 - Rust importer tests decode a minimal binary sprite fixture and assert bounded, deterministic conversion.
@@ -13,7 +13,7 @@
 
 ## Snapshot baselines
 
-Reviewed 2 September 2026 at 1440 px desktop width:
+Reviewed 3 September 2026 at 1440 px desktop width:
 
 - `docs/ui-snapshots/app-splash.png`
 - `docs/ui-snapshots/project-launcher.png`
@@ -55,7 +55,7 @@ The Playwright baselines live beside the end-to-end tests so CI can detect unint
 - Native browser context menus, application-wide text selection, Ctrl+A, reload, print, source, location, history, and developer-tool shortcuts do not leak into the workbench. Text editing shortcuts remain available inside form controls.
 - The assistant is clearly optional; connect, scope, proposal, discard, and apply states are distinct.
 - The assistant opens without canned prompt suggestions, leaving art direction entirely to the artist.
-- Anime.js splash sequencing and Motion surface entrances remain brief, do not block controls, and are disabled when reduced motion is requested.
+- The 4.8-second branded splash remains stable while Anime.js sequences its short entrance; Motion surface entrances do not block controls, and animation is disabled when reduced motion is requested.
 - New layers begin with transparent, independent cels; visibility affects only the chosen layer; inline rename preserves pixels and frame buffers.
 - The first-project tour can be completed or skipped, and both the tour and command map remain available from Help.
 - Current-frame proposals cannot edit reference frames; entire-sheet proposals report every affected frame and apply as one undo checkpoint.
@@ -65,3 +65,5 @@ The Playwright baselines live beside the end-to-end tests so CI can detect unint
 - The frameless desktop window remains draggable and exposes minimize, maximize/restore, and close controls from the right side of the titlebar.
 - Document tabs remain above the project title/export bar, and project/application close controls always open the save-before-close confirmation dialog.
 - Desktop autosaves create only validated `.zakape` files inside the operating system's `Documents/zakape` directory.
+- Reopening the desktop executable focuses the existing main window instead of creating another editor process.
+- The generated Android icon shows the supplied Zakape mark at every density, and the ARM64 APK reports the expected package ID, version, SDK range, ABI, and signature.

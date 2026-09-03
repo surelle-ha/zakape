@@ -56,6 +56,48 @@ test.describe('phone workbench', () => {
     )
     expect(await canvasSignature()).not.toBe(before)
 
+    const zoomControl = page.getByLabel('Canvas zoom')
+    const initialZoom = Number(await zoomControl.inputValue())
+    const centerX = Math.max(90, Math.min(322, canvasBox!.x + canvasBox!.width / 2))
+    const centerY = Math.max(150, Math.min(650, canvasBox!.y + canvasBox!.height / 2))
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [
+        { x: centerX - 24, y: centerY },
+        { x: centerX + 24, y: centerY },
+      ],
+    })
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [
+        { x: centerX - 70, y: centerY },
+        { x: centerX + 70, y: centerY },
+      ],
+    })
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await expect
+      .poll(async () => Number(await zoomControl.inputValue()))
+      .toBeGreaterThan(initialZoom)
+
+    const zoomedIn = Number(await zoomControl.inputValue())
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [
+        { x: centerX - 68, y: centerY },
+        { x: centerX + 68, y: centerY },
+      ],
+    })
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [
+        { x: centerX - 22, y: centerY },
+        { x: centerX + 22, y: centerY },
+      ],
+    })
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await expect.poll(async () => Number(await zoomControl.inputValue())).toBeLessThan(zoomedIn)
+
     const railBox = await page.getByRole('navigation', { name: 'Drawing tools' }).boundingBox()
     const canvasWorkspaceBox = await page
       .getByRole('region', { name: 'Canvas workspace' })
@@ -89,6 +131,8 @@ test.describe('tablet workbench', () => {
   test('uses the compact launcher and a side-sheet inspector', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByTestId('app-titlebar')).toBeHidden()
+    await expect(page.getByTestId('app-splash')).toBeVisible()
+    await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
     await expect(page.getByRole('contentinfo', { name: 'Application status' })).toBeVisible()
     await expect(page.getByRole('contentinfo', { name: 'Application status' })).toContainText(
       /v\d+\.\d+\.\d+/,

@@ -19,6 +19,7 @@ const {
   paintPixel,
   paintDitherPixel,
   endStroke,
+  cancelStroke,
   pickColor,
   floodFill,
   drawLine,
@@ -34,6 +35,19 @@ const strokeColor = ref<Pixel>(drawingColor.value)
 const lastStrokePoint = ref<PixelPoint | null>(null)
 const panOrigin = ref({ clientX: 0, clientY: 0, scrollLeft: 0, scrollTop: 0 })
 const modifierKeys = ref({ ctrl: false, shift: false })
+const activeTouches = new Map<number, { clientX: number; clientY: number }>()
+let pendingTouch: { pointerId: number; point: PixelPoint; timer: number } | null = null
+let pinchActive = false
+let touchMutationCheckpoint = false
+let pinchGesture: {
+  distance: number
+  zoom: number
+  focusX: number
+  focusY: number
+  contentX: number
+  contentY: number
+  host: HTMLElement
+} | null = null
 let lastPainted = ''
 
 const canvasWidth = computed(() => project.value.width * zoom.value)
@@ -62,12 +76,12 @@ const redraw = () => {
     const checkerSize = Math.max(zoom.value * 2, 12)
     for (let y = 0; y < element.height; y += checkerSize) {
       for (let x = 0; x < element.width; x += checkerSize) {
-        context.fillStyle = (x / checkerSize + y / checkerSize) % 2 ? '#202520' : '#303730'
+        context.fillStyle = (x / checkerSize + y / checkerSize) % 2 ? '#211c2d' : '#383047'
         context.fillRect(x, y, checkerSize, checkerSize)
       }
     }
   } else {
-    context.fillStyle = '#202520'
+    context.fillStyle = '#211c2d'
     context.fillRect(0, 0, element.width, element.height)
   }
 
@@ -77,7 +91,7 @@ const redraw = () => {
     if (previous) {
       context.save()
       context.globalAlpha = 0.24
-      context.fillStyle = '#79d8b0'
+      context.fillStyle = '#c4b5fd'
       getCompositePixels(project.value, previous.id).forEach((pixel, index) => {
         if (!pixel) return
         context.fillRect(
@@ -100,7 +114,7 @@ const redraw = () => {
     const radius = Math.floor((brushSize.value - 1) / 2)
     context.save()
     context.globalAlpha = 0.78
-    context.fillStyle = strokeColor.value ?? '#ff875f'
+    context.fillStyle = strokeColor.value ?? '#d946ef'
     points.forEach((point) => {
       for (let offsetY = -radius; offsetY < brushSize.value - radius; offsetY += 1) {
         for (let offsetX = -radius; offsetX < brushSize.value - radius; offsetX += 1) {
@@ -117,7 +131,7 @@ const redraw = () => {
 
   if (showGrid.value && zoom.value >= 8) {
     context.beginPath()
-    context.strokeStyle = 'rgba(6, 10, 7, 0.34)'
+    context.strokeStyle = 'rgba(15, 13, 23, 0.42)'
     context.lineWidth = 1
     for (let x = 0; x <= project.value.width; x += 1) {
       context.moveTo(x * zoom.value + 0.5, 0)
@@ -177,32 +191,15 @@ const paintStrokeAt = (point: PixelPoint, color: Pixel) => {
   mirrorPoints(point).forEach((target) => paintAt(target, color))
 }
 
-const onPointerDown = (event: PointerEvent) => {
-  if (event.button !== 0) return
-  modifierKeys.value = { ctrl: event.ctrlKey || event.metaKey, shift: event.shiftKey }
-  canvas.value?.setPointerCapture(event.pointerId)
-  if (activeTool.value === 'hand') {
-    const scrollHost = canvas.value?.closest<HTMLElement>('.canvas-scroll')
-    if (!scrollHost) return
-    panning.value = true
-    panOrigin.value = {
-      clientX: event.clientX,
-      clientY: event.clientY,
-      scrollLeft: scrollHost.scrollLeft,
-      scrollTop: scrollHost.scrollTop,
-    }
-    event.preventDefault()
-    return
-  }
-  const point = pointFromEvent(event)
+const beginToolAction = (point: PixelPoint, altKey = false, fromTouch = false) => {
   cursor.value = point
   strokeColor.value = activeTool.value === 'eraser' ? null : drawingColor.value
-  if (activeTool.value === 'picker' || event.altKey) {
+  if (activeTool.value === 'picker' || altKey) {
     pickColor(point.x, point.y, activeDrawingColor.value)
     return
   }
   if (activeTool.value === 'fill') {
-    floodFill(point.x, point.y, strokeColor.value)
+    touchMutationCheckpoint = fromTouch && floodFill(point.x, point.y, strokeColor.value)
     return
   }
   if (activeTool.value === 'line' || activeTool.value === 'rectangle') {
@@ -211,14 +208,138 @@ const onPointerDown = (event: PointerEvent) => {
     return
   }
   beginStroke()
+  touchMutationCheckpoint = fromTouch
   drawing.value = true
   lastPainted = ''
   lastStrokePoint.value = point
   paintStrokeAt(point, strokeColor.value)
 }
 
-const onPointerMove = (event: PointerEvent) => {
+const touchDistance = () => {
+  const [first, second] = [...activeTouches.values()]
+  return first && second
+    ? Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY)
+    : 0
+}
+
+const cancelPendingTouch = () => {
+  if (!pendingTouch) return
+  window.clearTimeout(pendingTouch.timer)
+  pendingTouch = null
+}
+
+const beginPinch = () => {
+  const [first, second] = [...activeTouches.values()]
+  const host = canvas.value?.closest<HTMLElement>('.canvas-scroll')
+  if (!first || !second || !host) return
+  cancelPendingTouch()
+  if (touchMutationCheckpoint) cancelStroke()
+  touchMutationCheckpoint = false
+  drawing.value = false
+  panning.value = false
+  shapeStart.value = null
+  lastStrokePoint.value = null
+  lastPainted = ''
+  pinchActive = true
+  const bounds = host.getBoundingClientRect()
+  const focusX = (first.clientX + second.clientX) / 2 - bounds.left
+  const focusY = (first.clientY + second.clientY) / 2 - bounds.top
+  pinchGesture = {
+    distance: Math.max(1, touchDistance()),
+    zoom: zoom.value,
+    focusX,
+    focusY,
+    contentX: host.scrollLeft + focusX,
+    contentY: host.scrollTop + focusY,
+    host,
+  }
+}
+
+const updatePinch = async () => {
+  if (!pinchGesture || activeTouches.size < 2) return
+  const nextZoom = Math.max(
+    4,
+    Math.min(24, Math.round(pinchGesture.zoom * (touchDistance() / pinchGesture.distance))),
+  )
+  if (nextZoom === zoom.value) return
+  zoom.value = nextZoom
+  await nextTick()
+  const scale = nextZoom / pinchGesture.zoom
+  pinchGesture.host.scrollLeft = pinchGesture.contentX * scale - pinchGesture.focusX
+  pinchGesture.host.scrollTop = pinchGesture.contentY * scale - pinchGesture.focusY
+}
+
+const queueTouchAction = (event: PointerEvent) => {
+  const pending = {
+    pointerId: event.pointerId,
+    point: pointFromEvent(event),
+    timer: 0,
+  }
+  pending.timer = window.setTimeout(() => {
+    if (pendingTouch !== pending || pinchActive || activeTouches.size !== 1) return
+    pendingTouch = null
+    beginToolAction(pending.point, false, true)
+  }, 110)
+  pendingTouch = pending
+  cursor.value = pending.point
+  redraw()
+}
+
+const beginPan = (event: PointerEvent) => {
+  const scrollHost = canvas.value?.closest<HTMLElement>('.canvas-scroll')
+  if (!scrollHost) return
+  panning.value = true
+  panOrigin.value = {
+    clientX: event.clientX,
+    clientY: event.clientY,
+    scrollLeft: scrollHost.scrollLeft,
+    scrollTop: scrollHost.scrollTop,
+  }
+}
+
+const onPointerDown = (event: PointerEvent) => {
+  if (event.button !== 0) return
   modifierKeys.value = { ctrl: event.ctrlKey || event.metaKey, shift: event.shiftKey }
+  canvas.value?.setPointerCapture(event.pointerId)
+  if (event.pointerType === 'touch') {
+    event.preventDefault()
+    activeTouches.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY })
+    if (activeTouches.size >= 2) {
+      beginPinch()
+      return
+    }
+    if (pinchActive) return
+    if (activeTool.value === 'hand') {
+      beginPan(event)
+      return
+    }
+    queueTouchAction(event)
+    return
+  }
+  if (activeTool.value === 'hand') {
+    beginPan(event)
+    event.preventDefault()
+    return
+  }
+  beginToolAction(pointFromEvent(event), event.altKey)
+}
+
+const onPointerMove = async (event: PointerEvent) => {
+  modifierKeys.value = { ctrl: event.ctrlKey || event.metaKey, shift: event.shiftKey }
+  if (event.pointerType === 'touch' && activeTouches.has(event.pointerId)) {
+    event.preventDefault()
+    activeTouches.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY })
+    if (pinchActive) {
+      await updatePinch()
+      return
+    }
+    if (pendingTouch?.pointerId === event.pointerId) {
+      pendingTouch.point = pointFromEvent(event)
+      cursor.value = pendingTouch.point
+      redraw()
+      return
+    }
+  }
   if (panning.value) {
     const scrollHost = canvas.value?.closest<HTMLElement>('.canvas-scroll')
     if (!scrollHost) return
@@ -238,12 +359,33 @@ const onPointerMove = (event: PointerEvent) => {
 }
 
 const onPointerUp = (event: PointerEvent) => {
+  if (event.pointerType === 'touch') {
+    event.preventDefault()
+    if (pendingTouch?.pointerId === event.pointerId) {
+      const point = pointFromEvent(event)
+      cancelPendingTouch()
+      if (!pinchActive) beginToolAction(point, false, true)
+    }
+    activeTouches.delete(event.pointerId)
+    if (pinchActive) {
+      if (activeTouches.size === 0) {
+        pinchActive = false
+        pinchGesture = null
+      }
+      canvas.value?.releasePointerCapture(event.pointerId)
+      return
+    }
+  }
   if (panning.value) {
     panning.value = false
     canvas.value?.releasePointerCapture(event.pointerId)
     return
   }
-  if (!drawing.value) return
+  if (!drawing.value) {
+    touchMutationCheckpoint = false
+    canvas.value?.releasePointerCapture(event.pointerId)
+    return
+  }
   const point = pointFromEvent(event)
   if (shapeStart.value && activeTool.value === 'line') {
     drawLine(shapeStart.value.x, shapeStart.value.y, point.x, point.y, strokeColor.value)
@@ -256,6 +398,25 @@ const onPointerUp = (event: PointerEvent) => {
   shapeStart.value = null
   lastStrokePoint.value = null
   lastPainted = ''
+  touchMutationCheckpoint = false
+  canvas.value?.releasePointerCapture(event.pointerId)
+  redraw()
+}
+
+const onPointerCancel = (event: PointerEvent) => {
+  if (pendingTouch?.pointerId === event.pointerId) cancelPendingTouch()
+  activeTouches.delete(event.pointerId)
+  if (touchMutationCheckpoint) cancelStroke()
+  touchMutationCheckpoint = false
+  drawing.value = false
+  panning.value = false
+  shapeStart.value = null
+  lastStrokePoint.value = null
+  lastPainted = ''
+  if (activeTouches.size === 0) {
+    pinchActive = false
+    pinchGesture = null
+  }
   canvas.value?.releasePointerCapture(event.pointerId)
   redraw()
 }
@@ -275,6 +436,10 @@ watch(
   },
 )
 onMounted(redraw)
+onBeforeUnmount(() => {
+  cancelPendingTouch()
+  activeTouches.clear()
+})
 </script>
 
 <template>
@@ -291,7 +456,7 @@ onMounted(redraw)
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
-      @pointercancel="onPointerUp"
+      @pointercancel="onPointerCancel"
       @pointerleave="onPointerLeave"
     />
   </div>

@@ -20,6 +20,7 @@ import {
 import type { CanvasBackground, ColorMode, ToolId } from '~/types/editor'
 import { cloneProject, createBlankProject } from '~/utils/project'
 import { importProjectFile } from '~/utils/import'
+import { toolDefinitions } from '~/utils/commands'
 
 const {
   documents,
@@ -30,6 +31,7 @@ const {
   activeLayerId,
   activeTool,
   activeLayer,
+  activeSelection,
   brushSize,
   zoom,
   showGrid,
@@ -46,6 +48,8 @@ const {
   closeDocument,
   swapColors,
   resetColors,
+  clearSelection,
+  deleteSelectionPixels,
   addFrame,
   deleteFrame,
   addLayer,
@@ -106,8 +110,11 @@ let unlistenWindowClose: (() => void) | null = null
 const toolHint = computed(() => {
   if (activeTool.value === 'mirror') return 'Vertical mirror · Ctrl horizontal · Shift both axes'
   if (activeTool.value === 'dither') return 'Alternates primary and secondary colors'
-  return 'Alt samples color · Space pans · Ctrl scroll zooms'
+  return 'Left primary · Right secondary · Alt samples · Space pans'
 })
+const activeToolLabel = computed(
+  () => toolDefinitions.find((tool) => tool.id === activeTool.value)?.label ?? activeTool.value,
+)
 
 const fitCanvas = async () => {
   await nextTick()
@@ -307,7 +314,8 @@ const keydown = (event: KeyboardEvent) => {
     else if (walkthroughOpen.value) void completeWalkthrough()
     else if (inspectorOpen.value) inspectorOpen.value = false
     else if (assistantOpen.value) assistantOpen.value = false
-    else exportOpen.value = false
+    else if (exportOpen.value) exportOpen.value = false
+    else clearSelection()
     return
   }
   if (shortcutGuideOpen.value || walkthroughOpen.value || closeRequest.value) return
@@ -390,6 +398,7 @@ const keydown = (event: KeyboardEvent) => {
   if (event.key === 'Delete') {
     event.preventDefault()
     if (event.shiftKey) deleteLayer(activeLayerId.value)
+    else if (activeSelection.value) deleteSelectionPixels()
     else deleteFrame(activeFrameId.value)
     return
   }
@@ -439,6 +448,8 @@ const keydown = (event: KeyboardEvent) => {
     i: 'picker',
     l: 'line',
     r: 'rectangle',
+    s: 'select-rect',
+    q: 'select-lasso',
     h: 'hand',
   }
   if (shortcuts[key]) {
@@ -730,7 +741,7 @@ onBeforeUnmount(() => {
           <header class="canvas-toolbar">
             <div class="tool-context">
               <span class="tool-chip"
-                ><Sparkles v-if="activeTool === 'picker'" :size="13" />{{ activeTool }}</span
+                ><Sparkles v-if="activeTool === 'picker'" :size="13" />{{ activeToolLabel }}</span
               >
               <label
                 v-if="['pencil', 'mirror', 'dither', 'eraser'].includes(activeTool)"

@@ -2665,6 +2665,9 @@ button:disabled {
 .pixel-canvas.cursor-grabbing {
   cursor: grabbing;
 }
+.pixel-canvas.cursor-select {
+  cursor: crosshair;
+}
 .canvas-status {
   display: flex;
   align-items: center;
@@ -2917,8 +2920,8 @@ button:disabled {
   background: rgb(139 92 246 / 8%);
 }
 .scope-switch button:last-child.active {
-  border-color: #80513f;
-  color: #ffad91;
+  border-color: #80518f;
+  color: #f0abfc;
   background: rgb(217 70 239 / 8%);
 }
 .scope-switch button > span {
@@ -4063,7 +4066,7 @@ kbd {
 }
 .assistant-drawer-heading {
   display: grid;
-  grid-template-columns: 31px minmax(0, 1fr) 30px;
+  grid-template-columns: 31px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
   padding: 0 9px 0 11px;
@@ -4092,6 +4095,174 @@ kbd {
 .assistant-drawer-heading > button:hover {
   color: var(--text);
   background: var(--panel-soft);
+}
+.assistant-drawer-heading > .assistant-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.assistant-header-actions > button {
+  position: relative;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+.assistant-header-actions > button:hover {
+  color: var(--text);
+  background: var(--panel-soft);
+}
+.assistant-model-button .connection-indicator {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  box-shadow: 0 0 0 2px #16131f;
+}
+.assistant-chat-shell {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 9px;
+  overflow: hidden;
+}
+.assistant-conversation {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 3px 8px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.assistant-chat-empty {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin: auto 0;
+  padding: 14px;
+  border: 1px dashed #514563;
+  border-radius: 5px;
+  color: #bca9d5;
+  background: linear-gradient(145deg, rgb(139 92 246 / 9%), rgb(217 70 239 / 3%));
+}
+.assistant-chat-empty strong {
+  color: var(--text);
+  font-size: 10px;
+}
+.assistant-chat-empty p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.5;
+}
+.assistant-message {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 7px;
+  max-width: 92%;
+  width: 290px;
+  align-self: flex-start;
+}
+.assistant-message.user {
+  grid-template-columns: minmax(0, 1fr) 22px;
+  align-self: flex-end;
+}
+.assistant-avatar {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid #4f4261;
+  border-radius: 5px;
+  color: #c4b5fd;
+  background: #201a2d;
+}
+.assistant-message.user .assistant-avatar {
+  order: 2;
+  border-color: #664477;
+  color: #f0abfc;
+  background: #28192f;
+}
+.assistant-message > div {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid #342b43;
+  border-radius: 3px 7px 7px;
+  background: #12101a;
+}
+.assistant-message.user > div {
+  border-color: #564068;
+  border-radius: 7px 3px 7px 7px;
+  background: rgb(139 92 246 / 9%);
+}
+.assistant-message.error > div {
+  border-color: #78484d;
+}
+.assistant-message-meta {
+  display: flex;
+  gap: 5px;
+  color: #9d8ab7;
+  font:
+    7px/1 'Azeret Mono Variable',
+    monospace;
+  text-transform: uppercase;
+}
+.assistant-message-meta i {
+  color: #70647f;
+  font-style: normal;
+}
+.assistant-message p {
+  margin: 4px 0 0;
+  color: #d8d0e5;
+  font-size: 9px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.assistant-message small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 7px;
+  line-height: 1.4;
+}
+.assistant-message.working > div {
+  border-color: #5f4b78;
+  background: rgb(139 92 246 / 6%);
+}
+.assistant-composer {
+  flex: 0 0 auto;
+  box-shadow: 0 -8px 22px rgb(10 7 15 / 40%);
+}
+.assistant-composer textarea {
+  min-height: 54px;
+}
+.assistant-composer button {
+  width: 28px;
+  justify-content: center;
+  padding: 0;
+  color: #f8f5ff;
+  background: #7c3aed;
+}
+.proposal-card {
+  align-self: stretch;
+}
+.proposal-card ul {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 9px;
+  padding-left: 15px;
+  color: #a99ab9;
+  font-size: 7px;
+  line-height: 1.4;
 }
 .assistant-drawer-scroll {
   min-height: 0;

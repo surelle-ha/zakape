@@ -334,8 +334,11 @@ test('paints with mouse-selected colors, mirror axes, and dithering', async ({ p
   await enterEditor(page)
   const canvas = page.getByTestId('pixel-canvas')
   const zoom = Number(await page.getByLabel('Canvas zoom').inputValue())
-  const clickPixel = async (x: number, y: number) => {
-    await canvas.click({ position: { x: (x + 0.5) * zoom, y: (y + 0.5) * zoom } })
+  const clickPixel = async (x: number, y: number, button: 'left' | 'right' = 'left') => {
+    await canvas.click({
+      button,
+      position: { x: (x + 0.5) * zoom, y: (y + 0.5) * zoom },
+    })
   }
   const readPixel = (x: number, y: number) =>
     canvas.evaluate(
@@ -356,8 +359,6 @@ test('paints with mouse-selected colors, mirror axes, and dithering', async ({ p
   await expect(secondaryPicker).toContainText('#00FF00')
   await secondaryPicker.getByRole('button', { name: 'Close color picker' }).click()
   await expect(secondary).toHaveClass(/active/)
-  await clickPixel(3, 4)
-  expect((await readPixel(3, 4)).slice(0, 3)).toEqual([0, 255, 0])
 
   const primary = page.getByLabel('Primary drawing color')
   await primary.click()
@@ -367,6 +368,12 @@ test('paints with mouse-selected colors, mirror axes, and dithering', async ({ p
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'custom-color-picker.png') })
   await primaryPicker.getByRole('button', { name: 'Close color picker' }).click()
+  await page.getByTestId('tool-pencil').click()
+  await clickPixel(3, 4)
+  await clickPixel(4, 4, 'right')
+  expect((await readPixel(3, 4)).slice(0, 3)).toEqual([255, 0, 0])
+  expect((await readPixel(4, 4)).slice(0, 3)).toEqual([0, 255, 0])
+
   await page.getByTestId('tool-mirror').click()
   await clickPixel(5, 7)
   expect((await readPixel(5, 7)).slice(0, 3)).toEqual([255, 0, 0])
@@ -391,6 +398,33 @@ test('paints with mouse-selected colors, mirror axes, and dithering', async ({ p
   expect((await readPixel(15, 14)).slice(0, 3)).toEqual([0, 255, 0])
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'mirror-dither-tools.png') })
+})
+
+test('selects rectangular and lasso regions and moves selected pixels', async ({ page }) => {
+  await enterEditor(page)
+  const canvas = page.getByTestId('pixel-canvas')
+  const zoom = Number(await page.getByLabel('Canvas zoom').inputValue())
+  const point = (x: number, y: number) => ({ x: (x + 0.5) * zoom, y: (y + 0.5) * zoom })
+
+  await canvas.click({ position: point(3, 3) })
+  await canvas.click({ position: point(4, 3) })
+  await page.getByTestId('tool-select-rect').click()
+  await canvas.hover({ position: point(2, 2) })
+  await page.mouse.down()
+  await canvas.hover({ position: point(5, 5) })
+  await page.mouse.up()
+
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'box-selection.png') })
+  await canvas.hover({ position: point(3, 3) })
+  await page.mouse.down()
+  await canvas.hover({ position: point(8, 7) })
+  await page.mouse.up()
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled()
+
+  await page.keyboard.press('q')
+  await expect(page.getByTestId('tool-select-lasso')).toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.press('Escape')
 })
 
 test('owns frame creation, copying, deletion, and onion skin in each frame menu', async ({
@@ -510,12 +544,14 @@ test('zooms with Ctrl wheel, scales the work grid, and pans with the hand tool',
   await page.screenshot({ path: resolve(snapshotDirectory, 'canvas-pan-scrollbars.png') })
 })
 
-test('suppresses browser behavior and only opens contextual panel menus', async ({ page }) => {
+test('uses secondary-color right-click painting without leaking browser menus', async ({
+  page,
+}) => {
   await enterEditor(page)
   const canvas = page.getByTestId('pixel-canvas')
   await canvas.click({ button: 'right' })
   await expect(page.locator('.panel-context-menu')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled()
 
   await page.locator('.frame-item').click({ button: 'right' })
   await expect(page.getByRole('menu', { name: 'Frame actions' })).toBeVisible()
@@ -577,7 +613,7 @@ test('discovers installed Ollama models and switches providers', async ({ page }
     })
   })
 
-  await page.locator('.connection-row').click()
+  await page.getByRole('button', { name: /Manage model/ }).click()
   await expect(page.getByRole('dialog', { name: 'Choose where the model runs' })).toBeVisible()
   await page.getByRole('button', { name: 'Find models' }).click()
   await expect(page.getByLabel('Installed model')).toHaveValue('qwen2.5-coder:7b')
@@ -588,7 +624,7 @@ test('discovers installed Ollama models and switches providers', async ({ page }
   await page.getByRole('button', { name: /Compatible API/ }).click()
   await expect(page.getByLabel(/API key/)).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(page.locator('.connection-row')).toBeFocused()
+  await expect(page.getByRole('button', { name: /Manage model/ })).toBeFocused()
 })
 
 test('explains how to recover when local Ollama is offline', async ({ page }) => {
@@ -597,7 +633,7 @@ test('explains how to recover when local Ollama is offline', async ({ page }) =>
   await page.route('http://127.0.0.1:11434/api/tags', async (route) => {
     await route.abort('connectionrefused')
   })
-  await page.locator('.connection-row').click()
+  await page.getByRole('button', { name: /Manage model/ }).click()
   await page.getByRole('button', { name: 'Find models' }).click()
   await expect(page.getByRole('alert')).toContainText('Ollama is not running')
   await mkdir(snapshotDirectory, { recursive: true })
@@ -615,7 +651,9 @@ test('asks whether the assistant should edit one frame or the entire sheet', asy
       body: JSON.stringify({ models: [{ name: 'pixel-director:32b', size: 19_000_000_000 }] }),
     })
   })
+  let assistantPass = 0
   await page.route('http://127.0.0.1:11434/api/chat', async (route) => {
+    assistantPass += 1
     const body = route.request().postDataJSON() as {
       format: { type: string }
       messages: Array<{ content: string }>
@@ -623,44 +661,75 @@ test('asks whether the assistant should edit one frame or the entire sheet', asy
     const artRequest = JSON.parse(body.messages[1]!.content) as {
       edit_scope: string
       target_frame_ids: string[]
+      active_layer: { id: string }
+      agent_pass: { number: number; phase: string }
     }
     expect(body.format.type).toBe('object')
     expect(artRequest.edit_scope).toBe('full_animation')
     expect(artRequest.target_frame_ids).toHaveLength(4)
+    expect(artRequest.agent_pass.number).toBe(assistantPass)
     await route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
         message: {
           content: JSON.stringify({
-            summary: 'Keep one warm highlight attached through the run cycle.',
-            frames: artRequest.target_frame_ids.map((frameId, index) => ({
-              frame_id: frameId,
-              operations: [
-                { type: 'set_pixels', pixels: [{ x: 7 + index, y: 7, color: '#fff1bd' }] },
-              ],
-            })),
+            summary:
+              assistantPass === 1
+                ? 'Keep one warm highlight attached through the run cycle.'
+                : 'Reviewed the highlight spacing and animation continuity.',
+            actions: [],
+            edits:
+              assistantPass === 1
+                ? artRequest.target_frame_ids.map((frameId, index) => ({
+                    layer_id: artRequest.active_layer.id,
+                    frame_id: frameId,
+                    operations: [
+                      { type: 'set_pixels', pixels: [{ x: 7 + index, y: 7, color: '#fff1bd' }] },
+                    ],
+                  }))
+                : [],
+            review_notes: [
+              assistantPass === 1
+                ? 'The warm accent follows the moving form.'
+                : 'Native-size review found consistent spacing and no isolated noise.',
+            ],
+            ready: assistantPass >= 2,
           }),
         },
       }),
     })
   })
 
-  await page.locator('.connection-row').click()
+  await page.getByRole('button', { name: /Manage model/ }).click()
   await page.getByRole('button', { name: 'Find models' }).click()
   await page.keyboard.press('Escape')
   await page.getByTestId('assistant-scope-sheet').click()
-  await expect(page.getByText(/Coordinate one edit across all 4 frames/)).toBeVisible()
+  await expect(page.getByTestId('assistant-scope-sheet')).toHaveAttribute('aria-pressed', 'true')
   await page
-    .getByLabel('Assistant prompt')
+    .getByLabel('Assistant message')
     .fill('Keep the spark attached while the character runs.')
-  await page.getByRole('button', { name: 'Propose' }).click()
+  await page.getByRole('button', { name: 'Send message' }).click()
 
-  await expect(page.getByText(/4 validated operations across 4 frames/)).toBeVisible()
+  await expect(page.getByText(/Ready after 2 passes/)).toBeVisible()
+  await expect(page.getByText(/4 operations across 4 edited frames/)).toBeVisible()
+  expect(assistantPass).toBe(2)
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'assistant-entire-sheet-proposal.png') })
-  await page.getByRole('button', { name: 'Apply to 4 frames' }).click()
-  await expect(page.getByText(/4 validated operations across 4 frames/)).toBeHidden()
+  await page.getByRole('button', { name: 'Apply work' }).click()
+  await expect(page.getByText(/Ready after 2 passes/)).toBeHidden()
   await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled()
+
+  await page.waitForTimeout(1000)
+  await page.reload()
+  await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
+  const launcher = page.getByTestId('project-launcher')
+  await launcher.getByRole('button', { name: 'Recent projects' }).click()
+  await launcher.locator('.launcher-recent-card').filter({ hasText: 'Untitled sprite' }).click()
+  await openAssistant(page)
+  await expect(page.getByText('Keep the spark attached while the character runs.')).toBeVisible()
+  await expect(
+    page.getByText('Reviewed the highlight spacing and animation continuity.'),
+  ).toBeVisible()
 })
 
 test('keeps the complete toolset compact at the minimum desktop size', async ({ page }) => {

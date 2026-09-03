@@ -1,11 +1,18 @@
-import type { ArtOperation, FrameArtEdit, Pixel, SpriteProject, ToolId } from '~/types/editor'
+import type {
+  ArtProposal,
+  Pixel,
+  PixelPoint,
+  PixelSelection,
+  SpriteProject,
+  ToolId,
+} from '~/types/editor'
+import { applyAssistantChanges } from '~/utils/assistant'
 import {
   cloneProject,
   coercePixelToColorMode,
   createDemoProject,
   emptyPixels,
   makeId,
-  normalizeHex,
 } from '~/utils/project'
 import { rasterLine, rasterRectangle } from '~/utils/raster'
 
@@ -20,6 +27,7 @@ export interface EditorDocument {
   future: SpriteProject[]
   dirtyRevision: number
   lastAction: string
+  selection: PixelSelection | null
   placeholder: boolean
 }
 
@@ -36,6 +44,7 @@ const createEditorDocument = (
   future: [],
   dirtyRevision: 0,
   lastAction,
+  selection: null,
   placeholder,
 })
 
@@ -105,6 +114,12 @@ export const useEditor = () => {
   const showTransparency = useState<boolean>('show-transparency', () => true)
   const onionSkin = useState<boolean>('onion-skin', () => true)
   const layerEditingId = useState<string | null>('layer-editing-id', () => null)
+  const selection = computed<PixelSelection | null>({
+    get: () => currentDocument.value.selection,
+    set: (value) => {
+      currentDocument.value.selection = value
+    },
+  })
 
   const activeFrame = computed(() =>
     project.value.frames.find((frame) => frame.id === activeFrameId.value),
@@ -121,6 +136,12 @@ export const useEditor = () => {
   const canRedo = computed(() => future.value.length > 0)
   const drawingColor = computed(() =>
     activeDrawingColor.value === 'primary' ? primaryColor.value : secondaryColor.value,
+  )
+  const activeSelection = computed(() =>
+    selection.value?.frameId === activeFrameId.value &&
+    selection.value.layerId === activeLayerId.value
+      ? selection.value
+      : null,
   )
 
   const touch = (action: string) => {
@@ -229,11 +250,15 @@ export const useEditor = () => {
     dirtyRevision.value += 1
   }
 
-  const paintDitherPixel = (x: number, y: number) => {
+  const paintDitherPixel = (
+    x: number,
+    y: number,
+    colorTarget: 'primary' | 'secondary' = activeDrawingColor.value,
+  ) => {
     const pixels = activeLayer.value?.cels[activeFrameId.value]
     if (!pixels) return
     const radius = Math.floor((brushSize.value - 1) / 2)
-    const invert = activeDrawingColor.value === 'secondary' ? 1 : 0
+    const invert = colorTarget === 'secondary' ? 1 : 0
     for (let offsetY = -radius; offsetY < brushSize.value - radius; offsetY += 1) {
       for (let offsetX = -radius; offsetX < brushSize.value - radius; offsetX += 1) {
         const targetX = x + offsetX
@@ -354,11 +379,80 @@ export const useEditor = () => {
     touch('Drew rectangle')
   }
 
+  const setSelection = (kind: PixelSelection['kind'], points: PixelPoint[]) => {
+    const unique = new Map<string, PixelPoint>()
+    points.forEach((point) => {
+      if (
+        point.x >= 0 &&
+        point.y >= 0 &&
+        point.x < project.value.width &&
+        point.y < project.value.height
+      ) {
+        unique.set(`${point.x}:${point.y}`, point)
+      }
+    })
+    selection.value = unique.size
+      ? {
+          kind,
+          frameId: activeFrameId.value,
+          layerId: activeLayerId.value,
+          points: [...unique.values()],
+        }
+      : null
+    lastAction.value = selection.value
+      ? `Selected ${selection.value.points.length} pixel${selection.value.points.length === 1 ? '' : 's'}`
+      : 'Selection cleared'
+  }
+
+  const clearSelection = () => {
+    if (!selection.value) return
+    selection.value = null
+    lastAction.value = 'Selection cleared'
+  }
+
+  const moveSelection = (offsetX: number, offsetY: number) => {
+    const current = activeSelection.value
+    const pixels = activeLayer.value?.cels[activeFrameId.value]
+    if (!current || !pixels || (offsetX === 0 && offsetY === 0)) return false
+    checkpoint('Move selection')
+    const captured = current.points.map((point) => ({
+      point,
+      pixel: pixels[point.y * project.value.width + point.x] ?? null,
+    }))
+    current.points.forEach((point) => {
+      pixels[point.y * project.value.width + point.x] = null
+    })
+    const movedPoints: PixelPoint[] = []
+    captured.forEach(({ point, pixel }) => {
+      const x = point.x + offsetX
+      const y = point.y + offsetY
+      if (x < 0 || y < 0 || x >= project.value.width || y >= project.value.height) return
+      pixels[y * project.value.width + x] = pixel
+      movedPoints.push({ x, y })
+    })
+    selection.value = { ...current, points: movedPoints }
+    touch(`Moved selection ${offsetX}, ${offsetY}`)
+    return true
+  }
+
+  const deleteSelectionPixels = () => {
+    const current = activeSelection.value
+    const pixels = activeLayer.value?.cels[activeFrameId.value]
+    if (!current || !pixels) return false
+    checkpoint('Clear selection')
+    current.points.forEach((point) => {
+      pixels[point.y * project.value.width + point.x] = null
+    })
+    touch('Cleared selected pixels')
+    return true
+  }
+
   const undo = () => {
     const previous = history.value.pop()
     if (!previous) return
     future.value.push(cloneProject(project.value))
     project.value = previous
+    selection.value = null
     touch('Undo')
   }
 
@@ -367,6 +461,7 @@ export const useEditor = () => {
     if (!next) return
     history.value.push(cloneProject(project.value))
     project.value = next
+    selection.value = null
     touch('Redo')
   }
 
@@ -400,6 +495,7 @@ export const useEditor = () => {
     const index = project.value.frames.findIndex((frame) => frame.id === frameId)
     if (index < 0) return
     project.value.frames.splice(index, 1)
+    if (selection.value?.frameId === frameId) selection.value = null
     project.value.layers.forEach((layer) => Reflect.deleteProperty(layer.cels, frameId))
     project.value.frames.forEach((frame, frameIndex) => (frame.name = `F${frameIndex + 1}`))
     if (activeFrameId.value === frameId) {
@@ -447,6 +543,7 @@ export const useEditor = () => {
     if (index < 0) return
     checkpoint('Delete layer')
     project.value.layers.splice(index, 1)
+    if (selection.value?.layerId === layerId) selection.value = null
     activeLayerId.value = project.value.layers[Math.max(0, index - 1)]!.id
     layerEditingId.value = null
     touch('Deleted layer')
@@ -494,52 +591,37 @@ export const useEditor = () => {
     touch('Renamed project')
   }
 
-  const applyOperations = (frameEdits: FrameArtEdit[], layerId = activeLayerId.value) => {
-    const layer = project.value.layers.find((item) => item.id === layerId)
-    const edits = frameEdits.filter(
-      (frameEdit) =>
-        frameEdit.operations.length > 0 &&
-        project.value.frames.some((frame) => frame.id === frameEdit.frameId),
-    )
-    if (!layer || edits.length === 0) return
+  const applyProposal = (proposal: ArtProposal) => {
+    if (
+      proposal.actions.length === 0 &&
+      proposal.edits.every((edit) => edit.operations.length === 0)
+    ) {
+      return false
+    }
     checkpoint('Apply assistant proposal')
-    edits.forEach((frameEdit) => {
-      const pixels =
-        layer.cels[frameEdit.frameId] ??
-        (layer.cels[frameEdit.frameId] = emptyPixels(project.value.width, project.value.height))
-      const set = (x: number, y: number, color: Pixel) => {
-        if (x >= 0 && y >= 0 && x < project.value.width && y < project.value.height) {
-          pixels[y * project.value.width + x] = coercePixelToColorMode(project.value, color)
-        }
-      }
-      frameEdit.operations.forEach((operation: ArtOperation) => {
-        if (operation.type === 'set_pixels') {
-          operation.pixels.forEach((pixel) => set(pixel.x, pixel.y, pixel.color))
-        } else if (operation.type === 'fill_rect' || operation.type === 'outline_rect') {
-          for (let y = operation.y; y < operation.y + operation.height; y += 1) {
-            for (let x = operation.x; x < operation.x + operation.width; x += 1) {
-              if (
-                operation.type === 'fill_rect' ||
-                x === operation.x ||
-                y === operation.y ||
-                x === operation.x + operation.width - 1 ||
-                y === operation.y + operation.height - 1
-              ) {
-                set(x, y, operation.color)
-              }
-            }
-          }
-        } else if (operation.type === 'replace_palette_color') {
-          const from = normalizeHex(operation.from)
-          pixels.forEach((pixel, index) => {
-            if (pixel?.toLowerCase() === from) {
-              pixels[index] = coercePixelToColorMode(project.value, operation.to)
-            }
-          })
-        }
-      })
-    })
-    touch(`Applied assistant edit to ${edits.length} frame${edits.length === 1 ? '' : 's'}`)
+    const result = applyAssistantChanges(project.value, proposal.actions, proposal.edits)
+    const lastEdit = proposal.edits.findLast((edit) => edit.operations.length > 0)
+    if (lastEdit) {
+      activeFrameId.value = lastEdit.frameId
+      activeLayerId.value = lastEdit.layerId
+    } else {
+      const lastFrame = proposal.actions.findLast((action) => action.type === 'create_frame')
+      const lastLayer = proposal.actions.findLast((action) => action.type === 'create_layer')
+      if (lastFrame) activeFrameId.value = lastFrame.frameId
+      if (lastLayer) activeLayerId.value = lastLayer.layerId
+    }
+    selection.value = null
+    const parts = [
+      result.layersCreated
+        ? `${result.layersCreated} layer${result.layersCreated === 1 ? '' : 's'}`
+        : '',
+      result.framesCreated
+        ? `${result.framesCreated} frame${result.framesCreated === 1 ? '' : 's'}`
+        : '',
+      result.editedCels ? `${result.editedCels} cel${result.editedCels === 1 ? '' : 's'}` : '',
+    ].filter(Boolean)
+    touch(`Applied assistant work${parts.length ? `: ${parts.join(', ')}` : ''}`)
+    return true
   }
 
   return {
@@ -560,6 +642,8 @@ export const useEditor = () => {
     showTransparency,
     onionSkin,
     layerEditingId,
+    selection,
+    activeSelection,
     dirtyRevision,
     lastAction,
     activeFrame,
@@ -583,6 +667,10 @@ export const useEditor = () => {
     floodFill,
     drawLine,
     drawRectangle,
+    setSelection,
+    clearSelection,
+    moveSelection,
+    deleteSelectionPixels,
     undo,
     redo,
     addFrame,
@@ -595,6 +683,6 @@ export const useEditor = () => {
     renameLayer,
     setLayerOpacity,
     renameProject,
-    applyOperations,
+    applyProposal,
   }
 }

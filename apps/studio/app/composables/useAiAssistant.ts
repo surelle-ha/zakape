@@ -1,19 +1,25 @@
 import type {
   ArtOperation,
   ArtProposal,
+  AssistantArtEdit,
+  AssistantChatEntry,
   AssistantEditScope,
-  FrameArtEdit,
+  AssistantProjectAction,
   ModelConnection,
   ModelProvider,
   Pixel,
   SpriteProject,
 } from '~/types/editor'
 import { getCompositePixels } from '~/utils/render'
-import { normalizeHex } from '~/utils/project'
+import { cloneProject, makeId, normalizeHex } from '~/utils/project'
+import { applyAssistantChanges } from '~/utils/assistant'
 
 const MAX_OPERATIONS_PER_FRAME = 32
 const MAX_TARGET_FRAMES = 64
 const MAX_PIXEL_CHANGES_PER_FRAME = 16_384
+const MAX_PROJECT_ACTIONS = 16
+const MIN_AGENT_PASSES = 2
+const MAX_AGENT_PASSES = 3
 export const OLLAMA_DEFAULT_URL = 'http://127.0.0.1:11434'
 
 export interface AssistantModel {
@@ -39,7 +45,7 @@ PIXEL-ART CRAFT
 - Use ordered, repeating dithering patterns only when a tonal bridge or texture is needed. Never scatter random noise.
 - Make the fewest changes that fully solve the request. Every one-pixel mark must have a purpose at the native resolution.
 - Use set_pixels for organic contours and cleanup. Use fill_rect or outline_rect only when the intended shape is genuinely rectangular. Use replace_palette_color only for an exact, deliberate recolor.
-- composite_rows show the visible result. active_layer_rows show the only layer you may edit. Do not flatten other visible layers into the active layer. Erasing an active-layer pixel may reveal a lower layer.
+- composite_rows show the visible result. active_layer_rows show the initially editable layer; editable_layer_rows also include layers you created in earlier passes. Do not flatten other visible layers into an editable layer. Erasing an editable-layer pixel may reveal a lower layer.
 
 PRIVATE CRAFT WORKFLOW
 1. Diagnose silhouette, pose, and negative space.
@@ -54,10 +60,20 @@ ANIMATION CRAFT
 - For full-animation work, build from key poses rather than extra in-betweens. Keep volumes, landmarks, outline weight, lighting, and attached details consistent across frames. Do not copy one static pose over the sequence or add unnecessary frames.
 - Respect explicit frame durations. For locomotion, preserve contact and passing poses. For actions, preserve anticipation, action, impact, and recovery; the fastest motion should use the shortest holds.
 
+AGENTIC REVIEW
+- You may create frames or layers when the artist asks for them or when they materially improve the requested animation. Never add organizational clutter.
+- Each response is one incremental pass. On review passes, inspect the updated composite_rows produced by your earlier work, identify concrete visual defects, then return only the corrections needed.
+- Set ready to true only when the result is readable at 1x and has clean clusters, coherent lighting, deliberate palette use, and consistent animation volumes.
+
 RESPONSE CONTRACT
 Return exactly one JSON object:
-{"summary":"short concrete art direction","frames":[{"frame_id":"exact target id","operations":[...]}]}
-Return exactly one frames entry for every target_frame_id, in the supplied order, even when an entry has no operations. Never return a reference frame.
+{"summary":"short concrete art direction","actions":[],"edits":[],"review_notes":["specific visual audit"],"ready":false}
+
+Allowed actions:
+- {"type":"create_layer","layer_id":"new_layer_descriptive_id","name":"Highlights"}
+- {"type":"create_frame","frame_id":"new_frame_descriptive_id","name":"F2","duration_ms":120,"after_frame_id":"existing or earlier new frame id","copy_from_frame_id":"existing frame id or null"}
+
+Each edit is {"layer_id":"editable layer id","frame_id":"target or newly-created frame id","operations":[...]}. You may edit only the active_layer or a layer created in this response or an earlier pass. Do not edit reference-only frames.
 
 Allowed operations:
 - {"type":"set_pixels","pixels":[{"x":0,"y":0,"color":"#rrggbb"}]}
@@ -65,9 +81,9 @@ Allowed operations:
 - {"type":"outline_rect","x":0,"y":0,"width":2,"height":2,"color":"#rrggbb"}
 - {"type":"replace_palette_color","from":"#rrggbb","to":"#rrggbb"}
 
-Use null only to erase. Coordinates start at the top-left. Stay inside the canvas. Before responding, silently audit silhouette readability, cluster cleanliness, palette discipline, animation continuity, frame IDs, coordinates, and JSON validity. Do not include markdown or commentary outside the JSON.`
+Use null only to erase. New IDs must start with new_layer_ or new_frame_ and contain only lowercase letters, numbers, underscores, or hyphens. Coordinates start at the top-left. Stay inside the canvas. Before responding, silently audit silhouette readability, cluster cleanliness, palette discipline, animation continuity, frame and layer IDs, coordinates, and JSON validity. Do not include markdown or commentary outside the JSON.`
 
-export const assistantResponseFormat = {
+const legacyAssistantResponseFormat = {
   type: 'object',
   additionalProperties: false,
   required: ['summary', 'frames'],
@@ -135,6 +151,70 @@ export const assistantResponseFormat = {
         },
       },
     },
+  },
+} as const
+
+const assistantOperationFormat =
+  legacyAssistantResponseFormat.properties.frames.items.properties.operations
+
+export const assistantResponseFormat = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['summary', 'actions', 'edits', 'review_notes', 'ready'],
+  properties: {
+    summary: { type: 'string' },
+    actions: {
+      type: 'array',
+      items: {
+        oneOf: [
+          {
+            type: 'object',
+            additionalProperties: false,
+            required: ['type', 'layer_id', 'name'],
+            properties: {
+              type: { const: 'create_layer' },
+              layer_id: { type: 'string' },
+              name: { type: 'string' },
+            },
+          },
+          {
+            type: 'object',
+            additionalProperties: false,
+            required: [
+              'type',
+              'frame_id',
+              'name',
+              'duration_ms',
+              'after_frame_id',
+              'copy_from_frame_id',
+            ],
+            properties: {
+              type: { const: 'create_frame' },
+              frame_id: { type: 'string' },
+              name: { type: 'string' },
+              duration_ms: { type: 'integer', minimum: 40, maximum: 10_000 },
+              after_frame_id: { type: ['string', 'null'] },
+              copy_from_frame_id: { type: ['string', 'null'] },
+            },
+          },
+        ],
+      },
+    },
+    edits: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['layer_id', 'frame_id', 'operations'],
+        properties: {
+          layer_id: { type: 'string' },
+          frame_id: { type: 'string' },
+          operations: assistantOperationFormat,
+        },
+      },
+    },
+    review_notes: { type: 'array', items: { type: 'string' } },
+    ready: { type: 'boolean' },
   },
 } as const
 
@@ -335,53 +415,153 @@ const validateOperations = (input: unknown, width: number, height: number): ArtO
   return operations
 }
 
+export interface AssistantValidationContext {
+  width: number
+  height: number
+  knownFrameIds: string[]
+  knownLayerIds: string[]
+  targetFrameIds: string[]
+  editableLayerIds: string[]
+}
+
+export interface ValidatedAssistantPass {
+  summary: string
+  actions: AssistantProjectAction[]
+  edits: AssistantArtEdit[]
+  reviewNotes: string[]
+  ready: boolean
+}
+
+const validateNewId = (value: unknown, prefix: 'new_layer_' | 'new_frame_') => {
+  if (
+    typeof value !== 'string' ||
+    !value.startsWith(prefix) ||
+    !/^[a-z0-9_-]+$/.test(value) ||
+    value.length > 64
+  ) {
+    throw new Error(`New assistant IDs must use the ${prefix} prefix and safe characters.`)
+  }
+  return value
+}
+
+const validateName = (value: unknown, fallback: string) =>
+  typeof value === 'string' && value.trim() ? value.trim().slice(0, 64) : fallback
+
 export const validateProposal = (
   input: unknown,
-  width: number,
-  height: number,
-  expectedFrameIds: string[],
-): Pick<ArtProposal, 'summary' | 'frames'> => {
-  if (!input || typeof input !== 'object')
+  context: AssistantValidationContext,
+): ValidatedAssistantPass => {
+  if (!input || typeof input !== 'object') {
     throw new Error('The model did not return a proposal object.')
-  if (expectedFrameIds.length === 0 || expectedFrameIds.length > MAX_TARGET_FRAMES) {
+  }
+  if (context.targetFrameIds.length === 0 || context.targetFrameIds.length > MAX_TARGET_FRAMES) {
     throw new Error(`Assistant edits support between 1 and ${MAX_TARGET_FRAMES} target frames.`)
   }
-  const candidate = input as { summary?: unknown; frames?: unknown }
+
+  const candidate = input as Record<string, unknown>
   if (typeof candidate.summary !== 'string' || !candidate.summary.trim()) {
     throw new Error('The proposal is missing a summary.')
   }
-  if (!Array.isArray(candidate.frames) || candidate.frames.length !== expectedFrameIds.length) {
-    throw new Error('The proposal does not cover every requested frame.')
+  if (!Array.isArray(candidate.actions) || candidate.actions.length > MAX_PROJECT_ACTIONS) {
+    throw new Error('The proposal contains an invalid number of project actions.')
+  }
+  if (!Array.isArray(candidate.edits) || candidate.edits.length > MAX_TARGET_FRAMES * 4) {
+    throw new Error('The proposal contains an invalid number of art edits.')
   }
 
-  const expectedFrameSet = new Set(expectedFrameIds)
-  const seenFrames = new Set<string>()
-  const frames: FrameArtEdit[] = candidate.frames.map((rawFrame, index) => {
-    if (!rawFrame || typeof rawFrame !== 'object') {
-      throw new Error('A frame proposal is not an object.')
+  const knownFrames = new Set(context.knownFrameIds)
+  const knownLayers = new Set(context.knownLayerIds)
+  const targetFrames = new Set(context.targetFrameIds)
+  const editableLayers = new Set(context.editableLayerIds)
+  const createdIds = new Set<string>()
+  const actions: AssistantProjectAction[] = candidate.actions.map((rawAction) => {
+    if (!rawAction || typeof rawAction !== 'object') {
+      throw new Error('A project action is not an object.')
     }
-    const frame = rawFrame as { frame_id?: unknown; operations?: unknown }
-    if (typeof frame.frame_id !== 'string' || !expectedFrameSet.has(frame.frame_id)) {
-      throw new Error('The proposal contains an unexpected frame ID.')
+    const action = rawAction as Record<string, unknown>
+    if (action.type === 'create_layer') {
+      const layerId = validateNewId(action.layer_id, 'new_layer_')
+      if (createdIds.has(layerId) || knownLayers.has(layerId)) {
+        throw new Error('The proposal repeats a layer ID.')
+      }
+      createdIds.add(layerId)
+      knownLayers.add(layerId)
+      editableLayers.add(layerId)
+      return { type: 'create_layer', layerId, name: validateName(action.name, 'Assistant layer') }
     }
-    if (seenFrames.has(frame.frame_id)) throw new Error('The proposal repeats a frame ID.')
-    if (frame.frame_id !== expectedFrameIds[index]) {
-      throw new Error('The proposal returned frames in the wrong order.')
+    if (action.type === 'create_frame') {
+      if (knownFrames.size >= MAX_TARGET_FRAMES) {
+        throw new Error(
+          `Assistant projects support at most ${MAX_TARGET_FRAMES} frames per session.`,
+        )
+      }
+      const frameId = validateNewId(action.frame_id, 'new_frame_')
+      if (createdIds.has(frameId) || knownFrames.has(frameId)) {
+        throw new Error('The proposal repeats a frame ID.')
+      }
+      const afterFrameId = action.after_frame_id === null ? null : String(action.after_frame_id)
+      const copyFromFrameId =
+        action.copy_from_frame_id === null ? null : String(action.copy_from_frame_id)
+      if (afterFrameId && !knownFrames.has(afterFrameId)) {
+        throw new Error('A new frame uses an unknown insertion anchor.')
+      }
+      if (copyFromFrameId && !knownFrames.has(copyFromFrameId)) {
+        throw new Error('A new frame uses an unknown copy source.')
+      }
+      const duration = Number(action.duration_ms)
+      if (!Number.isInteger(duration) || duration < 40 || duration > 10_000) {
+        throw new Error('A new frame has an invalid duration.')
+      }
+      createdIds.add(frameId)
+      knownFrames.add(frameId)
+      targetFrames.add(frameId)
+      return {
+        type: 'create_frame',
+        frameId,
+        name: validateName(action.name, 'New frame'),
+        duration,
+        afterFrameId,
+        copyFromFrameId,
+      }
     }
-    seenFrames.add(frame.frame_id)
+    throw new Error(`Unsupported assistant action: ${String(action.type)}`)
+  })
+
+  const edits: AssistantArtEdit[] = candidate.edits.map((rawEdit) => {
+    if (!rawEdit || typeof rawEdit !== 'object') throw new Error('An art edit is not an object.')
+    const edit = rawEdit as Record<string, unknown>
+    const frameId = String(edit.frame_id)
+    const layerId = String(edit.layer_id)
+    if (!knownFrames.has(frameId) || !targetFrames.has(frameId)) {
+      throw new Error('The proposal edits an unavailable or reference-only frame.')
+    }
+    if (!editableLayers.has(layerId)) {
+      throw new Error('The proposal edits a layer that was not made available to the assistant.')
+    }
     return {
-      frameId: frame.frame_id,
-      operations: validateOperations(frame.operations, width, height),
+      frameId,
+      layerId,
+      operations: validateOperations(edit.operations, context.width, context.height),
     }
   })
 
-  if (frames.every((frame) => frame.operations.length === 0)) {
-    throw new Error(
-      'The model did not propose any pixel changes. Add more visual direction and try again.',
-    )
+  const reviewNotes = Array.isArray(candidate.review_notes)
+    ? candidate.review_notes
+        .filter((note): note is string => typeof note === 'string' && Boolean(note.trim()))
+        .slice(0, 8)
+        .map((note) => note.trim().slice(0, 240))
+    : []
+  if (typeof candidate.ready !== 'boolean') {
+    throw new Error('The proposal is missing its visual review status.')
   }
 
-  return { summary: candidate.summary.trim().slice(0, 240), frames }
+  return {
+    summary: candidate.summary.trim().slice(0, 240),
+    actions,
+    edits,
+    reviewNotes,
+    ready: candidate.ready,
+  }
 }
 
 const encodePixels = (
@@ -419,22 +599,46 @@ const neighboringFrameIds = (project: SpriteProject, frameId: string) => {
   return [...new Set(candidates.filter((id): id is string => Boolean(id) && id !== frameId))]
 }
 
+export interface AssistantIterationContext {
+  pass: number
+  createdFrameIds?: string[]
+  editableLayerIds?: string[]
+  priorSummary?: string
+  priorReviewNotes?: string[]
+}
+
 export const createAssistantMessages = (
   prompt: string,
   project: SpriteProject,
   frameId: string,
   layerId: string,
   scope: AssistantEditScope = 'frame',
+  iteration: AssistantIterationContext = { pass: 1 },
 ): AssistantMessage[] => {
   const activeLayer = project.layers.find((layer) => layer.id === layerId)
   if (!activeLayer) throw new Error('The active layer is no longer available.')
 
-  const targetFrameIds = scope === 'sheet' ? project.frames.map((frame) => frame.id) : [frameId]
-  if (targetFrameIds.length > MAX_TARGET_FRAMES) {
+  const targetFrameIds =
+    scope === 'sheet'
+      ? project.frames.map((frame) => frame.id)
+      : [
+          frameId,
+          ...(iteration.createdFrameIds ?? []).filter((id) =>
+            project.frames.some((frame) => frame.id === id),
+          ),
+        ]
+  const uniqueTargetFrameIds = [...new Set(targetFrameIds)]
+  if (uniqueTargetFrameIds.length > MAX_TARGET_FRAMES) {
     throw new Error(`Full-animation edits currently support up to ${MAX_TARGET_FRAMES} frames.`)
   }
-  const referenceFrameIds = scope === 'frame' ? neighboringFrameIds(project, frameId) : []
-  const contextFrameIds = [...targetFrameIds, ...referenceFrameIds]
+  const referenceFrameIds =
+    scope === 'frame'
+      ? neighboringFrameIds(project, frameId).filter((id) => !uniqueTargetFrameIds.includes(id))
+      : []
+  const contextFrameIds = [...uniqueTargetFrameIds, ...referenceFrameIds]
+  const editableLayers = project.layers.filter((layer) =>
+    new Set([layerId, ...(iteration.editableLayerIds ?? [])]).has(layer.id),
+  )
   const palette = collectPalette(project, contextFrameIds)
   const paletteIndexes = new Map(palette.map((color, index) => [color, index]))
   const usedColors = new Set(
@@ -453,8 +657,18 @@ export const createAssistantMessages = (
       role: 'user',
       content: JSON.stringify({
         request: prompt,
+        agent_pass: {
+          number: iteration.pass,
+          phase: iteration.pass === 1 ? 'draft' : 'visual_review',
+          instruction:
+            iteration.pass === 1
+              ? 'Create a strong first pass.'
+              : 'Inspect the updated grids from your prior work and return only incremental corrections.',
+          prior_summary: iteration.priorSummary ?? null,
+          prior_review_notes: iteration.priorReviewNotes ?? [],
+        },
         edit_scope: scope === 'sheet' ? 'full_animation' : 'current_frame',
-        target_frame_ids: targetFrameIds,
+        target_frame_ids: uniqueTargetFrameIds,
         canvas: {
           width: project.width,
           height: project.height,
@@ -475,12 +689,18 @@ export const createAssistantMessages = (
           },
           outline: 'preserve the existing strategy and native 1px weight when present',
           dithering: 'ordered patterns only; never random noise',
-          frame_durations_ms: targetFrameIds.map(
+          frame_durations_ms: uniqueTargetFrameIds.map(
             (targetId) => project.frames.find((frame) => frame.id === targetId)!.duration,
           ),
           native_size_audit: 'the result must read cleanly at 1x',
         },
         active_layer: { id: activeLayer.id, name: activeLayer.name },
+        editable_layers: editableLayers.map((layer) => ({ id: layer.id, name: layer.name })),
+        capabilities: {
+          create_layers: true,
+          create_frames: true,
+          incremental_visual_review: true,
+        },
         frames: contextFrameIds.map((contextFrameId) => {
           const frame = project.frames.find((item) => item.id === contextFrameId)!
           return {
@@ -488,7 +708,7 @@ export const createAssistantMessages = (
             sequence_index: project.frames.indexOf(frame),
             name: frame.name,
             duration_ms: frame.duration,
-            role: targetFrameIds.includes(frame.id) ? 'target' : 'reference_only',
+            role: uniqueTargetFrameIds.includes(frame.id) ? 'target' : 'reference_only',
             composite_rows: encodePixels(
               getCompositePixels(project, frame.id),
               project.width,
@@ -501,6 +721,18 @@ export const createAssistantMessages = (
               project.width,
               project.height,
               paletteIndexes,
+            ),
+            editable_layer_rows: Object.fromEntries(
+              editableLayers.map((layer) => [
+                layer.id,
+                encodePixels(
+                  layer.cels[frame.id] ??
+                    Array.from({ length: project.width * project.height }, (): Pixel => null),
+                  project.width,
+                  project.height,
+                  paletteIndexes,
+                ),
+              ]),
             ),
           }
         }),
@@ -560,6 +792,7 @@ const discoverModels = async (connection: ModelConnection): Promise<AssistantMod
 
   const baseUrl = connection.baseUrl.replace(/\/$/, '')
   const response = await fetch(`${baseUrl}/models`, {
+    signal: AbortSignal.timeout(12_000),
     headers: {
       'Content-Type': 'application/json',
       ...(connection.apiKey ? { Authorization: `Bearer ${connection.apiKey}` } : {}),
@@ -583,6 +816,13 @@ export const useAiAssistant = () => {
   const errorMessage = useState<string>('assistant-error', () => '')
   const proposal = useState<ArtProposal | null>('assistant-proposal', () => null)
   const availableModels = useState<AssistantModel[]>('assistant-models', () => [])
+  const chatEntries = useState<AssistantChatEntry[]>('assistant-chat', () => [])
+  const chatProjectId = useState<string>('assistant-chat-project', () => '')
+  const agentPass = useState('assistant-agent-pass', () => ({
+    current: 0,
+    total: MAX_AGENT_PASSES,
+  }))
+  const { loadPreference, savePreference } = useProjectRepository()
 
   const endpoint = (path: string) => `${connection.value.baseUrl.replace(/\/$/, '')}${path}`
   const headers = () => ({
@@ -614,6 +854,90 @@ export const useAiAssistant = () => {
     }
   }
 
+  const persistChat = async () => {
+    if (!chatProjectId.value) return
+    try {
+      await savePreference(`assistant-chat:${chatProjectId.value}`, chatEntries.value.slice(-100))
+    } catch (error) {
+      console.warn('Zakape could not persist this assistant conversation.', error)
+    }
+  }
+
+  const loadChat = async (projectId: string) => {
+    if (!projectId || chatProjectId.value === projectId) return
+    chatProjectId.value = projectId
+    proposal.value = null
+    let stored: AssistantChatEntry[] | null = null
+    try {
+      stored = await loadPreference<AssistantChatEntry[]>(`assistant-chat:${projectId}`)
+    } catch (error) {
+      console.warn('Zakape could not restore this assistant conversation.', error)
+    }
+    chatEntries.value = Array.isArray(stored)
+      ? stored
+          .filter(
+            (entry) =>
+              entry &&
+              typeof entry.id === 'string' &&
+              (entry.role === 'user' || entry.role === 'assistant') &&
+              typeof entry.content === 'string' &&
+              typeof entry.createdAt === 'string',
+          )
+          .slice(-100)
+      : []
+  }
+
+  const appendChat = (entry: Omit<AssistantChatEntry, 'id' | 'createdAt'>) => {
+    chatEntries.value.push({
+      ...entry,
+      id: makeId('chat'),
+      createdAt: new Date().toISOString(),
+    })
+    if (chatEntries.value.length > 100) chatEntries.value = chatEntries.value.slice(-100)
+    void persistChat()
+  }
+
+  const requestModel = async (messages: AssistantMessage[]) => {
+    if (connection.value.provider === 'ollama') {
+      const baseUrl = normalizeOllamaBaseUrl(connection.value.baseUrl)
+      if (isTauriRuntime()) {
+        return invokeDesktop<string>('ollama_chat', {
+          baseUrl,
+          model: connection.value.model,
+          messages,
+        })
+      }
+      const response = await fetch(`${baseUrl}/api/chat`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(180_000),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createOllamaChatBody(connection.value.model, messages)),
+      })
+      if (!response.ok) {
+        const message = await response.text()
+        throw new Error(`Ollama returned ${response.status}: ${message.slice(0, 180)}`)
+      }
+      return readOllamaChatContent(await response.json())
+    }
+
+    const response = await fetch(endpoint('/chat/completions'), {
+      method: 'POST',
+      signal: AbortSignal.timeout(180_000),
+      headers: headers(),
+      body: JSON.stringify({
+        model: connection.value.model,
+        temperature: 0.1,
+        messages,
+        response_format: { type: 'json_object' },
+      }),
+    })
+    if (!response.ok) {
+      const message = await response.text()
+      throw new Error(`Provider returned ${response.status}: ${message.slice(0, 180)}`)
+    }
+    return readCompatibleChatContent(await response.json())
+  }
+
   const requestProposal = async (
     prompt: string,
     project: SpriteProject,
@@ -622,61 +946,68 @@ export const useAiAssistant = () => {
     scope: AssistantEditScope,
   ) => {
     if (!prompt.trim()) return
+    if (chatProjectId.value !== project.id) await loadChat(project.id)
+    appendChat({ role: 'user', content: prompt.trim().slice(0, 4000), scope, state: 'message' })
     status.value = 'working'
     errorMessage.value = ''
     proposal.value = null
+    agentPass.value = { current: 1, total: MAX_AGENT_PASSES }
     try {
-      const targetFrameIds = scope === 'sheet' ? project.frames.map((frame) => frame.id) : [frameId]
-      const messages = createAssistantMessages(prompt, project, frameId, layerId, scope)
-      let content = ''
+      const workingProject = cloneProject(project)
+      const actions: AssistantProjectAction[] = []
+      const edits: AssistantArtEdit[] = []
+      const reviewNotes: string[] = []
+      const createdFrameIds: string[] = []
+      const editableLayerIds = [layerId]
+      let summary = ''
 
-      if (connection.value.provider === 'ollama') {
-        const baseUrl = normalizeOllamaBaseUrl(connection.value.baseUrl)
-        if (isTauriRuntime()) {
-          content = await invokeDesktop<string>('ollama_chat', {
-            baseUrl,
-            model: connection.value.model,
-            messages,
-          })
-        } else {
-          const response = await fetch(`${baseUrl}/api/chat`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(createOllamaChatBody(connection.value.model, messages)),
-          })
-          if (!response.ok) {
-            const message = await response.text()
-            throw new Error(`Ollama returned ${response.status}: ${message.slice(0, 180)}`)
-          }
-          content = readOllamaChatContent(await response.json())
-        }
-      } else {
-        const response = await fetch(endpoint('/chat/completions'), {
-          method: 'POST',
-          headers: headers(),
-          body: JSON.stringify({
-            model: connection.value.model,
-            temperature: 0.1,
-            messages,
-          }),
+      for (let passNumber = 1; passNumber <= MAX_AGENT_PASSES; passNumber += 1) {
+        agentPass.value = { current: passNumber, total: MAX_AGENT_PASSES }
+        const targetFrameIds =
+          scope === 'sheet'
+            ? workingProject.frames.map((frame) => frame.id)
+            : [frameId, ...createdFrameIds]
+        const messages = createAssistantMessages(prompt, workingProject, frameId, layerId, scope, {
+          pass: passNumber,
+          createdFrameIds,
+          editableLayerIds,
+          priorSummary: summary,
+          priorReviewNotes: reviewNotes.slice(-4),
         })
-        if (!response.ok) {
-          const message = await response.text()
-          throw new Error(`Provider returned ${response.status}: ${message.slice(0, 180)}`)
-        }
-        content = readCompatibleChatContent(await response.json())
-      }
-      if (!content) throw new Error('The provider returned an empty response.')
-      proposal.value = {
-        ...validateProposal(
-          parseJsonObject(content),
-          project.width,
-          project.height,
+        const content = await requestModel(messages)
+        if (!content) throw new Error('The provider returned an empty response.')
+        const pass = validateProposal(parseJsonObject(content), {
+          width: workingProject.width,
+          height: workingProject.height,
+          knownFrameIds: workingProject.frames.map((frame) => frame.id),
+          knownLayerIds: workingProject.layers.map((layer) => layer.id),
           targetFrameIds,
-        ),
-        scope,
-        layerId,
+          editableLayerIds,
+        })
+        applyAssistantChanges(workingProject, pass.actions, pass.edits)
+        actions.push(...pass.actions)
+        edits.push(...pass.edits)
+        summary = pass.summary
+        reviewNotes.push(...pass.reviewNotes)
+        pass.actions.forEach((action) => {
+          if (action.type === 'create_frame') createdFrameIds.push(action.frameId)
+          else editableLayerIds.push(action.layerId)
+        })
+        if (passNumber >= MIN_AGENT_PASSES && pass.ready) break
       }
+
+      if (actions.length === 0 && edits.every((edit) => edit.operations.length === 0)) {
+        throw new Error('The model reviewed the sprite but did not propose a visible change.')
+      }
+      proposal.value = {
+        summary,
+        scope,
+        actions,
+        edits,
+        reviewNotes: [...new Set(reviewNotes)].slice(-8),
+        passes: agentPass.value.current,
+      }
+      appendChat({ role: 'assistant', content: summary, scope, state: 'proposal' })
       status.value = 'connected'
     } catch (error) {
       status.value = 'error'
@@ -684,10 +1015,26 @@ export const useAiAssistant = () => {
         connection.value.provider === 'ollama'
           ? mapOllamaError(error, connection.value.baseUrl, connection.value.model)
           : errorText(error)
+      appendChat({ role: 'assistant', content: errorMessage.value, scope, state: 'error' })
+    } finally {
+      agentPass.value = { current: 0, total: MAX_AGENT_PASSES }
     }
   }
 
-  const discardProposal = () => {
+  const updateLatestProposalState = (state: 'applied' | 'discarded') => {
+    const entry = chatEntries.value.findLast((item) => item.state === 'proposal')
+    if (entry) entry.state = state
+    void persistChat()
+  }
+
+  const discardProposal = (recordInChat = false) => {
+    if (recordInChat) updateLatestProposalState('discarded')
+    proposal.value = null
+    errorMessage.value = ''
+  }
+
+  const markProposalApplied = () => {
+    updateLatestProposalState('applied')
     proposal.value = null
     errorMessage.value = ''
   }
@@ -704,10 +1051,14 @@ export const useAiAssistant = () => {
     status,
     errorMessage,
     proposal,
+    chatEntries,
+    agentPass,
     availableModels,
     testConnection,
     requestProposal,
+    loadChat,
     discardProposal,
+    markProposalApplied,
     clearConnectionState,
   }
 }

@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import type { Pixel, PixelPoint } from '~/types/editor'
 import { drawProjectFrame, getCompositePixels } from '~/utils/render'
-import { rasterLine, rasterRectangle } from '~/utils/raster'
+import {
+  rasterFilledRectangle,
+  rasterLassoSelection,
+  rasterLine,
+  rasterRectangle,
+} from '~/utils/raster'
 
 const {
   project,
@@ -9,12 +14,17 @@ const {
   activeTool,
   activeDrawingColor,
   drawingColor,
+  primaryColor,
+  secondaryColor,
   brushSize,
   zoom,
   showGrid,
   showTransparency,
   onionSkin,
   dirtyRevision,
+  activePixels,
+  selection,
+  activeSelection,
   beginStroke,
   paintPixel,
   paintDitherPixel,
@@ -24,6 +34,9 @@ const {
   floodFill,
   drawLine,
   drawRectangle,
+  setSelection,
+  clearSelection,
+  moveSelection,
 } = useEditor()
 
 const canvas = ref<HTMLCanvasElement | null>(null)
@@ -32,7 +45,12 @@ const panning = ref(false)
 const shapeStart = ref<PixelPoint | null>(null)
 const cursor = ref<PixelPoint | null>(null)
 const strokeColor = ref<Pixel>(drawingColor.value)
+const strokeColorTarget = ref<'primary' | 'secondary'>('primary')
 const lastStrokePoint = ref<PixelPoint | null>(null)
+const selectionPath = ref<PixelPoint[]>([])
+const movingSelection = ref(false)
+const selectionDragStart = ref<PixelPoint | null>(null)
+const selectionOffset = ref<PixelPoint>({ x: 0, y: 0 })
 const panOrigin = ref({ clientX: 0, clientY: 0, scrollLeft: 0, scrollTop: 0 })
 const modifierKeys = ref({ ctrl: false, shift: false })
 const activeTouches = new Map<number, { clientX: number; clientY: number }>()
@@ -52,6 +70,81 @@ let lastPainted = ''
 
 const canvasWidth = computed(() => project.value.width * zoom.value)
 const canvasHeight = computed(() => project.value.height * zoom.value)
+const selectionTools = ['select-rect', 'select-lasso'] as const
+const isSelectionTool = computed(() =>
+  selectionTools.includes(activeTool.value as (typeof selectionTools)[number]),
+)
+
+const selectionBounds = (points: PixelPoint[]) => ({
+  left: Math.min(...points.map((point) => point.x)),
+  right: Math.max(...points.map((point) => point.x)),
+  top: Math.min(...points.map((point) => point.y)),
+  bottom: Math.max(...points.map((point) => point.y)),
+})
+
+const boundedSelectionOffset = (from: PixelPoint, to: PixelPoint) => {
+  if (!activeSelection.value?.points.length) return { x: 0, y: 0 }
+  const bounds = selectionBounds(activeSelection.value.points)
+  return {
+    x: Math.max(-bounds.left, Math.min(project.value.width - 1 - bounds.right, to.x - from.x)),
+    y: Math.max(-bounds.top, Math.min(project.value.height - 1 - bounds.bottom, to.y - from.y)),
+  }
+}
+
+const draftSelectionPoints = () => {
+  if (!drawing.value || !shapeStart.value || !cursor.value || !isSelectionTool.value) return []
+  return activeTool.value === 'select-rect'
+    ? rasterFilledRectangle(shapeStart.value, cursor.value)
+    : rasterLassoSelection(selectionPath.value, project.value.width, project.value.height)
+}
+
+const drawSelection = (
+  context: CanvasRenderingContext2D,
+  points: PixelPoint[],
+  offset: PixelPoint = { x: 0, y: 0 },
+) => {
+  if (!points.length) return
+  const selected = new Set(points.map((point) => `${point.x}:${point.y}`))
+  context.save()
+  context.fillStyle = 'rgba(139, 92, 246, 0.18)'
+  points.forEach((point) => {
+    context.fillRect(
+      (point.x + offset.x) * zoom.value,
+      (point.y + offset.y) * zoom.value,
+      zoom.value,
+      zoom.value,
+    )
+  })
+  context.beginPath()
+  context.setLineDash([
+    Math.max(2, Math.round(zoom.value / 3)),
+    Math.max(2, Math.round(zoom.value / 4)),
+  ])
+  context.strokeStyle = '#f5f3ff'
+  context.lineWidth = 1.25
+  points.forEach((point) => {
+    const x = (point.x + offset.x) * zoom.value
+    const y = (point.y + offset.y) * zoom.value
+    if (!selected.has(`${point.x}:${point.y - 1}`)) {
+      context.moveTo(x, y + 0.5)
+      context.lineTo(x + zoom.value, y + 0.5)
+    }
+    if (!selected.has(`${point.x + 1}:${point.y}`)) {
+      context.moveTo(x + zoom.value - 0.5, y)
+      context.lineTo(x + zoom.value - 0.5, y + zoom.value)
+    }
+    if (!selected.has(`${point.x}:${point.y + 1}`)) {
+      context.moveTo(x, y + zoom.value - 0.5)
+      context.lineTo(x + zoom.value, y + zoom.value - 0.5)
+    }
+    if (!selected.has(`${point.x - 1}:${point.y}`)) {
+      context.moveTo(x + 0.5, y)
+      context.lineTo(x + 0.5, y + zoom.value)
+    }
+  })
+  context.stroke()
+  context.restore()
+}
 
 const mirrorPoints = (point: PixelPoint): PixelPoint[] => {
   if (activeTool.value !== 'mirror') return [point]
@@ -107,26 +200,54 @@ const redraw = () => {
   drawProjectFrame(context, project.value, activeFrameId.value, zoom.value, false)
 
   if (drawing.value && shapeStart.value && cursor.value) {
-    const points =
-      activeTool.value === 'line'
-        ? rasterLine(shapeStart.value, cursor.value)
-        : rasterRectangle(shapeStart.value, cursor.value)
-    const radius = Math.floor((brushSize.value - 1) / 2)
-    context.save()
-    context.globalAlpha = 0.78
-    context.fillStyle = strokeColor.value ?? '#d946ef'
-    points.forEach((point) => {
-      for (let offsetY = -radius; offsetY < brushSize.value - radius; offsetY += 1) {
-        for (let offsetX = -radius; offsetX < brushSize.value - radius; offsetX += 1) {
-          const x = point.x + offsetX
-          const y = point.y + offsetY
-          if (x >= 0 && y >= 0 && x < project.value.width && y < project.value.height) {
-            context.fillRect(x * zoom.value, y * zoom.value, zoom.value, zoom.value)
+    if (isSelectionTool.value) {
+      drawSelection(context, draftSelectionPoints())
+    } else {
+      const points =
+        activeTool.value === 'line'
+          ? rasterLine(shapeStart.value, cursor.value)
+          : rasterRectangle(shapeStart.value, cursor.value)
+      const radius = Math.floor((brushSize.value - 1) / 2)
+      context.save()
+      context.globalAlpha = 0.78
+      context.fillStyle = strokeColor.value ?? '#d946ef'
+      points.forEach((point) => {
+        for (let offsetY = -radius; offsetY < brushSize.value - radius; offsetY += 1) {
+          for (let offsetX = -radius; offsetX < brushSize.value - radius; offsetX += 1) {
+            const x = point.x + offsetX
+            const y = point.y + offsetY
+            if (x >= 0 && y >= 0 && x < project.value.width && y < project.value.height) {
+              context.fillRect(x * zoom.value, y * zoom.value, zoom.value, zoom.value)
+            }
           }
         }
-      }
-    })
-    context.restore()
+      })
+      context.restore()
+    }
+  }
+
+  if (activeSelection.value && !drawing.value) {
+    if (movingSelection.value) {
+      context.save()
+      context.globalAlpha = 0.92
+      activeSelection.value.points.forEach((point) => {
+        const pixel = activePixels.value[point.y * project.value.width + point.x]
+        if (!pixel) return
+        context.fillStyle = pixel
+        context.fillRect(
+          (point.x + selectionOffset.value.x) * zoom.value,
+          (point.y + selectionOffset.value.y) * zoom.value,
+          zoom.value,
+          zoom.value,
+        )
+      })
+      context.restore()
+    }
+    drawSelection(
+      context,
+      activeSelection.value.points,
+      movingSelection.value ? selectionOffset.value : undefined,
+    )
   }
 
   if (showGrid.value && zoom.value >= 8) {
@@ -144,7 +265,7 @@ const redraw = () => {
     context.stroke()
   }
 
-  if (cursor.value && activeTool.value !== 'hand') {
+  if (cursor.value && activeTool.value !== 'hand' && !isSelectionTool.value) {
     context.strokeStyle = '#ffffff'
     context.lineWidth = 1
     mirrorPoints(cursor.value).forEach((point) =>
@@ -182,7 +303,7 @@ const paintAt = (point: PixelPoint, color: Pixel) => {
   const key = `${activeTool.value}:${point.x}:${point.y}:${color ?? 'transparent'}`
   if (lastPainted === key) return
   lastPainted = key
-  if (activeTool.value === 'dither') paintDitherPixel(point.x, point.y)
+  if (activeTool.value === 'dither') paintDitherPixel(point.x, point.y, strokeColorTarget.value)
   else paintPixel(point.x, point.y, color)
   redraw()
 }
@@ -191,11 +312,39 @@ const paintStrokeAt = (point: PixelPoint, color: Pixel) => {
   mirrorPoints(point).forEach((target) => paintAt(target, color))
 }
 
-const beginToolAction = (point: PixelPoint, altKey = false, fromTouch = false) => {
+const beginToolAction = (
+  point: PixelPoint,
+  altKey = false,
+  fromTouch = false,
+  colorTarget: 'primary' | 'secondary' = activeDrawingColor.value,
+) => {
   cursor.value = point
-  strokeColor.value = activeTool.value === 'eraser' ? null : drawingColor.value
+  strokeColorTarget.value = colorTarget
+  strokeColor.value =
+    activeTool.value === 'eraser'
+      ? null
+      : colorTarget === 'secondary'
+        ? secondaryColor.value
+        : primaryColor.value
   if (activeTool.value === 'picker' || altKey) {
-    pickColor(point.x, point.y, activeDrawingColor.value)
+    pickColor(point.x, point.y, colorTarget)
+    return
+  }
+  if (isSelectionTool.value) {
+    if (
+      activeSelection.value?.points.some(
+        (selected) => selected.x === point.x && selected.y === point.y,
+      )
+    ) {
+      movingSelection.value = true
+      selectionDragStart.value = point
+      selectionOffset.value = { x: 0, y: 0 }
+      return
+    }
+    clearSelection()
+    shapeStart.value = point
+    selectionPath.value = [point]
+    drawing.value = true
     return
   }
   if (activeTool.value === 'fill') {
@@ -236,8 +385,12 @@ const beginPinch = () => {
   if (touchMutationCheckpoint) cancelStroke()
   touchMutationCheckpoint = false
   drawing.value = false
+  movingSelection.value = false
   panning.value = false
   shapeStart.value = null
+  selectionPath.value = []
+  selectionDragStart.value = null
+  selectionOffset.value = { x: 0, y: 0 }
   lastStrokePoint.value = null
   lastPainted = ''
   pinchActive = true
@@ -278,7 +431,7 @@ const queueTouchAction = (event: PointerEvent) => {
   pending.timer = window.setTimeout(() => {
     if (pendingTouch !== pending || pinchActive || activeTouches.size !== 1) return
     pendingTouch = null
-    beginToolAction(pending.point, false, true)
+    beginToolAction(pending.point, false, true, activeDrawingColor.value)
   }, 110)
   pendingTouch = pending
   cursor.value = pending.point
@@ -298,7 +451,8 @@ const beginPan = (event: PointerEvent) => {
 }
 
 const onPointerDown = (event: PointerEvent) => {
-  if (event.button !== 0) return
+  if (event.button !== 0 && event.button !== 2) return
+  if (isSelectionTool.value && event.button === 2) return
   modifierKeys.value = { ctrl: event.ctrlKey || event.metaKey, shift: event.shiftKey }
   canvas.value?.setPointerCapture(event.pointerId)
   if (event.pointerType === 'touch') {
@@ -321,7 +475,13 @@ const onPointerDown = (event: PointerEvent) => {
     event.preventDefault()
     return
   }
-  beginToolAction(pointFromEvent(event), event.altKey)
+  event.preventDefault()
+  beginToolAction(
+    pointFromEvent(event),
+    event.altKey,
+    false,
+    event.button === 2 ? 'secondary' : 'primary',
+  )
 }
 
 const onPointerMove = async (event: PointerEvent) => {
@@ -349,7 +509,18 @@ const onPointerMove = async (event: PointerEvent) => {
   }
   const point = pointFromEvent(event)
   cursor.value = point
-  if (drawing.value && ['pencil', 'mirror', 'dither', 'eraser'].includes(activeTool.value)) {
+  if (movingSelection.value && selectionDragStart.value) {
+    selectionOffset.value = boundedSelectionOffset(selectionDragStart.value, point)
+    redraw()
+  } else if (drawing.value && activeTool.value === 'select-lasso') {
+    const previous = selectionPath.value.at(-1) ?? point
+    rasterLine(previous, point)
+      .slice(1)
+      .forEach((entry) => selectionPath.value.push(entry))
+    redraw()
+  } else if (drawing.value && activeTool.value === 'select-rect') {
+    redraw()
+  } else if (drawing.value && ['pencil', 'mirror', 'dither', 'eraser'].includes(activeTool.value)) {
     const points = lastStrokePoint.value ? rasterLine(lastStrokePoint.value, point) : [point]
     points.forEach((strokePoint) => paintStrokeAt(strokePoint, strokeColor.value))
     lastStrokePoint.value = point
@@ -364,7 +535,7 @@ const onPointerUp = (event: PointerEvent) => {
     if (pendingTouch?.pointerId === event.pointerId) {
       const point = pointFromEvent(event)
       cancelPendingTouch()
-      if (!pinchActive) beginToolAction(point, false, true)
+      if (!pinchActive) beginToolAction(point, false, true, activeDrawingColor.value)
     }
     activeTouches.delete(event.pointerId)
     if (pinchActive) {
@@ -381,13 +552,29 @@ const onPointerUp = (event: PointerEvent) => {
     canvas.value?.releasePointerCapture(event.pointerId)
     return
   }
+  if (movingSelection.value) {
+    moveSelection(selectionOffset.value.x, selectionOffset.value.y)
+    movingSelection.value = false
+    selectionDragStart.value = null
+    selectionOffset.value = { x: 0, y: 0 }
+    canvas.value?.releasePointerCapture(event.pointerId)
+    redraw()
+    return
+  }
   if (!drawing.value) {
     touchMutationCheckpoint = false
     canvas.value?.releasePointerCapture(event.pointerId)
     return
   }
   const point = pointFromEvent(event)
-  if (shapeStart.value && activeTool.value === 'line') {
+  if (shapeStart.value && activeTool.value === 'select-rect') {
+    setSelection('rectangle', rasterFilledRectangle(shapeStart.value, point))
+  } else if (shapeStart.value && activeTool.value === 'select-lasso') {
+    setSelection(
+      'lasso',
+      rasterLassoSelection(selectionPath.value, project.value.width, project.value.height),
+    )
+  } else if (shapeStart.value && activeTool.value === 'line') {
     drawLine(shapeStart.value.x, shapeStart.value.y, point.x, point.y, strokeColor.value)
   } else if (shapeStart.value && activeTool.value === 'rectangle') {
     drawRectangle(shapeStart.value.x, shapeStart.value.y, point.x, point.y, strokeColor.value)
@@ -396,6 +583,7 @@ const onPointerUp = (event: PointerEvent) => {
   }
   drawing.value = false
   shapeStart.value = null
+  selectionPath.value = []
   lastStrokePoint.value = null
   lastPainted = ''
   touchMutationCheckpoint = false
@@ -409,8 +597,12 @@ const onPointerCancel = (event: PointerEvent) => {
   if (touchMutationCheckpoint) cancelStroke()
   touchMutationCheckpoint = false
   drawing.value = false
+  movingSelection.value = false
   panning.value = false
   shapeStart.value = null
+  selectionPath.value = []
+  selectionDragStart.value = null
+  selectionOffset.value = { x: 0, y: 0 }
   lastStrokePoint.value = null
   lastPainted = ''
   if (activeTouches.size === 0) {
@@ -422,13 +614,23 @@ const onPointerCancel = (event: PointerEvent) => {
 }
 
 const onPointerLeave = () => {
-  if (panning.value) return
+  if (panning.value || drawing.value || movingSelection.value) return
   cursor.value = null
   redraw()
 }
 
 watch(
-  [project, activeFrameId, zoom, showGrid, showTransparency, onionSkin, dirtyRevision],
+  [
+    project,
+    activeFrameId,
+    activeTool,
+    selection,
+    zoom,
+    showGrid,
+    showTransparency,
+    onionSkin,
+    dirtyRevision,
+  ],
   redraw,
   {
     deep: true,
@@ -447,7 +649,11 @@ onBeforeUnmount(() => {
     <canvas
       ref="canvas"
       class="pixel-canvas"
-      :class="{ 'cursor-grab': activeTool === 'hand' && !panning, 'cursor-grabbing': panning }"
+      :class="{
+        'cursor-grab': activeTool === 'hand' && !panning,
+        'cursor-grabbing': panning,
+        'cursor-select': isSelectionTool,
+      }"
       :style="{ width: `${canvasWidth}px`, height: `${canvasHeight}px` }"
       :aria-label="`${project.name} pixel canvas, ${project.width} by ${project.height}`"
       tabindex="0"

@@ -32,11 +32,28 @@ export interface SpriteProject {
 }
 
 export type ToolId =
-  'pencil' | 'mirror' | 'dither' | 'eraser' | 'fill' | 'picker' | 'line' | 'rectangle' | 'hand'
+  | 'pencil'
+  | 'mirror'
+  | 'dither'
+  | 'eraser'
+  | 'fill'
+  | 'picker'
+  | 'line'
+  | 'rectangle'
+  | 'select-rect'
+  | 'select-lasso'
+  | 'hand'
 
 export interface PixelPoint {
   x: number
   y: number
+}
+
+export interface PixelSelection {
+  kind: 'rectangle' | 'lasso'
+  frameId: string
+  layerId: string
+  points: PixelPoint[]
 }
 
 export interface SetPixelsOperation {
@@ -63,16 +80,45 @@ export type ArtOperation = SetPixelsOperation | FillRectOperation | ReplaceColor
 
 export type AssistantEditScope = 'frame' | 'sheet'
 
-export interface FrameArtEdit {
+export interface AssistantArtEdit {
   frameId: string
+  layerId: string
   operations: ArtOperation[]
 }
+
+export interface CreateLayerAction {
+  type: 'create_layer'
+  layerId: string
+  name: string
+}
+
+export interface CreateFrameAction {
+  type: 'create_frame'
+  frameId: string
+  name: string
+  duration: number
+  afterFrameId: string | null
+  copyFromFrameId: string | null
+}
+
+export type AssistantProjectAction = CreateLayerAction | CreateFrameAction
 
 export interface ArtProposal {
   summary: string
   scope: AssistantEditScope
-  layerId: string
-  frames: FrameArtEdit[]
+  actions: AssistantProjectAction[]
+  edits: AssistantArtEdit[]
+  reviewNotes: string[]
+  passes: number
+}
+
+export interface AssistantChatEntry {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  createdAt: string
+  scope?: AssistantEditScope
+  state?: 'message' | 'proposal' | 'applied' | 'discarded' | 'error'
 }
 
 export type ModelProvider = 'ollama' | 'openai-compatible'

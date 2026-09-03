@@ -2,9 +2,11 @@
 import {
   ArrowDownUp,
   Blend,
+  BoxSelect,
   Eraser,
   FlipHorizontal2,
   Hand,
+  LassoSelect,
   Minus,
   PaintBucket,
   Pencil,
@@ -45,6 +47,8 @@ const toolIcons: Record<ToolId, Component> = {
   picker: Pipette,
   line: Minus,
   rectangle: Square,
+  'select-rect': BoxSelect,
+  'select-lasso': LassoSelect,
   hand: Hand,
 }
 

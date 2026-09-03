@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { rasterLine, rasterRectangle } from '~/utils/raster'
+import {
+  rasterFilledRectangle,
+  rasterLassoSelection,
+  rasterLine,
+  rasterRectangle,
+} from '~/utils/raster'
 
 describe('raster previews', () => {
   it('creates a continuous line between pointer positions', () => {
@@ -18,5 +23,22 @@ describe('raster previews', () => {
     expect(points).toContainEqual({ x: 1, y: 1 })
     expect(points).toContainEqual({ x: 3, y: 3 })
     expect(points).not.toContainEqual({ x: 2, y: 2 })
+  })
+
+  it('fills box selections and closes lasso selections', () => {
+    expect(rasterFilledRectangle({ x: 1, y: 1 }, { x: 3, y: 2 })).toHaveLength(6)
+
+    const lasso = rasterLassoSelection(
+      [
+        { x: 1, y: 1 },
+        { x: 4, y: 1 },
+        { x: 4, y: 4 },
+        { x: 1, y: 4 },
+      ],
+      8,
+      8,
+    )
+    expect(lasso).toContainEqual({ x: 2, y: 2 })
+    expect(lasso).not.toContainEqual({ x: 6, y: 6 })
   })
 })

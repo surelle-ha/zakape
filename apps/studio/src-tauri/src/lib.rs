@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -426,16 +428,47 @@ fn assistant_response_format() -> Value {
     json!({
         "type": "object",
         "additionalProperties": false,
-        "required": ["summary", "frames"],
+        "required": ["summary", "actions", "edits", "review_notes", "ready"],
         "properties": {
             "summary": { "type": "string" },
-            "frames": {
+            "actions": {
+                "type": "array",
+                "items": {
+                    "oneOf": [
+                        {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["type", "layer_id", "name"],
+                            "properties": {
+                                "type": { "const": "create_layer" },
+                                "layer_id": { "type": "string" },
+                                "name": { "type": "string" }
+                            }
+                        },
+                        {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["type", "frame_id", "name", "duration_ms", "after_frame_id", "copy_from_frame_id"],
+                            "properties": {
+                                "type": { "const": "create_frame" },
+                                "frame_id": { "type": "string" },
+                                "name": { "type": "string" },
+                                "duration_ms": { "type": "integer", "minimum": 40, "maximum": 10000 },
+                                "after_frame_id": { "type": ["string", "null"] },
+                                "copy_from_frame_id": { "type": ["string", "null"] }
+                            }
+                        }
+                    ]
+                }
+            },
+            "edits": {
                 "type": "array",
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["frame_id", "operations"],
+                    "required": ["layer_id", "frame_id", "operations"],
                     "properties": {
+                        "layer_id": { "type": "string" },
                         "frame_id": { "type": "string" },
                         "operations": {
                             "type": "array",
@@ -490,7 +523,9 @@ fn assistant_response_format() -> Value {
                         }
                     }
                 }
-            }
+            },
+            "review_notes": { "type": "array", "items": { "type": "string" } },
+            "ready": { "type": "boolean" }
         }
     })
 }

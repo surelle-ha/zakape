@@ -61,6 +61,18 @@ export const toolDefinitions: ToolDefinition[] = [
     shortcut: 'R',
   },
   {
+    id: 'select-rect',
+    label: 'Box select',
+    description: 'Drag a box around pixels, then drag inside the selection to move them.',
+    shortcut: 'S',
+  },
+  {
+    id: 'select-lasso',
+    label: 'Lasso select',
+    description: 'Trace a freeform area, then drag inside the selection to move its pixels.',
+    shortcut: 'Q',
+  },
+  {
     id: 'hand',
     label: 'Hand',
     description: 'Drag the workspace to pan. Hold Space for temporary hand mode.',

@@ -1,17 +1,46 @@
 <script setup lang="ts">
-import { Check, Film, LoaderCircle, ScanLine, Settings2, Sparkles, X } from '@lucide/vue'
+import {
+  Bot,
+  Check,
+  Film,
+  LoaderCircle,
+  ScanLine,
+  SendHorizontal,
+  Settings2,
+  Sparkles,
+  UserRound,
+  X,
+} from '@lucide/vue'
 import type { AssistantEditScope } from '~/types/editor'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
-const { project, activeFrameId, activeLayerId, activeLayer, applyOperations } = useEditor()
+const {
+  project,
+  activeFrameId,
+  activeLayerId,
+  activeLayer,
+  applyProposal: applyEditorProposal,
+} = useEditor()
 const { modelConnectionOpen: connectionOpen } = useWorkspace()
-const { connection, status, errorMessage, proposal, requestProposal, discardProposal } =
-  useAiAssistant()
+const {
+  connection,
+  status,
+  errorMessage,
+  proposal,
+  chatEntries,
+  agentPass,
+  requestProposal,
+  loadChat,
+  discardProposal,
+  markProposalApplied,
+} = useAiAssistant()
 const prompt = ref('')
 const scope = ref<AssistantEditScope>('frame')
 const closeButton = ref<HTMLButtonElement | null>(null)
+const promptInput = ref<HTMLTextAreaElement | null>(null)
+const conversation = ref<HTMLElement | null>(null)
 const activeFrameIndex = computed(() =>
   Math.max(
     0,
@@ -19,36 +48,61 @@ const activeFrameIndex = computed(() =>
   ),
 )
 const proposalOperationCount = computed(
-  () => proposal.value?.frames.reduce((total, frame) => total + frame.operations.length, 0) ?? 0,
+  () => proposal.value?.edits.reduce((total, edit) => total + edit.operations.length, 0) ?? 0,
 )
 const proposalFrameCount = computed(
-  () => proposal.value?.frames.filter((frame) => frame.operations.length > 0).length ?? 0,
+  () =>
+    new Set(
+      proposal.value?.edits
+        .filter((edit) => edit.operations.length > 0)
+        .map((edit) => edit.frameId),
+    ).size,
 )
+const proposalLayerCount = computed(
+  () => proposal.value?.actions.filter((action) => action.type === 'create_layer').length ?? 0,
+)
+const proposalCreatedFrameCount = computed(
+  () => proposal.value?.actions.filter((action) => action.type === 'create_frame').length ?? 0,
+)
+const workingLabel = computed(() =>
+  agentPass.value.current <= 1
+    ? 'Building the first pass'
+    : `Reviewing the rendered result · pass ${agentPass.value.current}`,
+)
+
+const scrollToLatest = async () => {
+  await nextTick()
+  conversation.value?.scrollTo({ top: conversation.value.scrollHeight, behavior: 'smooth' })
+}
+
 const submitPrompt = async () => {
+  const message = prompt.value.trim()
+  if (!message || status.value === 'working') return
   if (!connection.value.model) {
     connectionOpen.value = true
     return
   }
+  prompt.value = ''
   await requestProposal(
-    prompt.value,
+    message,
     project.value,
     activeFrameId.value,
     activeLayerId.value,
     scope.value,
   )
+  await scrollToLatest()
+  promptInput.value?.focus()
 }
 
 const applyProposal = () => {
-  if (!proposal.value) return
-  applyOperations(proposal.value.frames, proposal.value.layerId)
-  prompt.value = ''
-  discardProposal()
+  if (!proposal.value || !applyEditorProposal(proposal.value)) return
+  markProposalApplied()
 }
 
 const selectScope = (nextScope: AssistantEditScope) => {
   if (scope.value === nextScope) return
   scope.value = nextScope
-  discardProposal()
+  discardProposal(true)
 }
 
 const onKeydown = (event: KeyboardEvent) => {
@@ -56,16 +110,20 @@ const onKeydown = (event: KeyboardEvent) => {
 }
 
 watch(
-  () => props.open,
-  async (open) => {
+  () => [props.open, project.value.id] as const,
+  async ([open, projectId]) => {
     if (!open) {
       connectionOpen.value = false
       return
     }
-    await nextTick()
-    closeButton.value?.focus()
+    await loadChat(projectId)
+    await scrollToLatest()
+    promptInput.value?.focus()
   },
+  { immediate: true },
 )
+watch(() => chatEntries.value.length, scrollToLatest)
+watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
 </script>
 
 <template>
@@ -79,48 +137,33 @@ watch(
       >
         <header class="assistant-drawer-heading">
           <span class="assistant-mark"><Sparkles :size="17" /></span>
-          <div><span class="eyebrow">Optional workflow</span><strong>Art assistant</strong></div>
-          <button
-            ref="closeButton"
-            type="button"
-            aria-label="Close assistant"
-            @click="emit('close')"
-          >
-            <X :size="16" />
-          </button>
+          <div><span class="eyebrow">Agentic workspace</span><strong>Art assistant</strong></div>
+          <div class="assistant-header-actions">
+            <button
+              v-tooltip="{
+                text: 'Model management',
+                detail: 'Choose local Ollama or a compatible endpoint.',
+              }"
+              type="button"
+              class="assistant-model-button"
+              :aria-label="`Manage model${connection.model ? `: ${connection.model}` : ''}`"
+              @click="connectionOpen = true"
+            >
+              <span :class="['connection-indicator', { connected: status === 'connected' }]" />
+              <Settings2 :size="14" />
+            </button>
+            <button
+              ref="closeButton"
+              type="button"
+              aria-label="Close assistant"
+              @click="emit('close')"
+            >
+              <X :size="16" />
+            </button>
+          </div>
         </header>
 
-        <div class="assistant-drawer-scroll assistant-section">
-          <div class="assistant-intro">
-            <div>
-              <strong>Ask for a bounded edit</strong>
-              <p>Review model-suggested pixel operations before they touch your sprite.</p>
-            </div>
-          </div>
-
-          <button
-            v-tooltip="{
-              text: 'Model connection',
-              detail: 'Choose local Ollama or an OpenAI-compatible endpoint.',
-            }"
-            type="button"
-            class="connection-row"
-            @click="connectionOpen = true"
-          >
-            <span :class="['connection-indicator', { connected: status === 'connected' }]" />
-            <span>
-              <strong>{{ connection.model || 'No model connected' }}</strong>
-              <small>{{
-                connection.model
-                  ? connection.provider === 'ollama'
-                    ? 'Ollama · on this device'
-                    : connection.baseUrl
-                  : 'Ollama on-device or compatible API'
-              }}</small>
-            </span>
-            <Settings2 :size="15" />
-          </button>
-
+        <div class="assistant-chat-shell">
           <fieldset class="assistant-scope">
             <legend>Edit scope</legend>
             <div class="scope-switch">
@@ -146,99 +189,133 @@ watch(
                 @click="selectScope('sheet')"
               >
                 <Film :size="14" />
-                <span
-                  ><strong>Entire sheet</strong
-                  ><small
+                <span>
+                  <strong>Entire sheet</strong>
+                  <small
                     >{{ project.frames.length }} frame{{
                       project.frames.length === 1 ? '' : 's'
                     }}</small
-                  ></span
-                >
+                  >
+                </span>
               </button>
             </div>
-            <div class="scope-strip" :class="{ sheet: scope === 'sheet' }" aria-hidden="true">
-              <i
-                v-for="frame in project.frames"
-                :key="frame.id"
-                :class="{ active: frame.id === activeFrameId, targeted: scope === 'sheet' }"
-              />
-            </div>
-            <p>
-              {{
-                scope === 'sheet'
-                  ? `Coordinate one edit across all ${project.frames.length} frame${project.frames.length === 1 ? '' : 's'}. Applies as one undo step.`
-                  : 'Edit the current frame, using its neighbors only as visual reference.'
-              }}
-            </p>
           </fieldset>
 
-          <div class="prompt-box">
+          <div ref="conversation" class="assistant-conversation" aria-live="polite">
+            <div v-if="chatEntries.length === 0" class="assistant-chat-empty">
+              <Bot :size="22" />
+              <strong>Work with your canvas, not around it.</strong>
+              <p>
+                Describe an edit or animation. The assistant renders a draft in memory, inspects its
+                pixels, and refines it before asking you to apply anything.
+              </p>
+            </div>
+
+            <article
+              v-for="entry in chatEntries"
+              :key="entry.id"
+              :class="['assistant-message', entry.role, entry.state]"
+            >
+              <span class="assistant-avatar">
+                <UserRound v-if="entry.role === 'user'" :size="13" />
+                <Bot v-else :size="13" />
+              </span>
+              <div>
+                <span class="assistant-message-meta">
+                  {{ entry.role === 'user' ? 'You' : 'Zakape' }}
+                  <i v-if="entry.scope">{{
+                    entry.scope === 'sheet' ? 'entire sheet' : 'this frame'
+                  }}</i>
+                  <i v-if="entry.state === 'applied'">applied</i>
+                  <i v-else-if="entry.state === 'discarded'">discarded</i>
+                </span>
+                <p>{{ entry.content }}</p>
+              </div>
+            </article>
+
+            <article v-if="status === 'working'" class="assistant-message assistant working">
+              <span class="assistant-avatar"><LoaderCircle class="spin" :size="13" /></span>
+              <div>
+                <span class="assistant-message-meta">Zakape agent</span>
+                <p>{{ workingLabel }}</p>
+                <small
+                  >It will run at least one visual review before handing over the proposal.</small
+                >
+              </div>
+            </article>
+
+            <article v-if="proposal" class="proposal-card">
+              <span class="eyebrow">Ready after {{ proposal.passes }} passes</span>
+              <strong>{{ proposal.summary }}</strong>
+              <p>
+                {{ proposalOperationCount }} operation{{
+                  proposalOperationCount === 1 ? '' : 's'
+                }}
+                across {{ proposalFrameCount }} edited frame{{
+                  proposalFrameCount === 1 ? '' : 's'
+                }}.
+                <template v-if="proposalCreatedFrameCount || proposalLayerCount">
+                  Creates {{ proposalCreatedFrameCount }} frame{{
+                    proposalCreatedFrameCount === 1 ? '' : 's'
+                  }}
+                  and {{ proposalLayerCount }} layer{{ proposalLayerCount === 1 ? '' : 's' }}.
+                </template>
+              </p>
+              <ul v-if="proposal.reviewNotes.length">
+                <li v-for="note in proposal.reviewNotes.slice(-3)" :key="note">{{ note }}</li>
+              </ul>
+              <div>
+                <button type="button" class="button-quiet" @click="discardProposal(true)">
+                  <X :size="14" /> Discard
+                </button>
+                <button type="button" class="button-primary" @click="applyProposal">
+                  <Check :size="14" /> Apply work
+                </button>
+              </div>
+            </article>
+
+            <p v-if="errorMessage && !connectionOpen" class="inline-error" role="alert">
+              {{ errorMessage }}
+            </p>
+          </div>
+
+          <div class="prompt-box assistant-composer">
             <textarea
+              ref="promptInput"
               v-model="prompt"
-              rows="5"
+              rows="3"
               :placeholder="
-                scope === 'sheet'
-                  ? 'Describe how the animation should change…'
-                  : 'Describe a precise pixel-art edit…'
+                scope === 'sheet' ? 'Describe an animation change…' : 'Describe a pixel-art edit…'
               "
-              aria-label="Assistant prompt"
+              aria-label="Assistant message"
               @keydown.meta.enter.prevent="submitPrompt"
               @keydown.ctrl.enter.prevent="submitPrompt"
             />
             <div>
-              <span
-                >{{
+              <span>
+                {{
                   scope === 'sheet'
-                    ? `${project.frames.length} frame${project.frames.length === 1 ? '' : 's'}`
+                    ? `${project.frames.length} frames`
                     : `Frame ${activeFrameIndex + 1}`
                 }}
-                · {{ activeLayer?.name }}</span
-              >
+                · {{ activeLayer?.name }}
+              </span>
               <button
                 v-tooltip="{
-                  text: 'Propose edit',
-                  detail: 'Ask the connected model for reviewable pixel operations.',
+                  text: 'Send to assistant',
+                  detail: 'Draft, inspect, and refine the edit.',
                   shortcut: 'Ctrl+Enter',
                 }"
                 type="button"
                 :disabled="status === 'working' || !prompt.trim()"
+                aria-label="Send message"
                 @click="submitPrompt"
               >
                 <LoaderCircle v-if="status === 'working'" class="spin" :size="14" />
-                <Sparkles v-else :size="14" />
-                {{ status === 'working' ? 'Thinking' : 'Propose' }}
+                <SendHorizontal v-else :size="14" />
               </button>
             </div>
           </div>
-
-          <p v-if="errorMessage && !connectionOpen" class="inline-error" role="alert">
-            {{ errorMessage }}
-          </p>
-
-          <article v-if="proposal" class="proposal-card">
-            <span class="eyebrow">Ready to review</span>
-            <strong>{{ proposal.summary }}</strong>
-            <p>
-              {{ proposalOperationCount }} validated operation{{
-                proposalOperationCount === 1 ? '' : 's'
-              }}
-              across {{ proposalFrameCount }} frame{{ proposalFrameCount === 1 ? '' : 's' }} on the
-              selected layer.
-            </p>
-            <div>
-              <button type="button" class="button-quiet" @click="discardProposal">
-                <X :size="14" /> Discard
-              </button>
-              <button type="button" class="button-primary" @click="applyProposal">
-                <Check :size="14" />
-                {{
-                  proposal.scope === 'sheet'
-                    ? `Apply to ${proposalFrameCount} frame${proposalFrameCount === 1 ? '' : 's'}`
-                    : 'Apply edit'
-                }}
-              </button>
-            </div>
-          </article>
         </div>
 
         <ModelConnectionDialog :open="connectionOpen" @close="connectionOpen = false" />

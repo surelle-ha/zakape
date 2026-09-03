@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.1](https://github.com/surelle-ha/zakape/compare/v0.10.0...v0.10.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* upload Android release assets by ID ([6523796](https://github.com/surelle-ha/zakape/commit/65237966c5453c20708b7c31321f40ce748dc56a))
+* use GitHub binary upload endpoint ([d0d10fe](https://github.com/surelle-ha/zakape/commit/d0d10fec0fafbbd48c7e48f47c35468a42cb7b3d))
+
 ## [0.10.0](https://github.com/surelle-ha/zakape/compare/v0.9.0...v0.10.0) (2026-09-03)
 
 

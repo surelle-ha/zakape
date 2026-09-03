@@ -259,9 +259,24 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ needs.release.outputs.tag_name }}
+          RELEASE_ID: ${{ needs.release.outputs.release_id }}
           APK_PATH: ${{ steps.apk.outputs.path }}
-        run: gh release upload "$TAG_NAME" "$APK_PATH" --clobber
+        run: |
+          apk_name="$(basename "$APK_PATH")"
+          existing_asset_id="$(
+            gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --paginate \
+              --jq ".[] | select(.name == \"$apk_name\") | .id" | head -n 1
+          )"
+
+          if [ -n "$existing_asset_id" ]; then
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$existing_asset_id"
+          fi
+
+          gh api --method POST \
+            --hostname uploads.github.com \
+            "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$apk_name" \
+            --header "Content-Type: application/vnd.android.package-archive" \
+            --input "$APK_PATH" >/dev/null
 
   publish:
     needs: [release, build, android]

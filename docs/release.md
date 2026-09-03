@@ -60,7 +60,7 @@ Without these secrets, the workflow publishes Windows and Linux assets and adds 
 
 ## Publish Android builds
 
-The **Android** workflow builds and verifies an Android package (APK) on relevant pushes and pull requests as a development quality gate. Release attachment belongs to the **Desktop release** workflow itself. The previous independent push job could finish its release lookup before the draft release targeted the new commit, causing a successful APK build to skip its upload. Keeping the APK job behind release creation in the same job graph removes that race and guarantees that a release cannot publish without `Zakape-X.Y.Z-android-arm64.apk`.
+The **Android** workflow builds and verifies an Android package (APK) on relevant pushes and pull requests as a development quality gate. Release attachment belongs to the **Desktop release** workflow itself. The release job passes the draft release ID directly to every asset uploader because GitHub can temporarily expose a newly tagged draft under an `untagged-*` placeholder. Uploading by immutable release ID avoids that lookup race. The release cannot publish without `Zakape-X.Y.Z-android-arm64.apk`.
 
 Manual dispatch can produce a signed Android App Bundle (AAB). It can upload the bundle after you configure signing and service-account secrets. Upload the first Play Console bundle manually to establish Play App Signing and application programming interface (API) access.
 

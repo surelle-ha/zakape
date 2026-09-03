@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import {
   ArrowRight,
+  Check,
   Clock3,
   FilePlus2,
   FolderOpen,
   HardDrive,
   LayoutTemplate,
+  Plus,
+  Trash2,
   X,
 } from '@lucide/vue'
 import type { LauncherView } from '~/composables/useWorkspace'
 import type { WorkspaceProjectSummary } from '~/composables/useProjectRepository'
 import type { CanvasBackground, ColorMode } from '~/types/editor'
+import { normalizePalette, palettePresets } from '~/utils/palettes'
 
 const props = defineProps<{
   projects: WorkspaceProjectSummary[]
@@ -28,6 +32,7 @@ const emit = defineEmits<{
       height: number
       colorMode: ColorMode
       background: CanvasBackground
+      palette: string[]
     },
   ]
   openProject: [projectId: string]
@@ -41,11 +46,36 @@ const width = ref(32)
 const height = ref(32)
 const colorMode = ref<ColorMode>('rgba')
 const background = ref<CanvasBackground>('transparent')
+const selectedPaletteId = ref(palettePresets[0]!.id)
+const customPalette = ref(normalizePalette(palettePresets[0]!.colors))
+const customColor = ref('#8B5CF6')
+const customColorOpen = ref(false)
 const formError = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
 const previewStyle = computed(() => ({
   aspectRatio: `${Math.max(1, width.value)} / ${Math.max(1, height.value)}`,
 }))
+const selectedPalette = computed(() =>
+  selectedPaletteId.value === 'custom'
+    ? normalizePalette(customPalette.value)
+    : [...(palettePresets.find((preset) => preset.id === selectedPaletteId.value)?.colors ?? [])],
+)
+
+const selectPalette = (paletteId: string) => {
+  selectedPaletteId.value = paletteId
+  customColorOpen.value = false
+}
+
+const addCustomColor = () => {
+  const [normalized] = normalizePalette([customColor.value])
+  if (!normalized || normalizePalette(customPalette.value).includes(normalized)) return
+  customPalette.value = [...customPalette.value, normalized]
+}
+
+const removeCustomColor = (color: string) => {
+  if (customPalette.value.length === 1) return
+  customPalette.value = customPalette.value.filter((entry) => entry !== color)
+}
 
 const submit = () => {
   const name = projectName.value.trim()
@@ -71,6 +101,10 @@ const submit = () => {
     formError.value = 'The canvas can contain at most 1,048,576 pixels.'
     return
   }
+  if (!selectedPalette.value.length) {
+    formError.value = 'Choose at least one palette color.'
+    return
+  }
   formError.value = ''
   emit('createProject', {
     name,
@@ -78,6 +112,7 @@ const submit = () => {
     height: canvasHeight,
     colorMode: colorMode.value,
     background: background.value,
+    palette: selectedPalette.value,
   })
 }
 
@@ -97,7 +132,9 @@ watch(
     formError.value = ''
     if (view === 'new') {
       await nextTick()
-      nameInput.value?.select()
+      if (!window.matchMedia('(hover: none) and (pointer: coarse)').matches) {
+        nameInput.value?.select()
+      }
     }
   },
   { immediate: true },
@@ -251,6 +288,87 @@ watch(
               </div>
             </fieldset>
 
+            <fieldset class="launcher-choice-group palette-choice-group">
+              <legend>Starting palette</legend>
+              <div class="palette-preset-grid" role="radiogroup" aria-label="Starting palette">
+                <button
+                  v-for="preset in palettePresets"
+                  :key="preset.id"
+                  type="button"
+                  class="palette-preset"
+                  :class="{ selected: selectedPaletteId === preset.id }"
+                  role="radio"
+                  :aria-checked="selectedPaletteId === preset.id"
+                  @click="selectPalette(preset.id)"
+                >
+                  <span class="palette-preset-heading">
+                    <strong>{{ preset.name }}</strong>
+                    <Check v-if="selectedPaletteId === preset.id" :size="12" />
+                  </span>
+                  <span class="palette-preset-swatches" aria-hidden="true">
+                    <i
+                      v-for="color in preset.colors"
+                      :key="color"
+                      :style="{ backgroundColor: color }"
+                    />
+                  </span>
+                  <small>{{ preset.note }}</small>
+                </button>
+                <button
+                  type="button"
+                  class="palette-preset custom-palette-option"
+                  :class="{ selected: selectedPaletteId === 'custom' }"
+                  role="radio"
+                  :aria-checked="selectedPaletteId === 'custom'"
+                  @click="selectPalette('custom')"
+                >
+                  <span class="palette-preset-heading">
+                    <strong>Custom</strong>
+                    <Check v-if="selectedPaletteId === 'custom'" :size="12" />
+                  </span>
+                  <span class="palette-preset-swatches" aria-hidden="true">
+                    <i
+                      v-for="color in customPalette"
+                      :key="color"
+                      :style="{ backgroundColor: color }"
+                    />
+                  </span>
+                  <small>Build a reusable color set for this sprite.</small>
+                </button>
+              </div>
+
+              <div v-if="selectedPaletteId === 'custom'" class="custom-palette-editor">
+                <div class="custom-palette-colors" aria-label="Custom palette colors">
+                  <span v-for="color in customPalette" :key="color">
+                    <i :style="{ backgroundColor: color }" />
+                    <button
+                      type="button"
+                      :aria-label="`Remove ${color}`"
+                      :disabled="customPalette.length === 1"
+                      @click="removeCustomColor(color)"
+                    >
+                      <Trash2 :size="9" />
+                    </button>
+                  </span>
+                </div>
+                <div class="palette-color-control">
+                  <ColorPicker
+                    v-model="customColor"
+                    label="Custom palette color"
+                    swatch-class="primary"
+                    :palette="customPalette"
+                    :open="customColorOpen"
+                    @toggle="customColorOpen = !customColorOpen"
+                    @close="customColorOpen = false"
+                  />
+                  <span>{{ customColor.toUpperCase() }}</span>
+                  <button type="button" class="add-palette-color" @click="addCustomColor">
+                    <Plus :size="12" /> Add color
+                  </button>
+                </div>
+              </div>
+            </fieldset>
+
             <p v-if="formError" class="launcher-error" role="alert">{{ formError }}</p>
             <p v-else class="document-note">
               {{
@@ -260,7 +378,7 @@ watch(
                     ? 'Greyscale'
                     : 'Palette indexed'
               }}
-              · {{ background }} background · 1 frame
+              · {{ background }} background · {{ selectedPalette.length }} colors · 1 frame
             </p>
 
             <button type="submit" class="launcher-create">

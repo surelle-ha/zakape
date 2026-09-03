@@ -2,7 +2,7 @@ export type LauncherView = 'recent' | 'new'
 export type WorkspaceScreen = 'home' | 'editor'
 
 export const useWorkspace = () => {
-  const launcherOpen = useState<boolean>('workspace-launcher-open', () => true)
+  const launcherOpen = useState<boolean>('workspace-launcher-open', () => false)
   const launcherView = useState<LauncherView>('workspace-launcher-view', () => 'recent')
   const screen = useState<WorkspaceScreen>('workspace-screen', () => 'home')
   const assistantOpen = useState<boolean>('workspace-assistant-open', () => false)

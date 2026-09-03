@@ -18,7 +18,12 @@ const enterEditor = async (
   } = {},
 ) => {
   const launcher = page.getByTestId('project-launcher')
-  await launcher.getByRole('button', { name: 'New sprite', exact: true }).click()
+  if (!(await launcher.isVisible())) {
+    await page.getByRole('button', { name: 'New sprite', exact: true }).first().click()
+  }
+  if (!(await launcher.getByRole('textbox', { name: 'Project name' }).isVisible())) {
+    await launcher.getByRole('button', { name: 'New sprite', exact: true }).click()
+  }
   await launcher.getByRole('textbox', { name: 'Project name' }).fill(spec.name ?? 'Untitled sprite')
   if (spec.width) await launcher.getByRole('spinbutton', { name: 'Width' }).fill(String(spec.width))
   if (spec.height)
@@ -70,11 +75,11 @@ const copyFrameRight = async (page: import('@playwright/test').Page, index = 0) 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await expect(page.getByTestId('app-titlebar')).toBeVisible()
-  await expect(page.getByTestId('project-launcher')).toBeVisible()
   await expect(page.locator('.home-workspace')).toBeVisible()
   await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
+  await expect(page.getByTestId('project-launcher')).toBeHidden()
   await page.evaluate(() => document.fonts.ready)
-  await expect(page.getByText('Indexing Documents/zakape…', { exact: true })).toBeHidden({
+  await expect(page.getByRole('status', { name: 'Indexing your workspace…' })).toBeHidden({
     timeout: 30_000,
   })
 })
@@ -103,7 +108,6 @@ test('shows local account status and exposes desktop update controls', async ({ 
 })
 
 test('keeps an indismissable Home tab with recent work and release notes', async ({ page }) => {
-  await page.getByRole('button', { name: 'Close project launcher' }).click()
   const homeTab = page.getByRole('tab', { name: 'Home', exact: true })
   await expect(homeTab).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByRole('heading', { name: 'Recent work' })).toBeVisible()
@@ -144,7 +148,9 @@ test('keeps an indismissable Home tab with recent work and release notes', async
 })
 
 test('creates a named custom-size sprite from the modal launcher', async ({ page }) => {
+  await page.getByRole('button', { name: 'New sprite', exact: true }).first().click()
   const launcher = page.getByTestId('project-launcher')
+  await launcher.getByRole('button', { name: 'Recent projects' }).click()
   await expect(launcher.getByText('Continue your work')).toBeVisible()
   await expect(launcher.getByText('Documents/zakape', { exact: true })).toBeVisible()
   await launcher.getByRole('button', { name: 'New sprite', exact: true }).click()
@@ -165,6 +171,27 @@ test('creates a named custom-size sprite from the modal launcher', async ({ page
   await expect(page.locator('.frame-item')).toHaveCount(1)
   await expect(page.getByLabel('Onion skin')).toBeChecked()
   expect((await page.locator('.timeline').boundingBox())!.height).toBeLessThanOrEqual(146)
+})
+
+test('creates a sprite with a preset or custom project palette', async ({ page }) => {
+  await page.getByRole('button', { name: 'New sprite', exact: true }).first().click()
+  const launcher = page.getByTestId('project-launcher')
+  await expect(launcher.getByRole('radiogroup', { name: 'Starting palette' })).toBeVisible()
+  await launcher.getByRole('radio', { name: /Sweetie 16/ }).click()
+  await expect(launcher.getByRole('radio', { name: /Sweetie 16/ })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  )
+  await launcher.getByRole('radio', { name: /Custom/ }).click()
+  await launcher.getByLabel('Custom palette drawing color').click()
+  const picker = page.getByRole('dialog', { name: 'Custom palette color picker' })
+  await picker.getByRole('textbox', { name: 'Hex color' }).fill('#22AAFF')
+  await picker.getByRole('textbox', { name: 'Hex color' }).press('Enter')
+  await picker.getByRole('button', { name: 'Close color picker' }).click()
+  await launcher.getByRole('button', { name: 'Add color' }).click()
+  await enterEditor(page, { name: 'Palette study' })
+  await expect(page.getByRole('list', { name: 'Project color palette' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Use #22AAFF as primary color' })).toBeVisible()
 })
 
 test('introduces the editor on the first project and keeps help available later', async ({
@@ -191,6 +218,8 @@ test('keeps new layers transparent and independent, then renames the selected la
   page,
 }) => {
   await enterEditor(page, { name: 'Layer study' })
+  await page.getByRole('button', { name: 'Toggle layers panel' }).click()
+  await expect(page.getByLabel('Layers inspector')).toBeVisible()
   const canvas = page.getByTestId('pixel-canvas')
   const canvasBox = await canvas.boundingBox()
   await canvas.click({ position: { x: canvasBox!.width / 2, y: canvasBox!.height / 2 } })
@@ -722,9 +751,8 @@ test('asks whether the assistant should edit one frame or the entire sheet', asy
   await page.waitForTimeout(1000)
   await page.reload()
   await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
-  const launcher = page.getByTestId('project-launcher')
-  await launcher.getByRole('button', { name: 'Recent projects' }).click()
-  await launcher.locator('.launcher-recent-card').filter({ hasText: 'Untitled sprite' }).click()
+  await expect(page.getByTestId('project-launcher')).toBeHidden()
+  await page.locator('.home-recent-item').filter({ hasText: 'Untitled sprite' }).click()
   await openAssistant(page)
   await expect(page.getByText('Keep the spark attached while the character runs.')).toBeVisible()
   await expect(
@@ -735,6 +763,7 @@ test('asks whether the assistant should edit one frame or the entire sheet', asy
 test('keeps the complete toolset compact at the minimum desktop size', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 720 })
   await expect(page.getByLabel('Home workspace')).toBeVisible()
+  await page.getByRole('button', { name: 'New sprite', exact: true }).first().click()
   const launcherBounds = await page.getByTestId('project-launcher').locator('section').boundingBox()
   expect(launcherBounds!.width).toBeLessThan(1024)
   expect(launcherBounds!.height).toBeLessThan(684)
@@ -750,6 +779,12 @@ test('keeps the complete toolset compact at the minimum desktop size', async ({ 
 
 test('matches the reviewed desktop layouts', async ({ page }) => {
   await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'project-home.png') })
+  await expect(page).toHaveScreenshot('project-home.png', {
+    animations: 'disabled',
+    maxDiffPixelRatio: 0.015,
+  })
+  await page.getByRole('button', { name: 'New sprite', exact: true }).first().click()
   await page.screenshot({ path: resolve(snapshotDirectory, 'project-launcher.png') })
   await expect(page).toHaveScreenshot('project-launcher.png', {
     animations: 'disabled',

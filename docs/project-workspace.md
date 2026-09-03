@@ -1,6 +1,6 @@
 # Project workspace
 
-Zakape opens with a 4.8-second branded splash, then presents the project launcher as a modal over the workbench Home tab. The launcher keeps project selection and document creation separate from drawing. Dismissing it reveals the Home workspace.
+Zakape opens with a 4.8-second branded splash, then reveals the workbench Home tab. The project launcher stays hidden until the artist chooses a new-project or project-management action. It appears as a focused modal over Home or the active document and keeps project selection and document creation separate from drawing.
 
 ## Working directory
 
@@ -26,6 +26,8 @@ From the project launcher you can:
 - create a named canvas with explicit width and height values up to 1,024 pixels per side and 1,048,576 pixels total
 - choose RGBA, Greyscale, or Indexed color handling
 - initialize the first frame with a transparent, black, or white background
+- start with Zakape Violet or a researched PICO-8, Sweetie 16, DawnBringer 16, Endesga 32, or Game Boy BGB palette
+- create a custom project palette with Zakape's own color mixer
 - import a `.zakape` file, which is copied into the working directory on save
 - import a compatible layered binary sprite file in the desktop app, then save the converted project into the working directory
 - confirm the resolved desktop working-directory path
@@ -38,7 +40,7 @@ Use **File → Projects** to reopen the launcher without closing the active docu
 
 The permanent, non-dismissible **Home** tab sits before every project. It collects recent work with real first-frame artwork, the in-app changelog, project and frame activity, workspace location, local-save status, workflow reminders, and direct paths to new and imported sprites.
 
-Every opened project gets a document tab above the project title and export bar. Opening or creating another sprite keeps the current sprite available, and each document preserves its active frame, active layer, undo/redo history, and dirty state. Use **Ctrl+Tab** and **Ctrl+Shift+Tab** to move between project tabs, **Ctrl+W** to request closing the current project tab, or right-click a project tab for document-local actions. Zakape confirms the request and saves the project before removing its tab.
+Every opened project gets a document tab above the project title and export bar on desktop. Phone and tablet layouts move the same tab strip beneath the timeline where it remains reachable without competing with canvas controls. Opening or creating another sprite keeps the current sprite available, and each document preserves its active frame, active layer, undo/redo history, and dirty state. Use **Ctrl+Tab** and **Ctrl+Shift+Tab** to move between project tabs on keyboard devices, **Ctrl+W** to request closing the current project tab, or right-click a project tab for document-local actions. Zakape confirms the request and saves the project before removing its tab. Touch layouts hide keyboard-only shortcut badges and the shortcut guide.
 
 The first project opened on a device presents a four-step editor tour. It explains tools and their shortcuts, independent layers, timeline operations, and the optional assistant drawer. The completed state is stored as a non-secret local preference. Use the Help menu to show the quick tour again or open the complete keyboard command map.
 
@@ -46,7 +48,13 @@ The application close control and the operating system's native close request us
 
 ## Timeline order
 
-Drag any frame directly into a new playback sequence. A violet insertion line shows whether the frame will land before or after its target. The frame menu also exposes **Move frame left** and **Move frame right**; use **Ctrl+Left Arrow** or **Ctrl+Right Arrow** to move the active frame directly. Reordering keeps each frame's cel data and duration attached to its frame ID and creates one undo checkpoint.
+Drag any frame directly into a new playback sequence. On touch screens, press and hold a frame for 400 ms, then drag it. A violet insertion line shows whether the frame will land before or after its target. The frame menu also exposes **Move frame left** and **Move frame right**; use **Ctrl+Left Arrow** or **Ctrl+Right Arrow** to move the active frame directly. Reordering keeps each frame's cel data and duration attached to its frame ID and creates one undo checkpoint.
+
+## Canvas palette, preview, and layers
+
+The compact strip below the canvas shows the active project's color blocks instead of implementation-oriented cel status. Choosing a block makes it the primary drawing color. The color-mode and sRGB readout stays at the opposite edge on larger screens.
+
+Live Preview floats over the canvas, so it remains visible on phones without opening another panel. Layers live in a separate hideable drawer on desktop, tablet, and phone. The desktop drawer leaves the rest of the editor interactive; touch layouts use a dismissible scrim. The Layers and Timeline surfaces use translucent violet glass with backdrop blur so the canvas context remains perceptible beneath them.
 
 The standard animation term **onion skin** labels the previous-frame drawing guide throughout the interface and keyboard guide.
 

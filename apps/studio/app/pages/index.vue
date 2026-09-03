@@ -30,8 +30,8 @@ const {
   activeFrameId,
   activeLayerId,
   activeTool,
-  activeLayer,
   activeSelection,
+  primaryColor,
   brushSize,
   zoom,
   showGrid,
@@ -44,6 +44,7 @@ const {
   undo,
   redo,
   replaceProject,
+  selectDrawingColor,
   activateDocument,
   closeDocument,
   swapColors,
@@ -115,6 +116,11 @@ const toolHint = computed(() => {
 const activeToolLabel = computed(
   () => toolDefinitions.find((tool) => tool.id === activeTool.value)?.label ?? activeTool.value,
 )
+
+const usePaletteColor = (color: string) => {
+  primaryColor.value = color
+  selectDrawingColor('primary')
+}
 
 const fitCanvas = async () => {
   await nextTick()
@@ -189,6 +195,7 @@ const createProject = async (spec: {
   height: number
   colorMode: ColorMode
   background: CanvasBackground
+  palette: string[]
 }) => {
   const nextProject = createBlankProject(
     spec.width,
@@ -196,6 +203,7 @@ const createProject = async (spec: {
     spec.name,
     spec.colorMode,
     spec.background,
+    spec.palette,
   )
   replaceProject(nextProject, `Created ${spec.width}×${spec.height} sprite`)
   nameDraft.value = nextProject.name
@@ -679,7 +687,7 @@ onBeforeUnmount(() => {
               shortcut: '?',
             }"
             type="button"
-            class="icon-button phone-optional"
+            class="icon-button phone-optional keyboard-shortcut-launch"
             aria-label="Keyboard shortcuts"
             @click="showShortcutGuide"
           >
@@ -688,7 +696,7 @@ onBeforeUnmount(() => {
           <button
             v-tooltip="{
               text: 'Layers',
-              detail: 'Open the layer stack and live preview.',
+              detail: 'Open or hide the active document layer stack.',
             }"
             type="button"
             class="mobile-layer-launch"
@@ -822,9 +830,24 @@ onBeforeUnmount(() => {
             <PixelCanvas />
           </div>
           <footer class="canvas-status">
-            <span><i class="accent-dot" /> Active cel: {{ activeLayer?.name }}</span>
+            <div class="canvas-palette" role="list" aria-label="Project color palette">
+              <span v-for="color in project.palette" :key="color" role="listitem">
+                <button
+                  v-tooltip="{
+                    text: color.toUpperCase(),
+                    detail: 'Use as the primary drawing color.',
+                  }"
+                  type="button"
+                  :class="{ active: color.toLowerCase() === primaryColor.toLowerCase() }"
+                  :style="{ '--palette-color': color }"
+                  :aria-label="`Use ${color.toUpperCase()} as primary color`"
+                  @click="usePaletteColor(color)"
+                />
+              </span>
+            </div>
             <span>{{ project.colorMode.toUpperCase() }} · sRGB</span>
           </footer>
+          <LivePreviewPanel />
         </section>
 
         <button
@@ -836,7 +859,7 @@ onBeforeUnmount(() => {
         />
         <div class="inspector-host" :class="{ open: inspectorOpen }">
           <header class="mobile-inspector-heading">
-            <span><Layers3 :size="16" /> Layers &amp; preview</span>
+            <span><Layers3 :size="16" /> Layers</span>
             <button type="button" aria-label="Close layers panel" @click="inspectorOpen = false">
               <X :size="17" />
             </button>

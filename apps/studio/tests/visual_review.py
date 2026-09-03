@@ -11,7 +11,25 @@ def wait_for_studio(page):
     page.goto(BASE_URL)
     page.wait_for_load_state("networkidle")
     page.get_by_test_id("app-splash").wait_for(state="hidden", timeout=30_000)
-    page.get_by_test_id("project-launcher").wait_for(state="visible")
+    page.get_by_test_id("project-launcher").wait_for(state="hidden")
+    page.get_by_role("status", name="Indexing your workspace…").wait_for(
+        state="hidden", timeout=30_000
+    )
+
+
+def create_project(page, name, size=32):
+    page.get_by_role("button", name="New sprite", exact=True).first.click()
+    launcher = page.get_by_test_id("project-launcher")
+    launcher.wait_for(state="visible")
+    launcher.get_by_role("textbox", name="Project name").fill(name)
+    launcher.get_by_role("spinbutton", name="Width").fill(str(size))
+    launcher.get_by_role("spinbutton", name="Height").fill(str(size))
+    launcher.get_by_role("button", name="Create sprite", exact=True).click()
+    launcher.wait_for(state="hidden")
+    page.wait_for_timeout(700)
+    skip_tour = page.get_by_role("button", name="Skip tour")
+    if skip_tour.is_visible():
+        skip_tour.click()
 
 
 def main():
@@ -39,16 +57,18 @@ def main():
             else None,
         )
         wait_for_studio(desktop)
-        desktop.get_by_role("button", name="Close project launcher").click()
         desktop.get_by_role("tab", name="Home", exact=True).wait_for(state="visible")
         desktop.get_by_role("heading", name="Recent work").wait_for(state="visible")
         desktop.get_by_role("heading", name="Changelog").wait_for(state="visible")
         desktop.screenshot(path=OUTPUT_DIRECTORY / "home-desktop.png")
 
-        desktop.get_by_role("button", name="New sprite", exact=True).click()
+        desktop.get_by_role("button", name="New sprite", exact=True).first.click()
         launcher = desktop.get_by_test_id("project-launcher")
         launcher.get_by_role("textbox", name="Project name").fill("Visual review")
+        launcher.get_by_role("radio", name="Sweetie 16", exact=False).click()
+        desktop.screenshot(path=OUTPUT_DIRECTORY / "project-setup-desktop.png")
         launcher.get_by_role("button", name="Create sprite", exact=True).click()
+        desktop.wait_for_timeout(700)
         skip_tour = desktop.get_by_role("button", name="Skip tour")
         if skip_tour.is_visible():
             skip_tour.click()
@@ -62,6 +82,10 @@ def main():
         assert picker_box["x"] + picker_box["width"] <= 1440
         assert picker_box["y"] + picker_box["height"] <= 960
         desktop.screenshot(path=OUTPUT_DIRECTORY / "color-picker-desktop.png")
+        picker.get_by_role("button", name="Close color picker").click()
+        desktop.get_by_role("button", name="Toggle layers panel").click()
+        desktop.get_by_label("Layers inspector").wait_for(state="visible")
+        desktop.screenshot(path=OUTPUT_DIRECTORY / "workbench-desktop.png")
 
         mobile = browser.new_page(
             viewport={"width": 412, "height": 839},
@@ -73,7 +97,6 @@ def main():
             is_mobile=True,
         )
         wait_for_studio(mobile)
-        mobile.get_by_role("button", name="Close project launcher").click()
         mobile.get_by_role("heading", name="Recent work").wait_for(state="visible")
         home = mobile.locator(".home-workspace")
         home.evaluate("element => { element.scrollTop = 120 }")
@@ -89,6 +112,23 @@ def main():
         )
         assert not has_horizontal_overflow
         mobile.screenshot(path=OUTPUT_DIRECTORY / "home-mobile.png")
+
+        create_project(mobile, "Pocket review", 32)
+        mobile.get_by_role("region", name="Live preview", exact=True).wait_for(
+            state="visible"
+        )
+        mobile.screenshot(path=OUTPUT_DIRECTORY / "workbench-mobile.png")
+
+        tablet = browser.new_page(
+            viewport={"width": 820, "height": 1180},
+            has_touch=True,
+            is_mobile=True,
+        )
+        wait_for_studio(tablet)
+        create_project(tablet, "Tablet review", 48)
+        tablet.get_by_role("button", name="Toggle layers panel").click()
+        tablet.get_by_label("Layers inspector").wait_for(state="visible")
+        tablet.screenshot(path=OUTPUT_DIRECTORY / "workbench-tablet.png")
         browser.close()
 
     assert not console_errors, "\n".join(console_errors)

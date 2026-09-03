@@ -3,8 +3,9 @@ import { expect, test } from '@playwright/test'
 const openEditor = async (page: import('@playwright/test').Page, name: string, size = 32) => {
   await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
   const launcher = page.getByTestId('project-launcher')
+  await expect(launcher).toBeHidden()
+  await page.getByRole('button', { name: 'New sprite', exact: true }).first().click()
   await expect(launcher).toBeVisible()
-  await launcher.getByRole('button', { name: 'New sprite', exact: true }).click()
   await launcher.getByRole('textbox', { name: 'Project name' }).fill(name)
   await launcher.getByRole('spinbutton', { name: 'Width' }).fill(String(size))
   await launcher.getByRole('spinbutton', { name: 'Height' }).fill(String(size))
@@ -34,7 +35,15 @@ test.describe('phone workbench', () => {
     await page.goto('/')
     await expect(page.getByTestId('app-titlebar')).toBeHidden()
     await expect(page.getByRole('contentinfo', { name: 'Application status' })).toBeHidden()
+    await expect(page.getByTestId('project-launcher')).toBeHidden()
     await openEditor(page, 'Pocket courier')
+
+    const tabsBox = await page.locator('.document-tabs').boundingBox()
+    const timelineBox = await page.getByRole('region', { name: 'Animation timeline' }).boundingBox()
+    expect(tabsBox!.y).toBeGreaterThan(timelineBox!.y)
+    await expect(page.getByRole('button', { name: 'Keyboard shortcuts' })).toBeHidden()
+    await expect(page.locator('.tool-button').first().locator('span')).toBeHidden()
+    await expect(page.getByRole('region', { name: 'Live preview', exact: true })).toBeVisible()
 
     const canvas = page.getByTestId('pixel-canvas')
     const canvasSignature = () =>
@@ -113,6 +122,43 @@ test.describe('phone workbench', () => {
     await page.getByRole('button', { name: 'Close layers panel' }).last().click()
     await expect(page.getByLabel('Layers inspector')).toBeHidden()
 
+    await page.getByRole('button', { name: 'Frame 1 actions' }).click()
+    await page.getByRole('menuitem', { name: /Copy frame to right/ }).click()
+    await page.getByRole('button', { name: 'Frame 2 actions' }).click()
+    await page.getByRole('menuitem', { name: /Copy frame to right/ }).click()
+    const frames = page.locator('.frame-item')
+    const initialOrder = await frames.evaluateAll((items) =>
+      items.map((item) => (item as HTMLElement).dataset.frameId),
+    )
+    const source = frames.first().locator('.frame-cell')
+    const targetBox = await frames.nth(2).boundingBox()
+    const sourceBox = await source.boundingBox()
+    await source.dispatchEvent('pointerdown', {
+      pointerType: 'touch',
+      pointerId: 17,
+      button: 0,
+      clientX: sourceBox!.x + sourceBox!.width / 2,
+      clientY: sourceBox!.y + sourceBox!.height / 2,
+    })
+    await page.waitForTimeout(450)
+    await source.dispatchEvent('pointermove', {
+      pointerType: 'touch',
+      pointerId: 17,
+      button: 0,
+      clientX: targetBox!.x + targetBox!.width - 2,
+      clientY: targetBox!.y + targetBox!.height / 2,
+    })
+    await source.dispatchEvent('pointerup', {
+      pointerType: 'touch',
+      pointerId: 17,
+      button: 0,
+      clientX: targetBox!.x + targetBox!.width - 2,
+      clientY: targetBox!.y + targetBox!.height / 2,
+    })
+    await expect
+      .poll(async () => frames.evaluateAll((items) => (items[2] as HTMLElement).dataset.frameId))
+      .toBe(initialOrder[0])
+
     await expect(page).toHaveScreenshot('phone-workbench.png', {
       animations: 'disabled',
       maxDiffPixelRatio: 0.015,
@@ -128,7 +174,7 @@ test.describe('tablet workbench', () => {
     isMobile: true,
   })
 
-  test('uses the compact launcher and a side-sheet inspector', async ({ page }) => {
+  test('uses bottom document tabs and a side-sheet inspector', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByTestId('app-titlebar')).toBeHidden()
     await expect(page.getByTestId('app-splash')).toBeVisible()
@@ -137,11 +183,7 @@ test.describe('tablet workbench', () => {
     await expect(page.getByRole('contentinfo', { name: 'Application status' })).toContainText(
       /v\d+\.\d+\.\d+/,
     )
-    await expect(page.getByTestId('project-launcher')).toBeVisible()
-    await expect(page).toHaveScreenshot('tablet-project-launcher.png', {
-      animations: 'disabled',
-      maxDiffPixelRatio: 0.015,
-    })
+    await expect(page.getByTestId('project-launcher')).toBeHidden()
 
     await openEditor(page, 'Tablet tiles', 48)
     const railBox = await page.getByRole('navigation', { name: 'Drawing tools' }).boundingBox()
@@ -151,6 +193,11 @@ test.describe('tablet workbench', () => {
     expect(railBox!.x).toBeLessThan(canvasWorkspaceBox!.x)
     expect(railBox!.height).toBeGreaterThan(railBox!.width * 4)
     await expect(page.getByLabel('Layers inspector')).toBeHidden()
+    await expect(page.getByRole('region', { name: 'Live preview', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Keyboard shortcuts' })).toBeHidden()
+    const tabsBox = await page.locator('.document-tabs').boundingBox()
+    const timelineBox = await page.getByRole('region', { name: 'Animation timeline' }).boundingBox()
+    expect(tabsBox!.y).toBeGreaterThan(timelineBox!.y)
 
     await page.getByRole('button', { name: 'Toggle layers panel' }).click()
     await expect(page.getByLabel('Layers inspector')).toBeVisible()

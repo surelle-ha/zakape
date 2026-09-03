@@ -14,7 +14,6 @@ const {
   setLayerOpacity,
 } = useEditor()
 
-const playing = useState<boolean>('preview-playing', () => true)
 const nameDraft = ref('')
 let focusingRename = false
 
@@ -47,32 +46,6 @@ watch(layerEditingId, async (layerId) => {
 
 <template>
   <aside class="inspector layers-inspector" aria-label="Layers inspector">
-    <section class="preview-card">
-      <header>
-        <div><span class="status-dot" /> Live preview</div>
-        <button
-          v-tooltip="{
-            text: playing ? 'Pause preview' : 'Play preview',
-            detail: 'Toggle animation playback without changing frame timing.',
-            shortcut: 'K',
-          }"
-          type="button"
-          class="micro-button"
-          @click="playing = !playing"
-        >
-          {{ playing ? 'Pause' : 'Play' }}
-        </button>
-      </header>
-      <div class="preview-stage">
-        <PreviewCanvas :size="138" :animate="playing" />
-      </div>
-      <footer>
-        <span>{{ project.width }} × {{ project.height }}</span>
-        <span>{{ project.frames.length }} frame{{ project.frames.length === 1 ? '' : 's' }}</span>
-        <span>{{ Math.round(1000 / (project.frames[0]?.duration ?? 120)) }} fps</span>
-      </footer>
-    </section>
-
     <header class="layers-heading">
       <div>
         <span class="section-kicker"><Layers3 :size="14" /> Layers</span>

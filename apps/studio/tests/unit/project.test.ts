@@ -77,6 +77,17 @@ describe('project helpers', () => {
     expect(indexed.palette).toContain(coercePixelToColorMode(indexed, '#ff8b62'))
   })
 
+  it('normalizes and preserves a selected starting palette', () => {
+    const project = createBlankProject(16, 16, 'Palette study', 'indexed', 'transparent', [
+      '#22aaff',
+      '#22AAFF',
+      'invalid',
+      '#110022',
+    ])
+
+    expect(project.palette).toEqual(['#22aaff', '#110022'])
+  })
+
   it('accepts complete projects and rejects unsafe or incomplete imports', () => {
     const project = createBlankProject(32)
     expect(parseSpriteProject(project)).toEqual(project)

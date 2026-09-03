@@ -1,4 +1,5 @@
 import type { CanvasBackground, ColorMode, Layer, Pixel, SpriteProject } from '~/types/editor'
+import { defaultPalette, normalizePalette } from '~/utils/palettes'
 
 export const makeId = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
@@ -15,6 +16,7 @@ export const createBlankProject = (
   name = 'Untitled sprite',
   colorMode: ColorMode = 'rgba',
   background: CanvasBackground = 'transparent',
+  selectedPalette: string[] = defaultPalette,
 ): SpriteProject => {
   const canvasWidth = Math.max(1, Math.min(1024, Math.round(width)))
   const canvasHeight = Math.max(1, Math.min(1024, Math.round(height)))
@@ -25,10 +27,13 @@ export const createBlankProject = (
   const frameId = makeId('frame')
   const backgroundColor =
     background === 'black' ? '#000000' : background === 'white' ? '#ffffff' : null
+  const normalizedPalette = normalizePalette(selectedPalette)
   const palette =
     colorMode === 'grayscale'
       ? ['#000000', '#333333', '#666666', '#999999', '#cccccc', '#ffffff']
-      : ['#1c1628', '#5b3f82', '#8b5cf6', '#c4b5fd', '#ede9fe', '#d946ef', '#e9d5ff', '#fae8ff']
+      : normalizedPalette.length
+        ? normalizedPalette
+        : [...defaultPalette]
   return {
     version: 1,
     id: makeId('project'),

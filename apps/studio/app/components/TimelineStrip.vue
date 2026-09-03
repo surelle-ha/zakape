@@ -28,6 +28,12 @@ const frameTrack = ref<HTMLElement | null>(null)
 const frameMenu = ref<{ frameId: string; x: number; y: number } | null>(null)
 const draggingFrameId = ref<string | null>(null)
 const dropTarget = ref<{ frameId: string; side: 'before' | 'after' } | null>(null)
+const holdPendingFrameId = ref<string | null>(null)
+let holdTimer: number | null = null
+let holdPointerId: number | null = null
+let holdStart = { x: 0, y: 0 }
+let holdCaptureTarget: HTMLElement | null = null
+let suppressFrameClick = false
 
 const menuStyle = computed(() => ({
   left: `${frameMenu.value?.x ?? 0}px`,
@@ -64,9 +70,27 @@ const openFrameMenu = (event: MouseEvent, frameId: string) => {
   }
 }
 
+const cancelHoldTimer = () => {
+  if (holdTimer) window.clearTimeout(holdTimer)
+  holdTimer = null
+  holdPendingFrameId.value = null
+}
+
 const clearDrag = () => {
+  cancelHoldTimer()
   draggingFrameId.value = null
   dropTarget.value = null
+  holdPointerId = null
+  holdCaptureTarget = null
+}
+
+const reorderFrame = (sourceFrameId: string, targetFrameId: string, side: 'before' | 'after') => {
+  const sourceIndex = project.value.frames.findIndex((frame) => frame.id === sourceFrameId)
+  const targetIndex = project.value.frames.findIndex((frame) => frame.id === targetFrameId)
+  if (sourceIndex < 0 || targetIndex < 0) return
+  let destinationIndex = targetIndex + (side === 'after' ? 1 : 0)
+  if (sourceIndex < destinationIndex) destinationIndex -= 1
+  moveFrame(sourceFrameId, destinationIndex)
 }
 
 const startFrameDrag = (event: DragEvent, frameId: string) => {
@@ -93,15 +117,77 @@ const updateDropTarget = (event: DragEvent, frameId: string) => {
 const dropFrame = (event: DragEvent, targetFrameId: string) => {
   event.preventDefault()
   const sourceFrameId = draggingFrameId.value ?? event.dataTransfer?.getData('text/plain')
-  const sourceIndex = project.value.frames.findIndex((frame) => frame.id === sourceFrameId)
-  const targetIndex = project.value.frames.findIndex((frame) => frame.id === targetFrameId)
-  if (sourceIndex >= 0 && targetIndex >= 0) {
+  if (sourceFrameId) {
     const side = dropTarget.value?.frameId === targetFrameId ? dropTarget.value.side : 'before'
-    let destinationIndex = targetIndex + (side === 'after' ? 1 : 0)
-    if (sourceIndex < destinationIndex) destinationIndex -= 1
-    moveFrame(sourceFrameId!, destinationIndex)
+    reorderFrame(sourceFrameId, targetFrameId, side)
   }
   clearDrag()
+}
+
+const updateHoldTarget = (event: PointerEvent) => {
+  const frameElement = document
+    .elementFromPoint(event.clientX, event.clientY)
+    ?.closest<HTMLElement>('.frame-item[data-frame-id]')
+  const frameId = frameElement?.dataset.frameId
+  if (!frameElement || !frameId) return
+  const bounds = frameElement.getBoundingClientRect()
+  dropTarget.value = {
+    frameId,
+    side: event.clientX < bounds.left + bounds.width / 2 ? 'before' : 'after',
+  }
+}
+
+const startHoldDrag = (event: PointerEvent, frameId: string) => {
+  if (!['touch', 'pen'].includes(event.pointerType) || event.button !== 0) return
+  cancelHoldTimer()
+  holdPointerId = event.pointerId
+  holdStart = { x: event.clientX, y: event.clientY }
+  holdCaptureTarget = event.currentTarget as HTMLElement
+  holdPendingFrameId.value = frameId
+  holdTimer = window.setTimeout(() => {
+    if (holdPointerId !== event.pointerId || holdPendingFrameId.value !== frameId) return
+    draggingFrameId.value = frameId
+    frameMenu.value = null
+    holdCaptureTarget?.setPointerCapture(event.pointerId)
+    updateHoldTarget(event)
+    holdTimer = null
+  }, 400)
+}
+
+const moveHoldDrag = (event: PointerEvent) => {
+  if (event.pointerId !== holdPointerId) return
+  if (!draggingFrameId.value) {
+    if (Math.hypot(event.clientX - holdStart.x, event.clientY - holdStart.y) > 9) cancelHoldTimer()
+    return
+  }
+  event.preventDefault()
+  updateHoldTarget(event)
+}
+
+const finishHoldDrag = (event: PointerEvent) => {
+  if (event.pointerId !== holdPointerId) return
+  const sourceFrameId = draggingFrameId.value
+  if (sourceFrameId) {
+    event.preventDefault()
+    updateHoldTarget(event)
+    if (dropTarget.value) {
+      reorderFrame(sourceFrameId, dropTarget.value.frameId, dropTarget.value.side)
+    }
+    suppressFrameClick = true
+    window.setTimeout(() => (suppressFrameClick = false), 120)
+  }
+  if (holdCaptureTarget?.hasPointerCapture(event.pointerId)) {
+    holdCaptureTarget.releasePointerCapture(event.pointerId)
+  }
+  clearDrag()
+}
+
+const selectFrame = (event: MouseEvent, frameId: string) => {
+  if (suppressFrameClick) {
+    event.preventDefault()
+    return
+  }
+  activeFrameId.value = frameId
 }
 
 const addAdjacent = (duplicate: boolean, side: 'left' | 'right') => {
@@ -151,6 +237,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  cancelHoldTimer()
   window.removeEventListener('pointerdown', closeFrameMenu)
   window.removeEventListener('keydown', onKeydown)
 })
@@ -240,6 +327,7 @@ onBeforeUnmount(() => {
           :class="{
             active: frame.id === activeFrameId,
             dragging: draggingFrameId === frame.id,
+            'hold-pending': holdPendingFrameId === frame.id,
             'drop-before': dropTarget?.frameId === frame.id && dropTarget.side === 'before',
             'drop-after': dropTarget?.frameId === frame.id && dropTarget.side === 'after',
           }"
@@ -257,10 +345,15 @@ onBeforeUnmount(() => {
             type="button"
             class="frame-cell"
             draggable="true"
+            :aria-grabbed="draggingFrameId === frame.id"
             :aria-label="`Frame ${index + 1}, ${frame.duration} milliseconds`"
             @dragstart="startFrameDrag($event, frame.id)"
             @dragend="clearDrag"
-            @click="activeFrameId = frame.id"
+            @pointerdown="startHoldDrag($event, frame.id)"
+            @pointermove="moveHoldDrag"
+            @pointerup="finishHoldDrag"
+            @pointercancel="finishHoldDrag"
+            @click="selectFrame($event, frame.id)"
           >
             <span class="frame-number">{{ String(index + 1).padStart(2, '0') }}</span>
             <span class="frame-preview"><PreviewCanvas :frame-id="frame.id" :size="48" /></span>

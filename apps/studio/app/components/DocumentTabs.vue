@@ -40,7 +40,7 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', closeContextMenu
 </script>
 
 <template>
-  <div class="document-tabs" aria-label="Open sprite documents">
+  <div class="document-tabs" role="tablist" aria-label="Open sprite documents">
     <button
       v-tooltip="{
         text: 'Home',
@@ -57,7 +57,7 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', closeContextMenu
       <Home :size="13" />
       <span>Home</span>
     </button>
-    <div class="document-tab-list" role="tablist">
+    <div class="document-tab-list">
       <div
         v-for="document in visibleDocuments"
         :key="document.id"

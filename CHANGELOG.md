@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/surelle-ha/zakape/compare/v0.9.0...v0.10.0) (2026-09-03)
+
+
+### Features
+
+* add agentic art sessions and pixel selection ([02625e8](https://github.com/surelle-ha/zakape/commit/02625e8492ff3cb42a49a441681ec7da3dbc1e80))
+
+
+### Bug Fixes
+
+* guarantee Android assets on every release ([9b5b5b4](https://github.com/surelle-ha/zakape/commit/9b5b5b473742050998ea7c9a7ab4ed09d290a9ff))
+
 ## [0.9.0](https://github.com/surelle-ha/zakape/compare/v0.8.0...v0.9.0) (2026-09-03)
 
 

@@ -59,7 +59,7 @@ Without these secrets, the workflow publishes Windows and Linux assets and adds 
 
 ## Publish Android builds
 
-The **Android** workflow builds and verifies a debug Android package (APK) on relevant pushes and pull requests. When a push is the exact commit targeted by a versioned GitHub release, the workflow also attaches the ARM64 debug APK to that release. This package is clearly named as a debug build for device testing.
+The **Android** workflow builds and verifies an Android package (APK) on relevant pushes and pull requests. When a push is the exact commit targeted by a versioned GitHub release, the workflow also attaches it as `Zakape-X.Y.Z-android-arm64.apk`, preserving the actual filename on the release page.
 
 Manual dispatch can produce a signed Android App Bundle (AAB). It can upload the bundle after you configure signing and service-account secrets. Upload the first Play Console bundle manually to establish Play App Signing and application programming interface (API) access.
 

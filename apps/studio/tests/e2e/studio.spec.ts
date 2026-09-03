@@ -545,6 +545,8 @@ test('exports an animated GIF and portable project', async ({ page }) => {
 test('discovers installed Ollama models and switches providers', async ({ page }) => {
   await enterEditor(page)
   await openAssistant(page)
+  await expect(page.locator('.suggestion-list')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Add a warm rim light' })).toHaveCount(0)
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'assistant-drawer.png') })
   await page.route('http://127.0.0.1:11434/api/tags', async (route) => {

@@ -2851,25 +2851,6 @@ button:disabled {
   font-weight: 700;
   cursor: pointer;
 }
-.suggestion-list {
-  display: grid;
-  gap: 3px;
-}
-.suggestion-list button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 5px 3px;
-  border: 0;
-  color: #aab3aa;
-  background: transparent;
-  font-size: 9px;
-  text-align: left;
-  cursor: pointer;
-}
-.suggestion-list button:hover {
-  color: var(--mint);
-}
 .proposal-card {
   padding: 10px;
   border: 1px solid #4d6b57;

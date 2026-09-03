@@ -107,6 +107,7 @@ watch(
 <template>
   <div class="project-launcher-backdrop" data-testid="project-launcher">
     <section
+      v-motion-enter="'surface'"
       class="project-launcher"
       role="dialog"
       aria-modal="true"

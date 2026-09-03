@@ -115,9 +115,9 @@ jobs:
             exit 0
           fi
 
-          release_apk="$RUNNER_TEMP/Zakape-$version-android-arm64-debug.apk"
+          release_apk="$RUNNER_TEMP/Zakape-$version-android-arm64.apk"
           cp "$APK_PATH" "$release_apk"
-          gh release upload "$tag" "$release_apk#Android ARM64 debug APK" --clobber
+          gh release upload "$tag" "$release_apk" --clobber
 
   play-bundle:
     name: Signed Play bundle

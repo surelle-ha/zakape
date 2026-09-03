@@ -15,14 +15,19 @@
     "build:android:debug": "pnpm --filter @zakape/studio tauri android build --debug --apk --target aarch64 --ci",
     "build:android:bundle": "pnpm --filter @zakape/studio tauri android build --aab --target aarch64 --target armv7 --ci",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "commitlint": "commitlint --from HEAD~1 --to HEAD",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "test:e2e": "pnpm --filter @zakape/studio test:e2e",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "husky": "^9.1.7",
     "prettier": "^3.6.2"
   }
 }

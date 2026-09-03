@@ -54,6 +54,8 @@ The Playwright baselines live beside the end-to-end tests so CI can detect unint
 - The work-surface grid changes interval with zoom, Ctrl-wheel changes zoom, and hand dragging pans an overflowing canvas.
 - Native browser context menus, application-wide text selection, Ctrl+A, reload, print, source, location, history, and developer-tool shortcuts do not leak into the workbench. Text editing shortcuts remain available inside form controls.
 - The assistant is clearly optional; connect, scope, proposal, discard, and apply states are distinct.
+- The assistant opens without canned prompt suggestions, leaving art direction entirely to the artist.
+- Anime.js splash sequencing and Motion surface entrances remain brief, do not block controls, and are disabled when reduced motion is requested.
 - New layers begin with transparent, independent cels; visibility affects only the chosen layer; inline rename preserves pixels and frame buffers.
 - The first-project tour can be completed or skipped, and both the tour and command map remain available from Help.
 - Current-frame proposals cannot edit reference frames; entire-sheet proposals report every affected frame and apply as one undo checkpoint.

@@ -70,7 +70,7 @@ const updatedLabel = (value: string) => {
 </script>
 
 <template>
-  <section class="home-workspace" aria-label="Home workspace">
+  <section v-motion-enter="'surface'" class="home-workspace" aria-label="Home workspace">
     <header class="home-hero">
       <div class="home-hero-copy">
         <span class="eyebrow">Local sprite studio</span>

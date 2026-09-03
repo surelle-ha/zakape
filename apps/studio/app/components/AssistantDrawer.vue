@@ -1,14 +1,5 @@
 <script setup lang="ts">
-import {
-  Check,
-  ChevronRight,
-  Film,
-  LoaderCircle,
-  ScanLine,
-  Settings2,
-  Sparkles,
-  X,
-} from '@lucide/vue'
+import { Check, Film, LoaderCircle, ScanLine, Settings2, Sparkles, X } from '@lucide/vue'
 import type { AssistantEditScope } from '~/types/editor'
 
 const props = defineProps<{ open: boolean }>()
@@ -33,8 +24,6 @@ const proposalOperationCount = computed(
 const proposalFrameCount = computed(
   () => proposal.value?.frames.filter((frame) => frame.operations.length > 0).length ?? 0,
 )
-const suggestions = ['Add a warm rim light', 'Clean silhouette jaggies', 'Push the idle pose']
-
 const submitPrompt = async () => {
   if (!connection.value.model) {
     connectionOpen.value = true
@@ -220,17 +209,6 @@ watch(
                 {{ status === 'working' ? 'Thinking' : 'Propose' }}
               </button>
             </div>
-          </div>
-
-          <div class="suggestion-list">
-            <button
-              v-for="suggestion in suggestions"
-              :key="suggestion"
-              type="button"
-              @click="prompt = suggestion"
-            >
-              {{ suggestion }} <ChevronRight :size="13" />
-            </button>
           </div>
 
           <p v-if="errorMessage && !connectionOpen" class="inline-error" role="alert">

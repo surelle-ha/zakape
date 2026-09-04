@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/surelle-ha/zakape/compare/v0.12.1...v0.13.0) (2026-09-04)
+
+
+### Features
+
+* refresh brand assets and responsive website ([beac25a](https://github.com/surelle-ha/zakape/commit/beac25ae4745370f25ae2eaf6a231c4cda3a5503))
+
 ## [0.12.1](https://github.com/surelle-ha/zakape/compare/v0.12.0...v0.12.1) (2026-09-04)
 
 

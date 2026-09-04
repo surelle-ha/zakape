@@ -12,11 +12,60 @@ use std::{
 };
 use tauri::{AppHandle, Manager};
 
+#[cfg(all(feature = "google-auth", desktop))]
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+#[cfg(all(feature = "google-auth", desktop))]
+use sha2::{Digest, Sha256};
 const OLLAMA_CONNECT_TIMEOUT: Duration = Duration::from_secs(4);
 const OLLAMA_DISCOVERY_TIMEOUT: Duration = Duration::from_secs(12);
 const OLLAMA_CHAT_TIMEOUT: Duration = Duration::from_secs(180);
 const MAX_PROJECT_BYTES: usize = 32 * 1024 * 1024;
 const MAX_IMPORTED_PIXELS: usize = 1_048_576;
+#[cfg(all(feature = "google-auth", desktop))]
+const GOOGLE_SCOPES: [&str; 3] = ["openid", "email", "profile"];
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GoogleAuthConfiguration {
+    available: bool,
+    feature_enabled: bool,
+    platform: &'static str,
+    client_configured: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GoogleAccount {
+    id: String,
+    email: String,
+    name: String,
+    picture: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GoogleAuthSession {
+    access_token: String,
+    expires_at: i64,
+    account: GoogleAccount,
+}
+
+#[cfg(feature = "google-auth")]
+#[derive(Debug, Deserialize)]
+struct GoogleUserInfo {
+    sub: String,
+    email: String,
+    name: Option<String>,
+    picture: Option<String>,
+}
+
+#[cfg(all(feature = "google-auth", desktop))]
+#[derive(Debug, Deserialize)]
+struct GoogleTokenResponse {
+    access_token: String,
+    expires_in: i64,
+    refresh_token: Option<String>,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AssistantMessage {
@@ -424,6 +473,373 @@ fn workspace_write_project(
     Ok(path.to_string_lossy().into_owned())
 }
 
+fn configured_google_value(value: Option<&'static str>) -> Option<&'static str> {
+    value.filter(|candidate| !candidate.trim().is_empty())
+}
+
+fn google_client_id() -> Option<&'static str> {
+    #[cfg(desktop)]
+    let value = option_env!("ZAKAPE_GOOGLE_DESKTOP_CLIENT_ID");
+    #[cfg(mobile)]
+    let value = None;
+    configured_google_value(value)
+}
+
+#[cfg(desktop)]
+fn google_client_secret() -> Option<&'static str> {
+    configured_google_value(option_env!("ZAKAPE_GOOGLE_DESKTOP_CLIENT_SECRET"))
+}
+
+fn google_platform() -> &'static str {
+    #[cfg(target_os = "android")]
+    return "android";
+    #[cfg(target_os = "ios")]
+    return "ios";
+    #[cfg(desktop)]
+    return "desktop";
+}
+
+#[tauri::command]
+fn google_auth_configuration() -> GoogleAuthConfiguration {
+    let client_configured = google_client_id().is_some();
+    #[cfg(desktop)]
+    let credentials_configured = client_configured && google_client_secret().is_some();
+    #[cfg(mobile)]
+    let credentials_configured = client_configured;
+    let feature_enabled = cfg!(feature = "google-auth");
+    GoogleAuthConfiguration {
+        available: feature_enabled && credentials_configured,
+        feature_enabled,
+        platform: google_platform(),
+        client_configured: credentials_configured,
+    }
+}
+
+#[cfg(all(feature = "google-auth", desktop))]
+async fn google_account(access_token: &str) -> Result<GoogleAccount, String> {
+    let response = Client::builder()
+        .connect_timeout(Duration::from_secs(8))
+        .timeout(Duration::from_secs(20))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|_| "Zakape could not initialize Google account access.".to_string())?
+        .get("https://openidconnect.googleapis.com/v1/userinfo")
+        .bearer_auth(access_token)
+        .send()
+        .await
+        .map_err(|_| "Zakape could not reach Google account services.".to_string())?;
+    if !response.status().is_success() {
+        return Err("Google did not accept the account session.".to_string());
+    }
+    let profile = response
+        .json::<GoogleUserInfo>()
+        .await
+        .map_err(|_| "Google returned an unreadable account profile.".to_string())?;
+    Ok(GoogleAccount {
+        id: profile.sub,
+        name: profile.name.unwrap_or_else(|| profile.email.clone()),
+        email: profile.email,
+        picture: profile.picture,
+    })
+}
+
+#[cfg(all(feature = "google-auth", desktop))]
+async fn google_session(
+    access_token: String,
+    expires_at: Option<i64>,
+) -> Result<GoogleAuthSession, String> {
+    let account = google_account(&access_token).await?;
+    let now = unix_timestamp();
+    let expires_at = expires_at
+        .filter(|candidate| *candidate > now.saturating_add(60))
+        .unwrap_or_else(|| now.saturating_add(3_300));
+    Ok(GoogleAuthSession {
+        access_token,
+        expires_at,
+        account,
+    })
+}
+
+#[cfg(all(feature = "google-auth", desktop))]
+fn unix_timestamp() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |duration| {
+            i64::try_from(duration.as_secs()).unwrap_or(i64::MAX)
+        })
+}
+
+#[cfg(all(feature = "google-auth", desktop))]
+fn google_credential() -> Result<keyring::Entry, String> {
+    keyring::Entry::new("io.github.surelleha.zakape", "google-account-refresh")
+        .map_err(|_| "Zakape could not open the system credential vault.".to_string())
+}
+
+#[cfg(all(feature = "google-auth", desktop))]
+fn random_url_token(byte_count: usize) -> Result<String, String> {
+    let mut bytes = vec![0_u8; byte_count];
+    getrandom::fill(&mut bytes)
+        .map_err(|_| "Zakape could not create a secure sign-in challenge.".to_string())?;
+    Ok(URL_SAFE_NO_PAD.encode(bytes))
+}
+
+#[cfg(all(feature = "google-auth", desktop))]
+fn receive_google_callback(
+    listener: std::net::TcpListener,
+    expected_state: String,
+) -> Result<String, String> {
+    use std::io::{ErrorKind, Read, Write};
+    use std::time::Instant;
+
+    listener
+        .set_nonblocking(true)
+        .map_err(|_| "Zakape could not prepare the local sign-in callback.".to_string())?;
+    let deadline = Instant::now() + Duration::from_secs(300);
+    let (mut stream, _) = loop {
+        match listener.accept() {
+            Ok(connection) => break connection,
+            Err(error) if error.kind() == ErrorKind::WouldBlock && Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                return Err(
+                    "Google sign-in timed out. Start it again when you are ready.".to_string(),
+                );
+            }
+            Err(_) => return Err("Zakape could not receive the Google sign-in result.".to_string()),
+        }
+    };
+
+    let mut buffer = [0_u8; 16_384];
+    let bytes_read = stream
+        .read(&mut buffer)
+        .map_err(|_| "Zakape could not read the Google sign-in result.".to_string())?;
+    let request = std::str::from_utf8(&buffer[..bytes_read])
+        .map_err(|_| "Google returned an unreadable sign-in result.".to_string())?;
+    let request_path = request
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .ok_or_else(|| "Google returned an incomplete sign-in result.".to_string())?;
+    let callback = Url::parse(&format!("http://127.0.0.1{request_path}"))
+        .map_err(|_| "Google returned an invalid sign-in callback.".to_string())?;
+    let parameter = |name: &str| {
+        callback
+            .query_pairs()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| value.into_owned())
+    };
+    let state = parameter("state")
+        .ok_or_else(|| "Google sign-in did not include its security state.".to_string())?;
+    if state != expected_state {
+        return Err("Zakape rejected a mismatched Google sign-in response.".to_string());
+    }
+    if let Some(error) = parameter("error") {
+        return Err(if error == "access_denied" {
+            "Google sign-in was cancelled.".to_string()
+        } else {
+            "Google could not complete sign-in.".to_string()
+        });
+    }
+    let code = parameter("code")
+        .ok_or_else(|| "Google sign-in did not return an authorization code.".to_string())?;
+    let body = "<!doctype html><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>Zakape connected</title><style>body{margin:0;display:grid;min-height:100vh;place-items:center;color:#f4f2f7;background:#090b0f;font:16px system-ui}main{max-width:28rem;padding:2rem;border:1px solid #8b5cf6;border-radius:.6rem;background:#11151b}strong{display:block;margin-bottom:.5rem;color:#c4b5fd}</style><main><strong>Google account connected.</strong>You can close this tab and return to Zakape.</main>";
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        body.len(),
+        body
+    );
+    let _ = stream.write_all(response.as_bytes());
+    Ok(code)
+}
+
+#[cfg(all(feature = "google-auth", desktop))]
+async fn desktop_google_sign_in() -> Result<GoogleAuthSession, String> {
+    let client_id = google_client_id()
+        .ok_or_else(|| "Google sign-in is not configured in this build.".to_string())?;
+    let client_secret = google_client_secret()
+        .ok_or_else(|| "Google sign-in is not configured in this build.".to_string())?;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0")
+        .map_err(|_| "Zakape could not start the local sign-in callback.".to_string())?;
+    let port = listener
+        .local_addr()
+        .map_err(|_| "Zakape could not read the local sign-in callback.".to_string())?
+        .port();
+    let redirect_uri = format!("http://127.0.0.1:{port}");
+    let verifier = random_url_token(64)?;
+    let state = random_url_token(32)?;
+    let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+    let mut authorization_url = Url::parse("https://accounts.google.com/o/oauth2/v2/auth")
+        .map_err(|_| "Zakape could not prepare Google sign-in.".to_string())?;
+    {
+        let mut query = authorization_url.query_pairs_mut();
+        query
+            .append_pair("client_id", client_id)
+            .append_pair("redirect_uri", &redirect_uri)
+            .append_pair("response_type", "code")
+            .append_pair("scope", &GOOGLE_SCOPES.join(" "))
+            .append_pair("state", &state)
+            .append_pair("code_challenge", &challenge)
+            .append_pair("code_challenge_method", "S256")
+            .append_pair("access_type", "offline")
+            .append_pair("include_granted_scopes", "true")
+            .append_pair("prompt", "consent");
+    }
+    open::that_detached(authorization_url.as_str())
+        .map_err(|_| "Zakape could not open the system browser for Google sign-in.".to_string())?;
+    let callback_state = state.clone();
+    let code = tauri::async_runtime::spawn_blocking(move || {
+        receive_google_callback(listener, callback_state)
+    })
+    .await
+    .map_err(|_| "Zakape could not complete the local sign-in callback.".to_string())??;
+
+    let response = Client::builder()
+        .timeout(Duration::from_secs(30))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|_| "Zakape could not initialize Google sign-in.".to_string())?
+        .post("https://oauth2.googleapis.com/token")
+        .form(&[
+            ("code", code.as_str()),
+            ("client_id", client_id),
+            ("client_secret", client_secret),
+            ("redirect_uri", redirect_uri.as_str()),
+            ("grant_type", "authorization_code"),
+            ("code_verifier", verifier.as_str()),
+        ])
+        .send()
+        .await
+        .map_err(|_| "Zakape could not exchange the Google sign-in code.".to_string())?;
+    if !response.status().is_success() {
+        return Err(
+            "Google rejected the sign-in code. Check the desktop OAuth credentials.".to_string(),
+        );
+    }
+    let tokens = response
+        .json::<GoogleTokenResponse>()
+        .await
+        .map_err(|_| "Google returned unreadable sign-in tokens.".to_string())?;
+    if let Some(refresh_token) = tokens.refresh_token.as_deref() {
+        google_credential()?
+            .set_password(refresh_token)
+            .map_err(|_| "Zakape could not protect the Google refresh token.".to_string())?;
+    }
+    google_session(
+        tokens.access_token,
+        Some(unix_timestamp().saturating_add(tokens.expires_in)),
+    )
+    .await
+}
+
+#[cfg(all(feature = "google-auth", desktop))]
+async fn desktop_google_refresh() -> Result<GoogleAuthSession, String> {
+    let client_id = google_client_id()
+        .ok_or_else(|| "Google sign-in is not configured in this build.".to_string())?;
+    let client_secret = google_client_secret()
+        .ok_or_else(|| "Google sign-in is not configured in this build.".to_string())?;
+    let refresh_token = google_credential()?
+        .get_password()
+        .map_err(|_| "No protected Google session is available.".to_string())?;
+    let response = Client::builder()
+        .timeout(Duration::from_secs(30))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|_| "Zakape could not initialize Google session restore.".to_string())?
+        .post("https://oauth2.googleapis.com/token")
+        .form(&[
+            ("client_id", client_id),
+            ("client_secret", client_secret),
+            ("refresh_token", refresh_token.as_str()),
+            ("grant_type", "refresh_token"),
+        ])
+        .send()
+        .await
+        .map_err(|_| "Zakape could not refresh the Google session.".to_string())?;
+    if !response.status().is_success() {
+        return Err("The saved Google session has expired. Sign in again.".to_string());
+    }
+    let tokens = response
+        .json::<GoogleTokenResponse>()
+        .await
+        .map_err(|_| "Google returned an unreadable refreshed session.".to_string())?;
+    google_session(
+        tokens.access_token,
+        Some(unix_timestamp().saturating_add(tokens.expires_in)),
+    )
+    .await
+}
+
+#[tauri::command]
+async fn google_auth_sign_in(app: AppHandle) -> Result<GoogleAuthSession, String> {
+    #[cfg(not(feature = "google-auth"))]
+    {
+        let _ = app;
+        Err(
+            "Google sign-in is not included in this build. Guest access remains available."
+                .to_string(),
+        )
+    }
+    #[cfg(all(feature = "google-auth", desktop))]
+    {
+        let _ = app;
+        desktop_google_sign_in().await
+    }
+    #[cfg(all(feature = "google-auth", mobile))]
+    {
+        let _ = app;
+        Err("Google sign-in is currently available on desktop only.".to_string())
+    }
+}
+
+#[tauri::command]
+async fn google_auth_refresh(app: AppHandle) -> Result<GoogleAuthSession, String> {
+    #[cfg(not(feature = "google-auth"))]
+    {
+        let _ = app;
+        Err("Google sign-in is not included in this build.".to_string())
+    }
+    #[cfg(all(feature = "google-auth", desktop))]
+    {
+        let _ = app;
+        desktop_google_refresh().await
+    }
+    #[cfg(all(feature = "google-auth", mobile))]
+    {
+        let _ = app;
+        Err("Google sign-in is currently available on desktop only.".to_string())
+    }
+}
+
+#[tauri::command]
+async fn google_auth_sign_out(app: AppHandle, access_token: Option<String>) -> Result<(), String> {
+    #[cfg(not(feature = "google-auth"))]
+    {
+        let _ = (app, access_token);
+        Ok(())
+    }
+    #[cfg(all(feature = "google-auth", desktop))]
+    {
+        let _ = app;
+        if let Some(token) = access_token {
+            let _ = Client::new()
+                .post("https://oauth2.googleapis.com/revoke")
+                .form(&[("token", token)])
+                .send()
+                .await;
+        }
+        if let Ok(entry) = google_credential() {
+            let _ = entry.delete_credential();
+        }
+        Ok(())
+    }
+    #[cfg(all(feature = "google-auth", mobile))]
+    {
+        let _ = (app, access_token);
+        Ok(())
+    }
+}
+
 fn assistant_response_format() -> Value {
     json!({
         "type": "object",
@@ -700,6 +1116,10 @@ pub fn run() {
             workspace_list_projects,
             workspace_read_project,
             workspace_write_project,
+            google_auth_configuration,
+            google_auth_sign_in,
+            google_auth_refresh,
+            google_auth_sign_out,
             import_aseprite_project
         ])
         .run(tauri::generate_context!())

@@ -11,7 +11,7 @@
     "dev": "pnpm --filter @zakape/studio dev",
     "dev:site": "pnpm --filter @zakape/site dev",
     "build": "pnpm -r build",
-    "build:desktop": "pnpm --filter @zakape/studio tauri build",
+    "build:desktop": "pnpm --filter @zakape/studio tauri build --features google-auth",
     "build:android:debug": "pnpm --filter @zakape/studio tauri android build --debug --apk --target aarch64 --ci",
     "build:android:fdroid": "pnpm --filter @zakape/studio tauri android build --apk --target aarch64 --target armv7 --ci",
     "build:android:bundle": "pnpm --filter @zakape/studio tauri android build --aab --target aarch64 --target armv7 --ci",

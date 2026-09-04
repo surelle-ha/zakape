@@ -10,7 +10,7 @@ Zakape is an open-source pixel-art and sprite-animation studio for desktop, Andr
 
 ## Description
 
-Create sprites frame by frame, preview motion as you work, and export PNG, GIF, sprite-sheet metadata, or a portable `.zakape` project. When repetitive cleanup or a controlled variation would help, connect local Ollama or a compatible model endpoint. Assistant proposals stay scoped, reviewable, and reversible; drawing and animation remain fully usable without AI.
+Create sprites frame by frame, preview motion as you work, and export PNG, GIF, sprite-sheet metadata, or a portable `.zakape` project. Guest access works offline, with optional Google login in desktop builds. When repetitive cleanup or a controlled variation would help, connect local Ollama or a compatible model endpoint. Assistant proposals stay scoped, reviewable, and reversible; drawing and animation remain fully usable without AI.
 
 ## Project status
 
@@ -42,7 +42,7 @@ pnpm build:android:bundle  # signed Play bundle when a keystore is configured
 
 The editor and website use Nuxt, Vue, Tailwind CSS, and Lucide icons. Tauri 2 and Rust provide the desktop/mobile shell and native commands; PGlite provides local persistence. The workspace also uses Vitest and Playwright for behavior and visual regression coverage.
 
-Start with the comprehensive [agent and contributor guide](AGENT.md), then read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [project workspace](docs/project-workspace.md), [brand guide](docs/brand.md), [Android build guide](docs/android.md), [F-Droid notes](docs/fdroid.md), [model assistant guide](docs/ai/model-assistant.md), [privacy policy](docs/privacy.md), and [release process](docs/release.md) cover their respective workflows.
+Start with the comprehensive [agent and contributor guide](AGENT.md), then read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [project workspace](docs/project-workspace.md), [brand guide](docs/brand.md), [Android build guide](docs/android.md), [desktop Google-login guide](docs/google-login.md), [F-Droid notes](docs/fdroid.md), [model assistant guide](docs/ai/model-assistant.md), [privacy policy](docs/privacy.md), and [release process](docs/release.md) cover their respective workflows.
 
 ## Repository map
 

@@ -17,6 +17,7 @@ test('public site explains the workbench and optional assistant', async ({ page 
 
 test('matches the reviewed website layout', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('http://127.0.0.1:3301')
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'website-home.png'), fullPage: true })
@@ -33,6 +34,7 @@ test('matches the reviewed website layout', async ({ page }) => {
 
 test('keeps the real product story readable on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('http://127.0.0.1:3301')
   await expect(page.getByRole('heading', { name: /Draw every pixel/i })).toBeVisible()
   await expect(page.getByAltText(/Zakape Studio showing a selected group/i)).toBeVisible()
@@ -49,4 +51,46 @@ test('keeps the real product story readable on a phone', async ({ page }) => {
       maxDiffPixelRatio: 0.015,
     })
   }
+})
+
+test('moves through desktop chapters without hijacking phone scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('http://127.0.0.1:3301')
+  const chapters = page.getByRole('navigation', { name: 'Page chapters' })
+  await expect(chapters).toBeVisible()
+  await expect(chapters.getByRole('button', { name: 'Go to Opening' })).toHaveAttribute(
+    'aria-current',
+    'step',
+  )
+
+  const heroBoundary = await page.locator('.hero-section').evaluate((section) => {
+    const target = section.offsetTop + section.clientHeight - window.innerHeight
+    window.scrollTo(0, target)
+    return target
+  })
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThanOrEqual(heroBoundary - 2)
+  await expect(chapters.getByRole('button', { name: 'Go to Opening' })).toHaveAttribute(
+    'aria-current',
+    'step',
+  )
+  await page.mouse.wheel(0, 720)
+  await expect(chapters.getByRole('button', { name: 'Go to Workbench' })).toHaveAttribute(
+    'aria-current',
+    'step',
+  )
+  await expect
+    .poll(() =>
+      page
+        .locator('#workbench')
+        .evaluate((section) => Math.round(section.getBoundingClientRect().top)),
+    )
+    .toBeLessThanOrEqual(74)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await expect(chapters).toBeHidden()
+  await page.mouse.wheel(0, 360)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100)
 })

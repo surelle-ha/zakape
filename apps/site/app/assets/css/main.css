@@ -28,11 +28,31 @@
 html {
   scroll-behavior: smooth;
   background: var(--void);
+  scrollbar-color: #5f536f #0b0d11;
+  scrollbar-width: thin;
+}
+
+html.site-section-moving {
+  scroll-behavior: auto;
 }
 
 body {
   margin: 0;
   background: var(--void);
+}
+
+body::-webkit-scrollbar {
+  width: 8px;
+}
+
+body::-webkit-scrollbar-track {
+  background: #0b0d11;
+}
+
+body::-webkit-scrollbar-thumb {
+  border: 2px solid #0b0d11;
+  border-radius: 999px;
+  background: #5f536f;
 }
 
 body::before {
@@ -71,6 +91,85 @@ button:focus-visible {
 .site-shell {
   min-width: 320px;
   overflow: hidden;
+}
+
+[data-scroll-section] {
+  scroll-margin-top: 72px;
+}
+
+.site-motion-ready [data-reveal] {
+  opacity: 0;
+  filter: blur(9px);
+  transform: translateY(34px);
+}
+
+.chapter-rail {
+  position: fixed;
+  z-index: 45;
+  top: 50%;
+  right: 18px;
+  display: grid;
+  width: 116px;
+  gap: 9px;
+  padding: 13px 11px 10px;
+  border: 1px solid rgb(196 181 253 / 18%);
+  border-radius: 5px;
+  background: rgb(9 11 15 / 76%);
+  backdrop-filter: blur(16px);
+  transform: translateY(-50%);
+}
+
+.chapter-rail button {
+  display: grid;
+  grid-template-columns: 16px 18px 1fr;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  color: #717987;
+  background: transparent;
+  cursor: pointer;
+  font:
+    6px/1 'Azeret Mono Variable',
+    monospace;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.chapter-rail button > span {
+  font-variant-numeric: tabular-nums;
+}
+
+.chapter-rail button > i {
+  width: 6px;
+  height: 3px;
+  background: #4d4558;
+  transition:
+    width 180ms ease,
+    background 180ms ease;
+}
+
+.chapter-rail button > small {
+  overflow: hidden;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-rail button.active {
+  color: #e9e3f7;
+}
+
+.chapter-rail button.active > i {
+  width: 18px;
+  background: var(--lilac);
+}
+
+.chapter-rail > svg {
+  justify-self: end;
+  margin-top: 3px;
+  color: var(--iris);
+  animation: chapter-pulse 1.8s ease-in-out infinite;
 }
 
 .site-nav {
@@ -191,7 +290,7 @@ button:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto;
   column-gap: 40px;
   width: min(1340px, calc(100% - 48px));
-  min-height: 970px;
+  min-height: max(900px, calc(100svh - 72px));
   margin: 0 auto;
   padding: clamp(80px, 9vw, 134px) 0 120px;
 }
@@ -530,6 +629,7 @@ h2 em {
 }
 
 .workbench-section,
+.workspace-section,
 .assistant-section,
 .output-section,
 .open-section {
@@ -538,10 +638,52 @@ h2 em {
 }
 
 .workbench-section {
+  display: grid;
+  min-height: calc(100svh - 72px);
+  align-content: center;
   padding-top: 120px;
   padding-bottom: 130px;
   border-top: 1px solid var(--line);
   background: #0c0f14;
+}
+
+.workspace-section {
+  display: grid;
+  min-height: calc(100svh - 72px);
+  align-content: center;
+  padding-top: clamp(92px, 10vh, 140px);
+  padding-bottom: clamp(92px, 10vh, 140px);
+  color: #17141d;
+  background:
+    linear-gradient(rgb(64 51 81 / 7%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(64 51 81 / 7%) 1px, transparent 1px), #e9e6ef;
+  background-size: 32px 32px;
+}
+
+.workspace-section .workspace-story {
+  margin-top: 0;
+}
+
+.workspace-section .site-kicker,
+.workspace-section .workspace-copy dt {
+  color: #655d70;
+}
+
+.workspace-section .workspace-copy > p:not(.site-kicker) {
+  color: #4e4858;
+}
+
+.workspace-section .workspace-copy dl,
+.workspace-section .workspace-copy dl div {
+  border-color: rgb(57 48 68 / 24%);
+}
+
+.workspace-section .workspace-copy dd {
+  color: #282230;
+}
+
+.workspace-section .workspace-shot {
+  box-shadow: 11px 13px 0 #c9c3d0;
 }
 
 .section-intro {
@@ -745,6 +887,7 @@ h2 em {
   grid-template-columns: minmax(330px, 0.42fr) minmax(0, 0.58fr);
   gap: clamp(48px, 8vw, 118px);
   align-items: center;
+  min-height: calc(100svh - 72px);
   padding-top: 130px;
   padding-bottom: 130px;
   border-top: 1px solid #342b47;
@@ -888,6 +1031,8 @@ h2 em {
   display: grid;
   grid-template-columns: 0.72fr 1.28fr;
   gap: 8vw;
+  min-height: calc(100svh - 72px);
+  align-content: center;
   padding-top: 115px;
   padding-bottom: 115px;
   border-top: 1px solid var(--line);
@@ -939,7 +1084,7 @@ h2 em {
   grid-template-columns: 1.25fr 0.75fr;
   gap: 9vw;
   align-items: end;
-  min-height: 570px;
+  min-height: calc(100svh - 72px);
   padding-top: 150px;
   padding-bottom: 110px;
   overflow: hidden;
@@ -1057,7 +1202,23 @@ h2 em {
   }
 }
 
+@keyframes chapter-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: translateY(-2px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(2px);
+  }
+}
+
 @media (max-width: 1040px) {
+  .chapter-rail {
+    display: none;
+  }
+
   .hero-section {
     min-height: 880px;
   }
@@ -1096,6 +1257,10 @@ h2 em {
 }
 
 @media (max-width: 720px) {
+  [data-scroll-section] {
+    scroll-margin-top: 64px;
+  }
+
   .site-nav {
     grid-template-columns: 1fr auto;
     height: 64px;
@@ -1175,6 +1340,7 @@ h2 em {
   }
 
   .workbench-section,
+  .workspace-section,
   .assistant-section,
   .output-section,
   .open-section {
@@ -1183,6 +1349,7 @@ h2 em {
   }
 
   .workbench-section,
+  .workspace-section,
   .assistant-section {
     padding-top: 88px;
     padding-bottom: 92px;
@@ -1229,6 +1396,10 @@ h2 em {
   .workspace-story {
     grid-template-columns: 1fr;
     margin-top: 78px;
+  }
+
+  .workspace-section {
+    min-height: auto;
   }
 
   .workspace-shot {

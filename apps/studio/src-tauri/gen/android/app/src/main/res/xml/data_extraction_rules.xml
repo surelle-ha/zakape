@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup disableIfNoEncryptionCapabilities="true">
+        <!-- Keep backup scope narrow: artwork project mirrors only. -->
+        <include domain="root" path="zakape/" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="root" path="zakape/" />
+    </device-transfer>
+</data-extraction-rules>

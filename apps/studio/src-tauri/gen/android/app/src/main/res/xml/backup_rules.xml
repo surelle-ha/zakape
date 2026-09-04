@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- appDataDir()/zakape is the native project mirror used to rebuild the local index. -->
+    <include
+        domain="root"
+        path="zakape/"
+        requireFlags="clientSideEncryption" />
+</full-backup-content>

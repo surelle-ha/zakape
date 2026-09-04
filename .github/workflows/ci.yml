@@ -65,3 +65,4 @@ jobs:
           workspaces: apps/studio/src-tauri -> target
       - run: cargo fmt --manifest-path apps/studio/src-tauri/Cargo.toml --check
       - run: cargo clippy --manifest-path apps/studio/src-tauri/Cargo.toml --all-targets -- -D warnings
+      - run: cargo clippy --manifest-path apps/studio/src-tauri/Cargo.toml --all-targets --features google-auth -- -D warnings

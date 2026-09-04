@@ -39,6 +39,10 @@ The debug build permits cleartext traffic so development endpoints can be tested
 
 Android projects are mirrored to the app's private data directory and remain indexed in local PGlite storage. Desktop packages continue to mirror projects to `Documents/zakape`.
 
+Android normally deletes app-private storage when an application is uninstalled. Zakape now asks Android to offer **Keep app data** during uninstall and explicitly includes only the native `zakape` project mirror in encrypted cloud backup and device-to-device transfer. On reinstall, the native mirror rebuilds the recent-project list even when WebView storage was removed.
+
+Backup and restore remain controlled by Android and the device's configured backup provider. They are not immediate, have platform quota limits, and cannot recover data after the user clears it or declines retention before a backup exists. Artists should export important `.zakape` files to user-chosen storage before uninstalling. Google login is desktop-only and is not used for Android project recovery.
+
 ## Package validation
 
 The Android package is exercised on a phone-sized Android 16 emulator that uses 16 KiB memory pages. QA covers cold startup, the project launcher, editor creation, touch-oriented workbench controls, and the layers bottom sheet. Native libraries are linked and ZIP-aligned for both 4 KiB and 16 KiB devices. Reference captures live in `docs/ui-snapshots/android-emulator.png` and `docs/ui-snapshots/android-emulator-workbench.png`.

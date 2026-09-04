@@ -178,10 +178,12 @@ jobs:
           APPLE_TEAM_ID: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          ZAKAPE_GOOGLE_DESKTOP_CLIENT_ID: ${{ vars.ZAKAPE_GOOGLE_DESKTOP_CLIENT_ID }}
+          ZAKAPE_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.ZAKAPE_GOOGLE_DESKTOP_CLIENT_SECRET }}
         with:
           projectPath: apps/studio
           releaseId: ${{ needs.release.outputs.release_id }}
-          args: ${{ matrix.build_args }}
+          args: --features google-auth ${{ matrix.build_args }}
           uploadUpdaterJson: true
           retryAttempts: 2
       - name: Verify macOS signature and notarization

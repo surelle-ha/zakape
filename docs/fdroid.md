@@ -2,6 +2,8 @@
 
 Zakape's Android application ID is `io.github.surelleha.zakape`. The application and its buildable source are published under the MIT License. The core editor works offline, has no account requirement, and contains no advertising, analytics, tracking, Firebase, Play Services, or crash-reporting SDKs.
 
+Google login is a desktop-only Cargo feature. Android commands do not enable it, so the F-Droid dependency graph contains no Google Identity or Play Services authentication SDK. Android does not expose account sign-in controls; Guest access remains the complete offline mode.
+
 ## Reproducible toolchain inputs
 
 The repository pins the JavaScript package manager in `package.json`, Node.js in `.node-version`, Rust in `rust-toolchain.toml`, the Android NDK in the Android workflows, and all JavaScript and Rust dependencies in lockfiles. Nuxt telemetry is disabled in configuration and in the F-Droid build script.
@@ -42,6 +44,8 @@ Local browser-style persistence is provided by `@electric-sql/pglite` 0.5.8, an 
 
 ## Network behavior
 
-The Android manifest declares internet access for the optional, user-configured model assistant. The endpoint is not hard-coded to a commercial provider, and local Ollama is supported. No request is required to draw, animate, save, or export. Desktop-only updater dependencies and initialization are excluded from Android at compile time.
+The Android manifest declares internet access for the optional, user-configured model assistant. The endpoint is not hard-coded to a commercial provider, and local Ollama is supported. No request is required to draw, animate, save, or export. Desktop-only updater and Google-login dependencies are excluded from Android at compile time.
+
+Native project mirrors are explicitly eligible for encrypted operating-system backup and device-to-device transfer. No proprietary backup SDK is bundled; the device owner controls the installed backup transport. Android is also asked to offer **Keep app data** during uninstall. These behaviors and their privacy limits are documented in the [privacy policy](privacy.md).
 
 Store descriptions, current screenshots, the icon, feature graphic, and version-code changelogs live in `fastlane/metadata/android/en-US/` so metadata changes can be reviewed and shipped from this repository.

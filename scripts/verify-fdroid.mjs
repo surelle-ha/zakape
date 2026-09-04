@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const metadataRoot = resolve(repositoryRoot, 'fastlane/metadata/android/en-US')
 const wrapperRoot = resolve(repositoryRoot, 'apps/studio/src-tauri/gen/android/gradle/wrapper')
+const androidMain = resolve(repositoryRoot, 'apps/studio/src-tauri/gen/android/app/src/main')
 const distributionHash = 'bd71102213493060956ec229d946beee57158dbd89d0e62b91bca0fa2c5f3531'
 const wrapperHash = '7d3a4ac4de1c32b59bc6a4eb8ecb8e612ccd0cf1ae1e99f66902da64df296172'
 
@@ -68,5 +69,25 @@ assert(
   createHash('sha256').update(wrapperJar).digest('hex') === wrapperHash,
   'Gradle wrapper JAR does not match Gradle 8.14.3.',
 )
+
+const manifest = await readFile(resolve(androidMain, 'AndroidManifest.xml'), 'utf8')
+assert(manifest.includes('android:allowBackup="true"'), 'Android project backup must be enabled.')
+assert(
+  manifest.includes('android:hasFragileUserData="true"'),
+  'Android uninstall must offer to retain artist data.',
+)
+assert(
+  manifest.includes('android:dataExtractionRules="@xml/data_extraction_rules"'),
+  'Android 12+ data extraction rules are missing.',
+)
+assert(
+  manifest.includes('android:fullBackupContent="@xml/backup_rules"'),
+  'Legacy Android backup rules are missing.',
+)
+for (const rulesFile of ['backup_rules.xml', 'data_extraction_rules.xml']) {
+  const rules = await readFile(resolve(androidMain, 'res/xml', rulesFile), 'utf8')
+  assert(rules.includes('domain="root"'), `${rulesFile} must include the native data root.`)
+  assert(rules.includes('path="zakape/"'), `${rulesFile} must include only Zakape project mirrors.`)
+}
 
 console.log('F-Droid metadata and Gradle wrapper integrity checks passed.')

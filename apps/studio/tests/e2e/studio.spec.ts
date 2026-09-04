@@ -99,6 +99,17 @@ test('shows local account status and exposes desktop update controls', async ({ 
   await expect(statusbar).toContainText(/v\d+\.\d+\.\d+/)
   expect(await page.evaluate(() => document.fonts.check('16px "Handjet Variable"'))).toBe(true)
 
+  await statusbar.getByRole('button', { name: /Guest account/ }).click()
+  const accountDialog = page.getByRole('dialog', { name: /Keep Guest access/ })
+  await expect(accountDialog).toBeVisible()
+  await expect(accountDialog).toContainText('Install the desktop app to use Google sign-in.')
+  await expect(accountDialog).toContainText('Projects and artwork stay local.')
+  await expect(accountDialog.getByRole('button', { name: 'Continue with Google' })).toBeDisabled()
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'account-and-recovery.png') })
+  await accountDialog.getByRole('button', { name: 'Close account dialog' }).click()
+  await expect(accountDialog).toBeHidden()
+
   await page.getByRole('button', { name: 'Help' }).click()
   await page.getByRole('menuitem', { name: 'Check for updates' }).click()
   const updateDialog = page.getByRole('dialog', { name: 'Desktop updates' })

@@ -2,6 +2,7 @@
 import {
   Check,
   CircleHelp,
+  Cloud,
   FolderOpen,
   Grid3X3,
   Info,
@@ -22,6 +23,7 @@ const { screen, requestNew, requestOpen, showHome, showShortcutGuide, showWalkth
 const { project, canRedo, canUndo, onionSkin, redo, showGrid, undo } = useEditor()
 const { saveProject, workspaceDirectory } = useProjectRepository()
 const { checkForUpdates, currentVersion, status: updateStatus } = useAppUpdater()
+const { dialogOpen: accountDialogOpen } = useGoogleAccount()
 const win = useAppWindow()
 const menuRoot = ref<HTMLElement | null>(null)
 const openMenu = ref<'file' | 'edit' | 'view' | 'help' | null>(null)
@@ -36,6 +38,10 @@ const updateMenuLabel = computed(() =>
 
 const closeMenus = () => {
   openMenu.value = null
+}
+
+const openAccount = () => {
+  accountDialogOpen.value = true
 }
 
 const run = (action: () => void | Promise<void>) => {
@@ -236,6 +242,9 @@ watch(
             <Keyboard :size="13" /> Keyboard shortcuts <kbd>?</kbd>
           </button>
           <span class="menu-separator" role="separator" />
+          <button type="button" role="menuitem" @click="run(openAccount)">
+            <Cloud :size="13" /> Account
+          </button>
           <button
             type="button"
             role="menuitem"

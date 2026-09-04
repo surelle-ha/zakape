@@ -3,6 +3,7 @@ import { CircleUserRound, RefreshCw } from '@lucide/vue'
 
 const { checkForUpdates, currentVersion, dialogOpen, status, statusLabel, supported } =
   useAppUpdater()
+const { account, dialogOpen: accountDialogOpen } = useGoogleAccount()
 
 const openUpdateStatus = () => {
   if (status.value === 'idle' || status.value === 'current' || status.value === 'error') {
@@ -16,7 +17,17 @@ const openUpdateStatus = () => {
 <template>
   <footer class="app-statusbar" aria-label="Application status">
     <div>
-      <span class="statusbar-item"><CircleUserRound :size="10" /> Guest</span>
+      <button
+        type="button"
+        class="statusbar-account"
+        :aria-label="
+          account ? `Account: ${account.name}` : 'Guest account. Optional desktop sign-in.'
+        "
+        @click="accountDialogOpen = true"
+      >
+        <CircleUserRound :size="10" />
+        {{ account?.name || 'Guest' }}
+      </button>
     </div>
     <div>
       <button

@@ -60,6 +60,8 @@ const outputs = [
 
 <template>
   <div class="site-shell">
+    <SiteSectionScroller />
+    <SiteMotion />
     <header class="site-nav">
       <a href="#top" class="site-logo" aria-label="Zakape home">
         <img src="/icon.png" alt="" width="30" height="30" />
@@ -67,6 +69,7 @@ const outputs = [
       </a>
       <nav aria-label="Primary navigation">
         <a href="#workbench">Workbench</a>
+        <a href="#workspace">Workspace</a>
         <a href="#assistant">Assistant</a>
         <a href="#open-source">Open source</a>
       </nav>
@@ -74,8 +77,8 @@ const outputs = [
     </header>
 
     <main id="top">
-      <section class="hero-section">
-        <div class="hero-copy">
+      <section class="hero-section" data-scroll-section data-scroll-label="Opening">
+        <div class="hero-copy" data-reveal>
           <p class="site-kicker"><span /> Independent pixel studio</p>
           <h1>Draw every pixel.<br /><em>Make every frame count.</em></h1>
           <p class="hero-lede">
@@ -89,17 +92,22 @@ const outputs = [
             <a :href="repository" class="cta-secondary"><Code2 :size="16" /> Follow the build</a>
           </div>
           <div class="hero-proof" aria-label="Project qualities">
-            <span><Check :size="13" /> No account</span>
+            <span><Check :size="13" /> Guest access</span>
             <span><Check :size="13" /> Offline editor</span>
             <span><Check :size="13" /> MIT licensed</span>
           </div>
         </div>
 
-        <div class="hero-index" aria-label="Workbench coordinates">
+        <div
+          class="hero-index"
+          data-reveal
+          data-reveal-delay="0.12"
+          aria-label="Workbench coordinates"
+        >
           <span>CANVAS / 01</span><i /><span>FRAME 01:04</span><i /><span>ZOOM 1600%</span>
         </div>
 
-        <div class="hero-visual">
+        <div class="hero-visual" data-reveal data-reveal-delay="0.18">
           <StudioMockup />
           <div class="hero-note">
             <span>REAL INTERFACE</span>
@@ -111,8 +119,13 @@ const outputs = [
         <a href="#workbench" class="hero-scroll"><ArrowDown :size="14" /> Read the workbench</a>
       </section>
 
-      <section id="workbench" class="workbench-section">
-        <header class="section-intro">
+      <section
+        id="workbench"
+        class="workbench-section"
+        data-scroll-section
+        data-scroll-label="Workbench"
+      >
+        <header class="section-intro" data-reveal>
           <p class="site-kicker"><span /> Built for the loop</p>
           <h2>A real editor first.<br /><em>No prompt required.</em></h2>
           <p>
@@ -121,7 +134,7 @@ const outputs = [
           </p>
         </header>
 
-        <div class="feature-grid">
+        <div class="feature-grid" data-reveal data-reveal-delay="0.1">
           <article v-for="(feature, index) in features" :key="feature.label">
             <header>
               <span>0{{ index + 1 }}</span
@@ -132,9 +145,16 @@ const outputs = [
             <p>{{ feature.copy }}</p>
           </article>
         </div>
+      </section>
 
+      <section
+        id="workspace"
+        class="workspace-section"
+        data-scroll-section
+        data-scroll-label="Local desk"
+      >
         <div class="workspace-story">
-          <div class="workspace-copy">
+          <div class="workspace-copy" data-reveal>
             <p class="site-kicker"><span /> Your local desk</p>
             <h3>Open where you left off.</h3>
             <p>
@@ -156,7 +176,7 @@ const outputs = [
               </div>
             </dl>
           </div>
-          <figure class="workspace-shot">
+          <figure class="workspace-shot" data-reveal data-reveal-delay="0.12">
             <img
               :src="homeScreenshot"
               alt="Zakape Studio Home tab with recent work, changelog, and workspace details"
@@ -171,8 +191,13 @@ const outputs = [
         </div>
       </section>
 
-      <section id="assistant" class="assistant-section">
-        <div class="assistant-copy">
+      <section
+        id="assistant"
+        class="assistant-section"
+        data-scroll-section
+        data-scroll-label="Assistant"
+      >
+        <div class="assistant-copy" data-reveal>
           <p class="site-kicker light"><span /> Optional by design</p>
           <h2>Your model.<br />Your endpoint.<br /><em>Your approval.</em></h2>
           <p>
@@ -204,7 +229,7 @@ const outputs = [
           </ul>
         </div>
 
-        <div class="assistant-visual">
+        <div class="assistant-visual" data-reveal data-reveal-delay="0.12">
           <figure class="assistant-shot">
             <img
               :src="assistantScreenshot"
@@ -233,12 +258,17 @@ const outputs = [
         </div>
       </section>
 
-      <section class="output-section" aria-labelledby="output-heading">
-        <header>
+      <section
+        class="output-section"
+        aria-labelledby="output-heading"
+        data-scroll-section
+        data-scroll-label="Outputs"
+      >
+        <header data-reveal>
           <p class="site-kicker"><span /> Leave with files</p>
           <h2 id="output-heading">From the canvas<br />to the build.</h2>
         </header>
-        <div class="output-list">
+        <div class="output-list" data-reveal data-reveal-delay="0.1">
           <article v-for="([kind, format, detail], index) in outputs" :key="format">
             <span>0{{ index + 1 }} / {{ kind }}</span
             ><strong>{{ format }}</strong
@@ -247,16 +277,21 @@ const outputs = [
         </div>
       </section>
 
-      <section id="open-source" class="open-section">
+      <section
+        id="open-source"
+        class="open-section"
+        data-scroll-section
+        data-scroll-label="Open source"
+      >
         <div class="open-mark" aria-hidden="true">
           <Palette :size="26" />
           <span v-for="pixel in 25" :key="pixel" />
         </div>
-        <div>
+        <div data-reveal>
           <p class="site-kicker"><span /> Built in public</p>
           <h2>The studio belongs to the artists who shape it.</h2>
         </div>
-        <div class="open-copy">
+        <div class="open-copy" data-reveal data-reveal-delay="0.12">
           <p>
             Zakape is MIT licensed. Its project format, roadmap, architecture, privacy notes, and
             visual QA live beside the source.

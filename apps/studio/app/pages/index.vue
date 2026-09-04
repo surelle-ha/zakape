@@ -88,6 +88,7 @@ const {
 const { closeRequest, requestProjectClose, requestApplicationClose, cancelClose } =
   useCloseConfirmation()
 const appWindow = useAppWindow()
+const { dialogOpen: accountDialogOpen, initialize: initializeGoogleAccount } = useGoogleAccount()
 const exportOpen = ref(false)
 const inspectorOpen = ref(false)
 const timelineOpen = useState<boolean>('timeline-open', () => true)
@@ -322,7 +323,8 @@ const keydown = (event: KeyboardEvent) => {
   }
   if (event.key === 'Escape') {
     if (modelConnectionOpen.value) return
-    if (shortcutGuideOpen.value) shortcutGuideOpen.value = false
+    if (accountDialogOpen.value) accountDialogOpen.value = false
+    else if (shortcutGuideOpen.value) shortcutGuideOpen.value = false
     else if (walkthroughOpen.value) void completeWalkthrough()
     else if (inspectorOpen.value) inspectorOpen.value = false
     else if (assistantOpen.value) assistantOpen.value = false
@@ -330,7 +332,13 @@ const keydown = (event: KeyboardEvent) => {
     else clearSelection()
     return
   }
-  if (shortcutGuideOpen.value || walkthroughOpen.value || closeRequest.value) return
+  if (
+    accountDialogOpen.value ||
+    shortcutGuideOpen.value ||
+    walkthroughOpen.value ||
+    closeRequest.value
+  )
+    return
   if (['f5', 'f6', 'f11', 'f12'].includes(key) || (event.altKey && key.startsWith('arrow'))) {
     event.preventDefault()
     return
@@ -552,7 +560,7 @@ watch(closeRequest, () => {
 
 onMounted(async () => {
   unlistenWindowClose = await appWindow.onCloseRequested(requestApplicationClose)
-  await refreshProjects()
+  await Promise.all([refreshProjects(), initializeGoogleAccount()])
   initialized.value = true
   window.addEventListener('keydown', keydown, true)
   window.addEventListener('keyup', keyup)
@@ -571,7 +579,7 @@ onBeforeUnmount(() => {
     <main
       class="studio-shell"
       :class="{ 'home-active': screen === 'home', 'timeline-collapsed': !timelineOpen }"
-      :inert="launcherOpen || Boolean(closeRequest)"
+      :inert="launcherOpen || accountDialogOpen || Boolean(closeRequest)"
       data-testid="app-shell"
       @click="exportOpen = false"
       @contextmenu.prevent
@@ -929,6 +937,7 @@ onBeforeUnmount(() => {
     />
 
     <AssistantDrawer :open="assistantOpen" @close="assistantOpen = false" />
+    <AccountDialog :open="accountDialogOpen" @close="accountDialogOpen = false" />
     <ShortcutGuide :open="shortcutGuideOpen" @close="shortcutGuideOpen = false" />
     <EditorWalkthrough :open="walkthroughOpen" @complete="completeWalkthrough" />
 

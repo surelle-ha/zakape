@@ -12,6 +12,7 @@ import {
   Palette,
   ShieldCheck,
   Sparkles,
+  UserRound,
 } from '@lucide/vue'
 import type { WorkspaceProjectSummary } from '~/composables/useProjectRepository'
 import zakapeMark from '../../../../assets/brand/zakape-icon.png'
@@ -30,6 +31,7 @@ const emit = defineEmits<{
 }>()
 
 const { currentVersion } = useAppUpdater()
+const { account, dialogOpen: accountDialogOpen } = useGoogleAccount()
 const totalFrames = computed(() =>
   props.projects.reduce((total, project) => total + project.frameCount, 0),
 )
@@ -106,6 +108,17 @@ function updatedLabel(value: string) {
         <div class="home-brand-swatches"><i /><i /><i /><i /></div>
         <small>{{ workspaceDirectory }}</small>
       </div>
+      <button type="button" class="home-account-action" @click="accountDialogOpen = true">
+        <img v-if="account?.picture" :src="account.picture" width="24" height="24" alt="" />
+        <UserRound v-else :size="15" />
+        <span
+          ><strong>{{ account?.name || 'Guest workspace' }}</strong
+          ><small>{{
+            account ? 'Google account connected' : 'Optional desktop sign-in'
+          }}</small></span
+        >
+        <ArrowRight :size="13" />
+      </button>
     </header>
 
     <section class="home-ledger" aria-label="Workspace summary">

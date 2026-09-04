@@ -6337,6 +6337,14 @@ kbd {
 }
 
 @media (max-width: 1023px) {
+  .app-frame {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .app-statusbar {
+    display: none;
+  }
+
   .assistant-drawer {
     top: calc(env(safe-area-inset-top) + 44px);
     bottom: calc(env(safe-area-inset-bottom) + 18px);

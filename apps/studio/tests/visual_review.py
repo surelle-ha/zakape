@@ -8,8 +8,7 @@ BASE_URL = "http://127.0.0.1:3300"
 
 
 def wait_for_studio(page):
-    page.goto(BASE_URL)
-    page.wait_for_load_state("networkidle")
+    page.goto(BASE_URL, wait_until="domcontentloaded")
     page.get_by_test_id("app-splash").wait_for(state="hidden", timeout=30_000)
     page.get_by_test_id("project-launcher").wait_for(state="hidden")
     page.get_by_role("status", name="Indexing your workspace…").wait_for(
@@ -39,7 +38,7 @@ def main():
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         splash = browser.new_page(viewport={"width": 1440, "height": 960})
-        splash.goto(f"{BASE_URL}/?splash=hold")
+        splash.goto(f"{BASE_URL}/?splash=hold", wait_until="domcontentloaded")
         splash.get_by_test_id("app-splash").wait_for(state="visible")
         splash.wait_for_function("document.fonts.status === 'loaded'")
         splash.wait_for_function(

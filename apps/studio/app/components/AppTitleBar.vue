@@ -121,7 +121,7 @@ watch(
   >
     <div class="title-identity" data-tauri-drag-region>
       <img class="title-mark" :src="zakapeMark" alt="" aria-hidden="true" />
-      <strong data-tauri-drag-region>ZAKAPE</strong>
+      <strong data-tauri-drag-region>ZAKAPE STUDIO</strong>
       <span data-tauri-drag-region>{{ documentTitle }}</span>
     </div>
 

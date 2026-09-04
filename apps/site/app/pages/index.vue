@@ -1,17 +1,25 @@
 <script setup lang="ts">
 import {
+  ArrowDown,
   ArrowRight,
+  Bot,
   Check,
+  Code2,
   Download,
   Eye,
+  Film,
   FileJson,
-  Code2,
-  Grid3X3,
+  Frame,
   Layers3,
   LockKeyhole,
   MousePointer2,
+  Palette,
+  Play,
+  ShieldCheck,
   Sparkles,
 } from '@lucide/vue'
+import homeScreenshot from '../../../../docs/ui-snapshots/workspace-home-tab.png'
+import assistantScreenshot from '../../../../docs/ui-snapshots/assistant-drawer.png'
 
 const repository = 'https://github.com/surelle-ha/zakape'
 
@@ -19,18 +27,34 @@ const features = [
   {
     icon: MousePointer2,
     label: 'Pixel-native tools',
-    copy: 'Pencil, eraser, fill, picker, lines, shapes, grids, zoom, and an undo history built for tiny decisions.',
+    copy: 'Draw, fill, sample, mirror, dither, select, transform, and pan without leaving the canvas loop.',
+    key: 'P',
   },
   {
     icon: Layers3,
-    label: 'Layers × frames',
-    copy: 'Build motion in a real timeline with layer visibility, opacity, per-frame timing, duplicate frames, and onion skinning.',
+    label: 'Independent layers',
+    copy: 'Separate silhouette, color, and detail with per-layer names, visibility, opacity, and blend state.',
+    key: 'F2',
+  },
+  {
+    icon: Film,
+    label: 'Frame-by-frame motion',
+    copy: 'Reorder frames, tune timing, use onion skinning, and watch the animation while you work.',
+    key: 'O',
   },
   {
     icon: FileJson,
-    label: 'Game-ready output',
-    copy: 'Export PNG, animated GIF, sprite-sheet PNG with JSON metadata, or the portable open .zakape project format.',
+    label: 'Outputs that travel',
+    copy: 'Ship a frame, animated GIF, sprite sheet with metadata, or the open project file.',
+    key: 'E',
   },
+]
+
+const outputs = [
+  ['Still', 'PNG', 'Native or scaled'],
+  ['Motion', 'GIF', 'Per-frame timing'],
+  ['Engine', 'Sheet + JSON', 'Predictable metadata'],
+  ['Project', '.zakape', 'Readable and portable'],
 ]
 </script>
 
@@ -38,8 +62,8 @@ const features = [
   <div class="site-shell">
     <header class="site-nav">
       <a href="#top" class="site-logo" aria-label="Zakape home">
-        <span><i /><i /><i /><i /></span>
-        <strong>ZAKAPE</strong>
+        <img src="/icon.png" alt="" width="30" height="30" />
+        <span><strong>Zakape</strong><small>Pixel studio</small></span>
       </a>
       <nav aria-label="Primary navigation">
         <a href="#workbench">Workbench</a>
@@ -52,31 +76,39 @@ const features = [
     <main id="top">
       <section class="hero-section">
         <div class="hero-copy">
-          <p class="site-kicker"><span /> Open-source desktop sprite editor</p>
-          <h1>Draw every pixel.<br /><em>Delegate the fussy bits.</em></h1>
+          <p class="site-kicker"><span /> Independent pixel studio</p>
+          <h1>Draw every pixel.<br /><em>Make every frame count.</em></h1>
           <p class="hero-lede">
-            Zakape is a precise, offline-first animation workbench with an optional model assistant.
-            Make the art yourself; invite your model when a bounded edit would save time.
+            A focused, local-first workspace for sprites and animation. Work by hand from first mark
+            to final export, then invite your own model only when it earns a place in the process.
           </p>
           <div class="hero-actions">
-            <a :href="`${repository}/releases`" class="cta-primary"
-              ><Download :size="17" /> Get the alpha <ArrowRight :size="15"
-            /></a>
-            <a :href="repository" class="cta-secondary"><Code2 :size="16" /> Follow development</a>
+            <a :href="`${repository}/releases`" class="cta-primary">
+              <Download :size="17" /> Download alpha <ArrowRight :size="15" />
+            </a>
+            <a :href="repository" class="cta-secondary"><Code2 :size="16" /> Follow the build</a>
           </div>
-          <div class="hero-proof">
+          <div class="hero-proof" aria-label="Project qualities">
             <span><Check :size="13" /> No account</span>
-            <span><Check :size="13" /> Works without AI</span>
+            <span><Check :size="13" /> Offline editor</span>
             <span><Check :size="13" /> MIT licensed</span>
           </div>
         </div>
+
+        <div class="hero-index" aria-label="Workbench coordinates">
+          <span>CANVAS / 01</span><i /><span>FRAME 01:04</span><i /><span>ZOOM 1600%</span>
+        </div>
+
         <div class="hero-visual">
-          <div class="visual-label"><span>01</span> The workbench <i /></div>
           <StudioMockup />
-          <div class="format-ticket">
-            <span>OUTPUT / 04</span><strong>PNG · GIF · JSON · .ZAKAPE</strong>
+          <div class="hero-note">
+            <span>REAL INTERFACE</span>
+            <strong>No concept render.</strong>
+            <small>Captured from the tested desktop build.</small>
           </div>
         </div>
+
+        <a href="#workbench" class="hero-scroll"><ArrowDown :size="14" /> Read the workbench</a>
       </section>
 
       <section id="workbench" class="workbench-section">
@@ -84,102 +116,150 @@ const features = [
           <p class="site-kicker"><span /> Built for the loop</p>
           <h2>A real editor first.<br /><em>No prompt required.</em></h2>
           <p>
-            Fast iteration depends on muscle memory, visible state, and outputs you can trust.
-            Zakape keeps those fundamentals close.
+            Fast iteration comes from muscle memory, visible state, and files you can trust. Every
+            control stays close to the thing it changes.
           </p>
         </header>
-        <div class="feature-ledger">
+
+        <div class="feature-grid">
           <article v-for="(feature, index) in features" :key="feature.label">
-            <span class="feature-number">0{{ index + 1 }}</span>
-            <component :is="feature.icon" :size="22" :stroke-width="1.6" />
+            <header>
+              <span>0{{ index + 1 }}</span
+              ><kbd>{{ feature.key }}</kbd>
+            </header>
+            <component :is="feature.icon" :size="23" :stroke-width="1.5" />
             <h3>{{ feature.label }}</h3>
             <p>{{ feature.copy }}</p>
-            <i class="feature-rule" />
           </article>
+        </div>
+
+        <div class="workspace-story">
+          <div class="workspace-copy">
+            <p class="site-kicker"><span /> Your local desk</p>
+            <h3>Open where you left off.</h3>
+            <p>
+              Recent canvases carry their real previews. Changelogs, workspace location, and the
+              complete sprite loop live on an indismissable Home tab.
+            </p>
+            <dl>
+              <div>
+                <dt>Projects</dt>
+                <dd>Local by default</dd>
+              </div>
+              <div>
+                <dt>Working directory</dt>
+                <dd>Documents/zakape</dd>
+              </div>
+              <div>
+                <dt>Formats</dt>
+                <dd>Open, ordinary files</dd>
+              </div>
+            </dl>
+          </div>
+          <figure class="workspace-shot">
+            <img
+              :src="homeScreenshot"
+              alt="Zakape Studio Home tab with recent work, changelog, and workspace details"
+              width="1440"
+              height="960"
+              loading="lazy"
+            />
+            <figcaption>
+              <span>HOME / LIVE BUILD</span><small>Resume, create, or open</small>
+            </figcaption>
+          </figure>
         </div>
       </section>
 
-      <section id="assistant" class="assistant-story">
+      <section id="assistant" class="assistant-section">
         <div class="assistant-copy">
           <p class="site-kicker light"><span /> Optional by design</p>
-          <h2>Your model.<br />Your endpoint.<br /><em>Your call.</em></h2>
+          <h2>Your model.<br />Your endpoint.<br /><em>Your approval.</em></h2>
           <p>
-            Connect any compatible hosted or local model. Zakape sends only the active art context,
-            turns the response into a small set of validated pixel operations, and waits for your
-            approval.
+            Connect local Ollama or a compatible endpoint. The assistant works against an explicit
+            frame or sheet scope, inspects its draft, and returns a reviewable proposal.
           </p>
           <ul>
             <li>
-              <LockKeyhole :size="16" /><span
-                ><strong>Keys stay in memory</strong
-                ><small>No secret is stored in the project database.</small></span
+              <LockKeyhole :size="17" />
+              <span
+                ><strong>Private configuration</strong
+                ><small>Keys stay on your device.</small></span
               >
             </li>
             <li>
-              <Eye :size="16" /><span
-                ><strong>Review before apply</strong
-                ><small>Every proposal is inspectable and becomes one undo step.</small></span
+              <Eye :size="17" />
+              <span
+                ><strong>Visible before apply</strong
+                ><small>Inspect every proposed result.</small></span
               >
             </li>
             <li>
-              <Grid3X3 :size="16" /><span
-                ><strong>Bounded edit language</strong
-                ><small>No shell, filesystem, or unrestricted code execution.</small></span
+              <ShieldCheck :size="17" />
+              <span
+                ><strong>Bounded operations</strong
+                ><small>No shell or unrestricted code.</small></span
               >
             </li>
           </ul>
         </div>
-        <div class="operation-sheet">
-          <header>
-            <span><Sparkles :size="14" /> MODEL PROPOSAL</span><b>waiting for review</b>
-          </header>
-          <div class="prompt-line">
-            <small>REQUEST</small>
-            <p>Add an orchid rim light. Preserve the violet silhouette and 8-color palette.</p>
+
+        <div class="assistant-visual">
+          <figure class="assistant-shot">
+            <img
+              :src="assistantScreenshot"
+              alt="Zakape Studio with the Art assistant drawer open beside the canvas"
+              width="1440"
+              height="960"
+              loading="lazy"
+            />
+            <figcaption><Bot :size="13" /> AGENTIC WORKSPACE / REAL CAPTURE</figcaption>
+          </figure>
+          <div class="assistant-protocol">
+            <header><Sparkles :size="14" /><span>REVIEW SEQUENCE</span></header>
+            <ol>
+              <li>
+                <span>01</span><strong>Describe</strong><small>Set intent and edit scope</small>
+              </li>
+              <li>
+                <span>02</span><strong>Inspect</strong
+                ><small>Agent checks its rendered draft</small>
+              </li>
+              <li>
+                <span>03</span><strong>Approve</strong><small>Apply as one undoable edit</small>
+              </li>
+            </ol>
           </div>
-          <div class="operation-list">
-            <p><span>01</span><code>set_pixels</code><b>8 coordinates</b></p>
-            <p><span>02</span><code>replace_palette_color</code><b>#FFD36A → #FF875F</b></p>
-          </div>
-          <div class="operation-preview">
-            <div class="mini-grid">
-              <i
-                v-for="cell in 64"
-                :key="cell"
-                :class="{
-                  hot: [14, 22, 30, 38, 46, 54].includes(cell),
-                  mint: [19, 20, 27, 28, 35, 36, 43, 44].includes(cell),
-                }"
-              />
-            </div>
-            <div><span>14 px</span><small>proposed delta</small></div>
-          </div>
-          <footer>
-            <button type="button">Discard</button
-            ><button type="button" class="apply"><Check :size="14" /> Apply edit</button>
-          </footer>
         </div>
       </section>
 
-      <section class="output-band">
-        <div><span>FRAME</span><strong>PNG</strong><small>Scaled or native</small></div>
-        <div><span>MOTION</span><strong>GIF</strong><small>Per-frame timing</small></div>
-        <div>
-          <span>ENGINE</span><strong>SHEET + JSON</strong><small>Predictable metadata</small>
+      <section class="output-section" aria-labelledby="output-heading">
+        <header>
+          <p class="site-kicker"><span /> Leave with files</p>
+          <h2 id="output-heading">From the canvas<br />to the build.</h2>
+        </header>
+        <div class="output-list">
+          <article v-for="([kind, format, detail], index) in outputs" :key="format">
+            <span>0{{ index + 1 }} / {{ kind }}</span
+            ><strong>{{ format }}</strong
+            ><small>{{ detail }}</small>
+          </article>
         </div>
-        <div><span>PROJECT</span><strong>.ZAKAPE</strong><small>Readable, open JSON</small></div>
       </section>
 
       <section id="open-source" class="open-section">
-        <div class="open-pixels" aria-hidden="true"><i v-for="pixel in 24" :key="pixel" /></div>
+        <div class="open-mark" aria-hidden="true">
+          <Palette :size="26" />
+          <span v-for="pixel in 25" :key="pixel" />
+        </div>
         <div>
           <p class="site-kicker"><span /> Built in public</p>
-          <h2>The workbench should belong to the artists who shape it.</h2>
+          <h2>The studio belongs to the artists who shape it.</h2>
         </div>
         <div class="open-copy">
           <p>
-            Zakape is MIT licensed. The format, roadmap, research, architecture, and QA notes live
-            in the repository alongside the code.
+            Zakape is MIT licensed. Its project format, roadmap, architecture, privacy notes, and
+            visual QA live beside the source.
           </p>
           <a :href="repository"><Code2 :size="17" /> Read the source <ArrowRight :size="15" /></a>
         </div>
@@ -187,13 +267,15 @@ const features = [
     </main>
 
     <footer class="site-footer">
-      <a href="#top" class="site-logo"
-        ><span><i /><i /><i /><i /></span><strong>ZAKAPE</strong></a
-      >
-      <p>Pixel by pixel. Built in the open.</p>
+      <a href="#top" class="site-logo">
+        <img src="/icon.png" alt="" width="30" height="30" />
+        <span><strong>Zakape</strong><small>Pixel studio</small></span>
+      </a>
+      <p><Frame :size="12" /> Pixel by pixel. Built in the open.</p>
       <div>
-        <a :href="repository">GitHub</a><a :href="`${repository}/blob/main/README.md`">Docs</a
-        ><a :href="`${repository}/blob/main/LICENSE`">MIT License</a>
+        <a :href="repository">GitHub</a>
+        <a :href="`${repository}/blob/main/README.md`">Docs</a>
+        <a :href="`${repository}/releases`"><Play :size="11" /> Releases</a>
       </div>
     </footer>
   </div>

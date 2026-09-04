@@ -35,6 +35,10 @@ test.describe('phone workbench', () => {
     await page.goto('/')
     await expect(page.getByTestId('app-titlebar')).toBeHidden()
     await expect(page.getByRole('contentinfo', { name: 'Application status' })).toBeHidden()
+    await expect(page.locator('meta[name="viewport"]')).toHaveAttribute(
+      'content',
+      /maximum-scale=1, user-scalable=no/,
+    )
     await expect(page.getByTestId('project-launcher')).toBeHidden()
     await openEditor(page, 'Pocket courier')
 
@@ -304,10 +308,7 @@ test.describe('tablet workbench', () => {
     await expect(page.getByTestId('app-titlebar')).toBeHidden()
     await expect(page.getByTestId('app-splash')).toBeVisible()
     await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
-    await expect(page.getByRole('contentinfo', { name: 'Application status' })).toBeVisible()
-    await expect(page.getByRole('contentinfo', { name: 'Application status' })).toContainText(
-      /v\d+\.\d+\.\d+/,
-    )
+    await expect(page.getByRole('contentinfo', { name: 'Application status' })).toBeHidden()
     await expect(page.getByTestId('project-launcher')).toBeHidden()
 
     await openEditor(page, 'Tablet tiles', 48)

@@ -7,8 +7,9 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   modules: ['@nuxt/eslint'],
   css: [
-    '@fontsource-variable/space-grotesk/index.css',
-    '@fontsource-variable/jetbrains-mono/index.css',
+    '@fontsource-variable/bricolage-grotesque/index.css',
+    '@fontsource-variable/handjet/full.css',
+    '@fontsource-variable/azeret-mono/index.css',
     '~/assets/css/main.css',
   ],
   vite: { plugins: [tailwindcss() as never] },
@@ -16,7 +17,7 @@ export default defineNuxtConfig({
   app: {
     baseURL,
     head: {
-      title: 'Zakape — Open-source pixel workbench',
+      title: 'Zakape: Open-source pixel workbench',
       htmlAttrs: { lang: 'en' },
       meta: [
         {
@@ -24,8 +25,8 @@ export default defineNuxtConfig({
           content:
             'A serious open-source sprite editor with an optional bring-your-own-model art assistant.',
         },
-        { name: 'theme-color', content: '#f5f2fb' },
-        { property: 'og:title', content: 'Zakape — Open-source pixel workbench' },
+        { name: 'theme-color', content: '#090b0f' },
+        { property: 'og:title', content: 'Zakape: Open-source pixel workbench' },
         { property: 'og:description', content: 'Draw every pixel. Delegate the fussy bits.' },
         { property: 'og:type', content: 'website' },
       ],

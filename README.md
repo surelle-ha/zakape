@@ -1,10 +1,16 @@
-![Zakape — open-source pixel workbench](assets/brand/zakape-banner.png)
+![Zakape: open-source pixel workbench](assets/brand/zakape-banner.png)
 
 # Zakape
 
-Zakape is an open-source pixel-art and sprite-animation workbench for desktop, Android phones, and tablets. It keeps the dependable parts of a traditional sprite editor: precise tools, layers, frames, onion skinning, palettes, and production exports. An optional model assistant proposes reviewable pixel operations through local Ollama or a compatible API you choose.
+> A local-first pixel studio for drawing, animating, and shipping sprites, with an optional assistant that works under the artist's direction.
 
-The native app is built with Tauri 2, Rust, Nuxt, Vue, Tailwind CSS, Lucide, and PGlite. The public website is a separate Nuxt app in the same pnpm workspace.
+## Summary
+
+Zakape is an open-source pixel-art and sprite-animation studio for desktop, Android phones, and tablets. It combines precise drawing tools, independent layers, a frame timeline, onion skinning, palette workflows, selections, and production-ready exports in one focused workspace.
+
+## Description
+
+Create sprites frame by frame, preview motion as you work, and export PNG, GIF, sprite-sheet metadata, or a portable `.zakape` project. When repetitive cleanup or a controlled variation would help, connect local Ollama or a compatible model endpoint. Assistant proposals stay scoped, reviewable, and reversible; drawing and animation remain fully usable without AI.
 
 ## Project status
 
@@ -12,7 +18,7 @@ Zakape is in early alpha. The current milestone focuses on a reliable editor loo
 
 ## Quick start
 
-Prerequisites: the Node.js and Rust versions pinned by `.node-version` and `rust-toolchain.toml`, pnpm 10.17.1, and the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/).
+Zakape uses a pnpm workspace with Nuxt applications and a Tauri 2/Rust native shell. Prerequisites are the Node.js and Rust versions pinned by `.node-version` and `rust-toolchain.toml`, pnpm 10.17.1, and the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```bash
 pnpm install
@@ -32,10 +38,16 @@ pnpm build:android:fdroid  # unsigned release APK for F-Droid signing
 pnpm build:android:bundle  # signed Play bundle when a keystore is configured
 ```
 
+## Development guide
+
+The editor and website use Nuxt, Vue, Tailwind CSS, and Lucide icons. Tauri 2 and Rust provide the desktop/mobile shell and native commands; PGlite provides local persistence. The workspace also uses Vitest and Playwright for behavior and visual regression coverage.
+
+Start with the comprehensive [agent and contributor guide](AGENT.md), then read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [project workspace](docs/project-workspace.md), [brand guide](docs/brand.md), [Android build guide](docs/android.md), [F-Droid notes](docs/fdroid.md), [model assistant guide](docs/ai/model-assistant.md), [privacy policy](docs/privacy.md), and [release process](docs/release.md) cover their respective workflows.
+
 ## Repository map
 
 ```text
-apps/studio/        Nuxt sprite editor and Tauri shell
+apps/studio/        Editor application and native packaging
 apps/site/          Public project website
 assets/brand/       Canonical source artwork, generated banner, and icon manifest
 docs/               Architecture, AI, release, and QA notes
@@ -49,8 +61,6 @@ docs/               Architecture, AI, release, and QA notes
 - Model output is parsed into a small, validated edit language and previewed before application.
 - Exports are ordinary files: PNG, sprite-sheet PNG + JSON, GIF, and `.zakape` project JSON.
 - Visual quality and keyboard accessibility are tested as product behavior, not treated as polish debt.
-
-Before making a large change, read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [project workspace](docs/project-workspace.md), [brand guide](docs/brand.md), [Android build guide](docs/android.md), [F-Droid notes](docs/fdroid.md), [model assistant guide](docs/ai/model-assistant.md), [privacy policy](docs/privacy.md), and [release process](docs/release.md) cover their respective workflows.
 
 ## License
 

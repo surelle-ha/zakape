@@ -27,13 +27,14 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: 'Zakape — Pixel workbench',
+      title: 'Zakape Studio: Pixel workbench',
       meta: [
         { name: 'description', content: 'An open-source pixel art and animation workbench.' },
         { name: 'theme-color', content: '#0f0d17' },
         {
           name: 'viewport',
-          content: 'width=device-width, initial-scale=1, viewport-fit=cover',
+          content:
+            'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover',
         },
       ],
       link: [{ rel: 'icon', href: '/icon.png', type: 'image/png' }],

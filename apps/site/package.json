@@ -13,8 +13,9 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@fontsource-variable/jetbrains-mono": "^5.2.8",
-    "@fontsource-variable/space-grotesk": "^5.2.8",
+    "@fontsource-variable/azeret-mono": "^5.3.0",
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/handjet": "^5.3.0",
     "@lucide/vue": "^1.38.0",
     "nuxt": "^4.5.2",
     "vue": "^3.5.21",

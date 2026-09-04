@@ -4,10 +4,11 @@ Zakape's canonical artwork lives in `assets/brand`. Keep source artwork there ra
 
 - `zakape-icon.png` is the transparent brush-and-Z mark used inside product surfaces.
 - `zakape-base.png` is the square app-icon composition used to generate native and web icons.
+- `zakape-app-icon.png` is the generated safe-area composition used by desktop, mobile, web, and store icons.
 - `zakape-banner.png` is the 1,024 × 500 feature graphic used by the README and suitable for the Google Play store listing.
 - `icon-manifest.json` controls the Tauri icon generator, including Android foreground scaling and background color.
 
-Run `python scripts/generate_brand_assets.py` after changing either source image. It rebuilds the feature graphic and the derived PNG favicons in both apps' public directories. Rebuild native desktop, Windows, Android, and iOS icon sets with:
+Run `python scripts/generate_brand_assets.py` after changing either source image. It rebuilds the feature graphic, padded app-icon source, web favicons, and F-Droid icon. Rebuild native desktop, Windows, Android, and iOS icon sets with:
 
 ```powershell
 pnpm --filter @zakape/studio tauri icon ../../assets/brand/icon-manifest.json

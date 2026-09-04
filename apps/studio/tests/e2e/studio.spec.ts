@@ -81,6 +81,7 @@ const copyFrameRight = async (page: import('@playwright/test').Page, index = 0) 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await expect(page.getByTestId('app-titlebar')).toBeVisible()
+  await expect(page.getByTestId('app-titlebar')).toContainText('ZAKAPE STUDIO')
   await expect(page.locator('.home-workspace')).toBeVisible()
   await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
   await expect(page.getByTestId('project-launcher')).toBeHidden()

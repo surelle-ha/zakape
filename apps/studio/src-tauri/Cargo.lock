@@ -5896,7 +5896,7 @@ dependencies = [
 
 [[package]]
 name = "zakape"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "ah-asefile",
  "base64 0.22.1",

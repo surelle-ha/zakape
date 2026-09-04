@@ -125,9 +125,11 @@ jobs:
           version: 10.17.1
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
       - name: Install universal macOS targets
         if: matrix.platform == 'macos-latest'
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
@@ -220,7 +222,7 @@ jobs:
           version: 10.17.1
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: pnpm
       - uses: actions/setup-java@v5
         with:
@@ -235,6 +237,7 @@ jobs:
           echo "NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: 1.97.1
           targets: aarch64-linux-android
       - uses: Swatinem/rust-cache@v2
         with:

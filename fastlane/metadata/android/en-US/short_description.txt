@@ -1,0 +1,1 @@
+Create pixel art and sprite animations with precise, local-first tools.

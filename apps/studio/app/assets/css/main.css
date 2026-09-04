@@ -2684,9 +2684,15 @@ button:disabled {
 }
 .pixel-canvas {
   display: block;
+  background-color: #171a20;
+  background-image: none;
   image-rendering: pixelated;
   touch-action: none;
   cursor: crosshair;
+}
+.pixel-canvas.show-transparency {
+  background-image: conic-gradient(#2b3039 25%, #171a20 0 50%, #2b3039 0 75%, #171a20 0);
+  background-size: calc(var(--checker-tile-size) * 2) calc(var(--checker-tile-size) * 2);
 }
 .pixel-canvas.cursor-grab {
   cursor: grab;

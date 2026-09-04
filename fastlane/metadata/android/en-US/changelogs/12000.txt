@@ -1,0 +1,1 @@
+Refined canvas tools and workspace controls, including transformable selections, a circle tool, improved canvas navigation, and a more consistent responsive layout.

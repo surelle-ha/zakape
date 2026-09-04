@@ -248,21 +248,21 @@ test('keeps new layers transparent and independent, then renames the selected la
         return total
       })
 
-  expect(await alphaTotal(0)).toBeGreaterThan(0)
+  await expect.poll(() => alphaTotal(0)).toBeGreaterThan(0)
   await page.getByRole('button', { name: 'Add fresh layer' }).click()
   await expect(layerRows).toHaveCount(2)
-  expect(await alphaTotal(0)).toBe(0)
-  expect(await alphaTotal(1)).toBeGreaterThan(0)
+  await expect.poll(() => alphaTotal(0)).toBe(0)
+  await expect.poll(() => alphaTotal(1)).toBeGreaterThan(0)
 
   await canvas.click({ position: { x: canvasBox!.width / 2 + 16, y: canvasBox!.height / 2 } })
-  expect(await alphaTotal(0)).toBeGreaterThan(0)
+  await expect.poll(() => alphaTotal(0)).toBeGreaterThan(0)
   await page.keyboard.press('F2')
   await page.getByRole('textbox', { name: 'Layer name' }).fill('Highlights')
   await page.getByRole('textbox', { name: 'Layer name' }).press('Enter')
   await expect(layerRows.nth(0).getByText('Highlights', { exact: true })).toBeVisible()
 
   await layerRows.nth(1).getByRole('button', { name: /Hide/ }).click()
-  expect(await alphaTotal(0)).toBeGreaterThan(0)
+  await expect.poll(() => alphaTotal(0)).toBeGreaterThan(0)
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'independent-layers.png') })
 })

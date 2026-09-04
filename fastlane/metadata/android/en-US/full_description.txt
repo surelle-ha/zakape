@@ -1,0 +1,18 @@
+Zakape is a local-first pixel art and sprite animation workbench built for focused drawing on phones, tablets, and desktop computers.
+
+Create artwork without an account or cloud service. Projects stay on your device and can be exported as portable Zakape project files.
+
+Features include:
+
+* Pencil, eraser, fill, line, rectangle, circle, mirror, and dithering tools
+* Rectangular and lasso selections with move, resize, and rotation controls
+* Independent layers with visibility, opacity, and rename controls
+* Rearrangeable animation frames, per-frame timing, onion skinning, and live preview
+* RGBA, greyscale, and indexed color modes
+* Built-in palettes, custom palettes, primary and secondary drawing colors
+* PNG, sprite-sheet, JSON, GIF, and project-file exports
+* Touch-friendly zooming and a responsive phone and tablet workspace
+
+The optional art assistant can connect to a model endpoint chosen by the user, including a local Ollama service. Model output is converted into reviewable pixel edits before it changes a project. The editor and every core drawing feature work without the assistant or a network connection.
+
+Zakape is free and open-source software licensed under the MIT License.

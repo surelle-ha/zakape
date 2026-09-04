@@ -1,4 +1,5 @@
 import type { CanvasBackground, ColorMode, Layer, Pixel, SpriteProject } from '~/types/editor'
+import { toRaw } from 'vue'
 import { defaultPalette, normalizePalette } from '~/utils/palettes'
 
 export const makeId = (prefix: string) =>
@@ -8,7 +9,7 @@ export const emptyPixels = (width: number, height: number): Pixel[] =>
   Array.from({ length: width * height }, () => null)
 
 export const cloneProject = (project: SpriteProject): SpriteProject =>
-  JSON.parse(JSON.stringify(project)) as SpriteProject
+  structuredClone(toRaw(project))
 
 export const createBlankProject = (
   width = 32,

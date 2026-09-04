@@ -534,8 +534,12 @@ const keyup = (event: KeyboardEvent) => {
 watch(dirtyRevision, () => {
   if (!initialized.value || isPlaceholder.value) return
   if (autosaveTimer) window.clearTimeout(autosaveTimer)
-  const snapshot = cloneProject(project.value)
-  autosaveTimer = window.setTimeout(() => void saveProject(snapshot), 700)
+  const documentId = activeDocumentId.value
+  autosaveTimer = window.setTimeout(() => {
+    const document = documents.value.find((item) => item.id === documentId)
+    if (!document || document.placeholder) return
+    void saveProject(cloneProject(document.project))
+  }, 700)
 })
 
 watch(launcherOpen, (open) => {

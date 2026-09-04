@@ -15,6 +15,7 @@ const { project, activeFrameId, dirtyRevision } = useEditor()
 const canvas = ref<HTMLCanvasElement | null>(null)
 const animationFrameId = ref(activeFrameId.value)
 let timer: number | null = null
+let redrawFrame: number | null = null
 
 const displayedFrame = computed(
   () => props.frameId ?? (props.animate ? animationFrameId.value : activeFrameId.value),
@@ -26,14 +27,24 @@ const scale = computed(() =>
 const redraw = () => {
   const element = canvas.value
   if (!element) return
-  element.width = project.value.width * scale.value
-  element.height = project.value.height * scale.value
+  const width = project.value.width * scale.value
+  const height = project.value.height * scale.value
+  if (element.width !== width) element.width = width
+  if (element.height !== height) element.height = height
   const context = element.getContext('2d')!
   if (props.layerId) {
     drawLayerFrame(context, project.value, displayedFrame.value, props.layerId, scale.value)
   } else {
     drawProjectFrame(context, project.value, displayedFrame.value, scale.value)
   }
+}
+
+const scheduleRedraw = () => {
+  if (redrawFrame !== null) return
+  redrawFrame = window.requestAnimationFrame(() => {
+    redrawFrame = null
+    redraw()
+  })
 }
 
 const schedule = () => {
@@ -50,13 +61,28 @@ const schedule = () => {
   }, current.duration)
 }
 
-watch([project, displayedFrame, dirtyRevision, scale], redraw, { deep: true, flush: 'post' })
+watch(
+  [
+    () => project.value.id,
+    () => project.value.width,
+    () => project.value.height,
+    displayedFrame,
+    dirtyRevision,
+    scale,
+    () => props.layerId,
+  ],
+  scheduleRedraw,
+  { flush: 'post' },
+)
 watch(() => props.animate, schedule)
 onMounted(() => {
   redraw()
   schedule()
 })
-onBeforeUnmount(() => timer && window.clearTimeout(timer))
+onBeforeUnmount(() => {
+  if (timer) window.clearTimeout(timer)
+  if (redrawFrame !== null) window.cancelAnimationFrame(redrawFrame)
+})
 </script>
 
 <template>

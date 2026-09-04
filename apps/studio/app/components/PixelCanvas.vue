@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Pixel, PixelPoint, PixelSample } from '~/types/editor'
-import { drawProjectFrame, getCompositePixels } from '~/utils/render'
+import { drawPixelRuns, drawProjectFrame, getCompositePixels } from '~/utils/render'
 import {
   rasterFilledRectangle,
   rasterLassoSelection,
@@ -27,7 +27,6 @@ const {
   onionSkin,
   dirtyRevision,
   activePixels,
-  selection,
   activeSelection,
   beginStroke,
   paintPixel,
@@ -81,6 +80,7 @@ let pinchGesture: {
   host: HTMLElement
 } | null = null
 let lastPainted = ''
+let redrawFrame: number | null = null
 
 const canvasWidth = computed(() => project.value.width * zoom.value)
 const canvasHeight = computed(() => project.value.height * zoom.value)
@@ -243,21 +243,10 @@ const mirrorPoints = (point: PixelPoint): PixelPoint[] => {
 const redraw = () => {
   const element = canvas.value
   if (!element) return
-  element.width = canvasWidth.value
-  element.height = canvasHeight.value
+  if (element.width !== canvasWidth.value) element.width = canvasWidth.value
+  if (element.height !== canvasHeight.value) element.height = canvasHeight.value
   const context = element.getContext('2d')!
-  if (showTransparency.value) {
-    const checkerSize = Math.max(zoom.value * project.value.checkerSize, 4)
-    for (let y = 0; y < element.height; y += checkerSize) {
-      for (let x = 0; x < element.width; x += checkerSize) {
-        context.fillStyle = (x / checkerSize + y / checkerSize) % 2 ? '#171a20' : '#2b3039'
-        context.fillRect(x, y, checkerSize, checkerSize)
-      }
-    }
-  } else {
-    context.fillStyle = '#171a20'
-    context.fillRect(0, 0, element.width, element.height)
-  }
+  context.clearRect(0, 0, element.width, element.height)
 
   if (onionSkin.value && project.value.frames.length > 1) {
     const currentIndex = project.value.frames.findIndex((frame) => frame.id === activeFrameId.value)
@@ -265,16 +254,13 @@ const redraw = () => {
     if (previous) {
       context.save()
       context.globalAlpha = 0.24
-      context.fillStyle = '#c4b5fd'
-      getCompositePixels(project.value, previous.id).forEach((pixel, index) => {
-        if (!pixel) return
-        context.fillRect(
-          (index % project.value.width) * zoom.value,
-          Math.floor(index / project.value.width) * zoom.value,
-          zoom.value,
-          zoom.value,
-        )
-      })
+      drawPixelRuns(
+        context,
+        getCompositePixels(project.value, previous.id),
+        project.value.width,
+        zoom.value,
+        '#c4b5fd',
+      )
       context.restore()
     }
   }
@@ -388,6 +374,14 @@ const redraw = () => {
   }
 }
 
+const scheduleRedraw = () => {
+  if (redrawFrame !== null) return
+  redrawFrame = window.requestAnimationFrame(() => {
+    redrawFrame = null
+    redraw()
+  })
+}
+
 const pointFromEvent = (event: PointerEvent): PixelPoint => {
   const bounds = canvas.value!.getBoundingClientRect()
   return {
@@ -495,7 +489,7 @@ const updateSelectionTransform = (event: PointerEvent) => {
       resizedBounds(mode, pointFromEvent(event)),
     )
   }
-  redraw()
+  scheduleRedraw()
 }
 
 const resetSelectionTransform = () => {
@@ -528,7 +522,7 @@ const paintAt = (point: PixelPoint, color: Pixel) => {
   lastPainted = key
   if (activeTool.value === 'dither') paintDitherPixel(point.x, point.y, strokeColorTarget.value)
   else paintPixel(point.x, point.y, color)
-  redraw()
+  scheduleRedraw()
 }
 
 const paintStrokeAt = (point: PixelPoint, color: Pixel) => {
@@ -571,7 +565,7 @@ const beginToolAction = (
     return
   }
   if (activeTool.value === 'fill') {
-    touchMutationCheckpoint = fromTouch && floodFill(point.x, point.y, strokeColor.value)
+    touchMutationCheckpoint = floodFill(point.x, point.y, strokeColor.value, fromTouch) && fromTouch
     return
   }
   if (['line', 'rectangle', 'circle'].includes(activeTool.value)) {
@@ -667,7 +661,7 @@ const queueTouchAction = (event: PointerEvent) => {
   }, 110)
   pendingTouch = pending
   cursor.value = pending.point
-  redraw()
+  scheduleRedraw()
 }
 
 const beginPan = (event: PointerEvent) => {
@@ -739,7 +733,7 @@ const onPointerMove = async (event: PointerEvent) => {
     if (pendingTouch?.pointerId === event.pointerId) {
       pendingTouch.point = pointFromEvent(event)
       cursor.value = pendingTouch.point
-      redraw()
+      scheduleRedraw()
       return
     }
   }
@@ -759,22 +753,22 @@ const onPointerMove = async (event: PointerEvent) => {
   cursor.value = point
   if (movingSelection.value && selectionDragStart.value) {
     selectionOffset.value = boundedSelectionOffset(selectionDragStart.value, point)
-    redraw()
+    scheduleRedraw()
   } else if (drawing.value && activeTool.value === 'select-lasso') {
     const previous = selectionPath.value.at(-1) ?? point
     rasterLine(previous, point)
       .slice(1)
       .forEach((entry) => selectionPath.value.push(entry))
-    redraw()
+    scheduleRedraw()
   } else if (drawing.value && activeTool.value === 'select-rect') {
-    redraw()
+    scheduleRedraw()
   } else if (drawing.value && ['pencil', 'mirror', 'dither', 'eraser'].includes(activeTool.value)) {
     const points = lastStrokePoint.value ? rasterLine(lastStrokePoint.value, point) : [point]
     points.forEach((strokePoint) => paintStrokeAt(strokePoint, strokeColor.value))
     lastStrokePoint.value = point
   } else {
     hoveredSelectionHandle.value = selectionHandleFromEvent(event)
-    redraw()
+    scheduleRedraw()
   }
 }
 
@@ -804,7 +798,7 @@ const onPointerUp = (event: PointerEvent) => {
   if (selectionTransformMode.value) {
     finishSelectionTransform()
     canvas.value?.releasePointerCapture(event.pointerId)
-    redraw()
+    scheduleRedraw()
     return
   }
   if (movingSelection.value) {
@@ -813,7 +807,7 @@ const onPointerUp = (event: PointerEvent) => {
     selectionDragStart.value = null
     selectionOffset.value = { x: 0, y: 0 }
     canvas.value?.releasePointerCapture(event.pointerId)
-    redraw()
+    scheduleRedraw()
     return
   }
   if (!drawing.value) {
@@ -845,7 +839,7 @@ const onPointerUp = (event: PointerEvent) => {
   lastPainted = ''
   touchMutationCheckpoint = false
   canvas.value?.releasePointerCapture(event.pointerId)
-  redraw()
+  scheduleRedraw()
 }
 
 const onPointerCancel = (event: PointerEvent) => {
@@ -868,7 +862,7 @@ const onPointerCancel = (event: PointerEvent) => {
     pinchGesture = null
   }
   canvas.value?.releasePointerCapture(event.pointerId)
-  redraw()
+  scheduleRedraw()
 }
 
 const onPointerLeave = () => {
@@ -876,24 +870,25 @@ const onPointerLeave = () => {
     return
   cursor.value = null
   hoveredSelectionHandle.value = null
-  redraw()
+  scheduleRedraw()
 }
 
 watch(
   [
-    project,
+    () => project.value.id,
+    () => project.value.width,
+    () => project.value.height,
+    () => project.value.checkerSize,
     activeFrameId,
     activeTool,
-    selection,
+    activeSelection,
     zoom,
     showGrid,
-    showTransparency,
     onionSkin,
     dirtyRevision,
   ],
-  redraw,
+  scheduleRedraw,
   {
-    deep: true,
     flush: 'post',
   },
 )
@@ -901,6 +896,7 @@ onMounted(redraw)
 onBeforeUnmount(() => {
   cancelPendingTouch()
   activeTouches.clear()
+  if (redrawFrame !== null) window.cancelAnimationFrame(redrawFrame)
 })
 </script>
 
@@ -910,6 +906,7 @@ onBeforeUnmount(() => {
       ref="canvas"
       class="pixel-canvas"
       :class="{
+        'show-transparency': showTransparency,
         'cursor-grab': activeTool === 'hand' && !panning,
         'cursor-grabbing': panning,
         'cursor-select': isSelectionTool,
@@ -917,6 +914,7 @@ onBeforeUnmount(() => {
       :style="{
         width: `${canvasWidth}px`,
         height: `${canvasHeight}px`,
+        '--checker-tile-size': `${Math.max(zoom * project.checkerSize, 4)}px`,
         cursor: selectionCursor,
       }"
       :aria-label="`${project.name} pixel canvas, ${project.width} by ${project.height}`"

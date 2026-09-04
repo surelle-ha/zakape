@@ -4,7 +4,7 @@ Thanks for helping build Zakape. Keep changes small enough to review and include
 
 ## Development
 
-1. Install Node.js 22+, pnpm 10+, Rust stable, and Tauri 2 prerequisites.
+1. Install the Node.js and Rust versions pinned by `.node-version` and `rust-toolchain.toml`, pnpm 10.17.1, and the Tauri 2 prerequisites.
 2. Run `pnpm install`.
 3. Run `pnpm dev` for the editor or `pnpm dev:site` for the website.
 4. Before opening a pull request, run `pnpm check` and `pnpm build`.

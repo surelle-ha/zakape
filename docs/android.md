@@ -45,6 +45,16 @@ The Android package is exercised on a phone-sized Android 16 emulator that uses 
 
 The local ARM64 debug APK and debug AAB are also checked for package identity, version metadata, SDK levels, ABI contents, and signatures. The debug AAB validates bundle assembly only; Google Play releases must use the upload keystore configured below.
 
+## F-Droid release build
+
+F-Droid signs its own APK, so its build must not use a developer keystore. On a Unix-like build host with the pinned toolchain installed, run:
+
+```sh
+./scripts/build-fdroid.sh
+```
+
+The script refuses to build when `keystore.properties` is present, disables Nuxt telemetry, installs the frozen dependency graph, and produces an unsigned release APK. Gradle 8.14.3 is committed with both the matching wrapper JAR and the official distribution SHA-256. Store metadata and screenshots live under `fastlane/metadata/android/en-US/`; dependency provenance and scanner-facing details are recorded in [the F-Droid notes](fdroid.md).
+
 ## Google Play bundle
 
 Google Play requires a signed Android App Bundle. Generate an upload keystore once and protect it as a long-lived release credential:

@@ -7,6 +7,7 @@ const studioPackage = JSON.parse(
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-31',
+  telemetry: false,
   ssr: false,
   devtools: { enabled: false },
   modules: ['@nuxt/eslint'],

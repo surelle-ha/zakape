@@ -164,6 +164,131 @@ test.describe('phone workbench', () => {
       maxDiffPixelRatio: 0.015,
     })
   })
+
+  test('keeps large-canvas strokes and fills bounded to one render per frame', async ({ page }) => {
+    await page.addInitScript(() => {
+      const metrics = { fillRects: 0, clears: 0, widthWrites: 0, heightWrites: 0 }
+      Object.defineProperty(window, '__zakapeCanvasMetrics', { value: metrics })
+
+      const canvasPrototype = HTMLCanvasElement.prototype
+      const widthDescriptor = Object.getOwnPropertyDescriptor(canvasPrototype, 'width')!
+      const heightDescriptor = Object.getOwnPropertyDescriptor(canvasPrototype, 'height')!
+      Object.defineProperty(canvasPrototype, 'width', {
+        ...widthDescriptor,
+        set(value: number) {
+          if (this.dataset.testid === 'pixel-canvas') metrics.widthWrites += 1
+          widthDescriptor.set!.call(this, value)
+        },
+      })
+      Object.defineProperty(canvasPrototype, 'height', {
+        ...heightDescriptor,
+        set(value: number) {
+          if (this.dataset.testid === 'pixel-canvas') metrics.heightWrites += 1
+          heightDescriptor.set!.call(this, value)
+        },
+      })
+
+      const originalGetContext = canvasPrototype.getContext
+      canvasPrototype.getContext = function (...args: Parameters<typeof originalGetContext>) {
+        const context = originalGetContext.apply(this, args) as CanvasRenderingContext2D | null
+        if (
+          !context ||
+          (context as CanvasRenderingContext2D & { metricsWrapped?: boolean }).metricsWrapped
+        ) {
+          return context
+        }
+        ;(context as CanvasRenderingContext2D & { metricsWrapped?: boolean }).metricsWrapped = true
+        const originalFillRect = context.fillRect.bind(context)
+        const originalClearRect = context.clearRect.bind(context)
+        context.fillRect = (...fillArgs: Parameters<CanvasRenderingContext2D['fillRect']>) => {
+          if (context.canvas.dataset.testid === 'pixel-canvas') metrics.fillRects += 1
+          originalFillRect(...fillArgs)
+        }
+        context.clearRect = (...clearArgs: Parameters<CanvasRenderingContext2D['clearRect']>) => {
+          if (context.canvas.dataset.testid === 'pixel-canvas') metrics.clears += 1
+          originalClearRect(...clearArgs)
+        }
+        return context
+      } as typeof originalGetContext
+    })
+
+    await page.goto('/')
+    await openEditor(page, 'Large mobile study', 120)
+    const canvas = page.getByTestId('pixel-canvas')
+    const box = await canvas.boundingBox()
+    const start = { x: box!.x + 22, y: box!.y + 34 }
+
+    await page.mouse.move(start.x, start.y)
+    await page.waitForTimeout(40)
+    await page.evaluate(() => {
+      Object.assign(
+        (
+          window as Window & {
+            __zakapeCanvasMetrics: Record<string, number>
+          }
+        ).__zakapeCanvasMetrics,
+        { fillRects: 0, clears: 0, widthWrites: 0, heightWrites: 0 },
+      )
+    })
+    await page.mouse.down()
+    await page.mouse.move(start.x + 76, start.y, { steps: 20 })
+    await page.mouse.up()
+    await page.waitForTimeout(80)
+
+    const strokeMetrics = await page.evaluate(
+      () =>
+        (
+          window as Window & {
+            __zakapeCanvasMetrics: Record<string, number>
+          }
+        ).__zakapeCanvasMetrics,
+    )
+    expect(strokeMetrics.widthWrites).toBe(0)
+    expect(strokeMetrics.heightWrites).toBe(0)
+    expect(strokeMetrics.clears).toBeLessThanOrEqual(24)
+    expect(strokeMetrics.fillRects).toBeLessThan(500)
+
+    await page.keyboard.press('Control+z')
+    await page.waitForTimeout(40)
+    const afterUndo = await canvas.evaluate((element: HTMLCanvasElement) => {
+      const data = element.getContext('2d')!.getImageData(22, 34, 1, 1).data
+      return data[3]
+    })
+    expect(afterUndo).toBe(0)
+    await page.keyboard.press('Control+y')
+    await page.waitForTimeout(40)
+    const afterRedo = await canvas.evaluate((element: HTMLCanvasElement) => {
+      const data = element.getContext('2d')!.getImageData(22, 34, 1, 1).data
+      return data[3]
+    })
+    expect(afterRedo).toBeGreaterThan(0)
+
+    await page.getByTestId('tool-fill').click()
+    await page.evaluate(() => {
+      Object.assign(
+        (
+          window as Window & {
+            __zakapeCanvasMetrics: Record<string, number>
+          }
+        ).__zakapeCanvasMetrics,
+        { fillRects: 0, clears: 0, widthWrites: 0, heightWrites: 0 },
+      )
+    })
+    await canvas.click({ position: { x: 350, y: 350 } })
+    await page.waitForTimeout(80)
+    const fillMetrics = await page.evaluate(
+      () =>
+        (
+          window as Window & {
+            __zakapeCanvasMetrics: Record<string, number>
+          }
+        ).__zakapeCanvasMetrics,
+    )
+    expect(fillMetrics.widthWrites).toBe(0)
+    expect(fillMetrics.heightWrites).toBe(0)
+    expect(fillMetrics.clears).toBeLessThanOrEqual(3)
+    expect(fillMetrics.fillRects).toBeLessThan(250)
+  })
 })
 
 test.describe('tablet workbench', () => {

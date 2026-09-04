@@ -16,16 +16,36 @@ import {
   makeId,
 } from '~/utils/project'
 import { rasterCircle, rasterLine, rasterRectangle } from '~/utils/raster'
+import { toRaw } from 'vue'
 
 const HISTORY_LIMIT = 60
+
+interface PixelHistoryChange {
+  index: number
+  before: Pixel
+  after: Pixel
+}
+
+type EditorHistoryEntry =
+  | { kind: 'project'; project: SpriteProject }
+  | {
+      kind: 'pixels'
+      frameId: string
+      layerId: string
+      changes: PixelHistoryChange[]
+    }
+
+type PixelHistoryEntry = Extract<EditorHistoryEntry, { kind: 'pixels' }>
+
+const rawPixels = (pixels: Pixel[] | undefined) => (pixels ? toRaw(pixels) : undefined)
 
 export interface EditorDocument {
   id: string
   project: SpriteProject
   activeFrameId: string
   activeLayerId: string
-  history: SpriteProject[]
-  future: SpriteProject[]
+  history: EditorHistoryEntry[]
+  future: EditorHistoryEntry[]
   dirtyRevision: number
   lastAction: string
   selection: PixelSelection | null
@@ -77,13 +97,13 @@ export const useEditor = () => {
       currentDocument.value.activeLayerId = value
     },
   })
-  const history = computed<SpriteProject[]>({
+  const history = computed<EditorHistoryEntry[]>({
     get: () => currentDocument.value.history,
     set: (value) => {
       currentDocument.value.history = value
     },
   })
-  const future = computed<SpriteProject[]>({
+  const future = computed<EditorHistoryEntry[]>({
     get: () => currentDocument.value.future,
     set: (value) => {
       currentDocument.value.future = value
@@ -144,6 +164,12 @@ export const useEditor = () => {
       ? selection.value
       : null,
   )
+  let activeStroke: {
+    frameId: string
+    layerId: string
+    originals: Map<number, Pixel>
+  } | null = null
+  let committedTouchMutation: PixelHistoryEntry | null = null
 
   const touch = (action: string) => {
     project.value.updatedAt = new Date().toISOString()
@@ -151,9 +177,14 @@ export const useEditor = () => {
     lastAction.value = action
   }
 
-  const checkpoint = (action: string) => {
-    history.value.push(cloneProject(project.value))
+  const pushHistory = (entry: EditorHistoryEntry) => {
+    history.value.push(entry)
     if (history.value.length > HISTORY_LIMIT) history.value.shift()
+  }
+
+  const checkpoint = (action: string) => {
+    committedTouchMutation = null
+    pushHistory({ kind: 'project', project: cloneProject(project.value) })
     future.value = []
     lastAction.value = action
   }
@@ -217,6 +248,16 @@ export const useEditor = () => {
     lastAction.value = `${target === 'primary' ? 'Primary' : 'Secondary'} color selected`
   }
 
+  const beginPixelMutation = (action: string) => {
+    committedTouchMutation = null
+    activeStroke = {
+      frameId: activeFrameId.value,
+      layerId: activeLayerId.value,
+      originals: new Map(),
+    }
+    lastAction.value = action
+  }
+
   const beginStroke = () => {
     const action =
       activeTool.value === 'eraser'
@@ -226,11 +267,24 @@ export const useEditor = () => {
           : activeTool.value === 'dither'
             ? 'Dither stroke'
             : 'Paint stroke'
-    checkpoint(action)
+    beginPixelMutation(action)
+  }
+
+  const writeStrokePixel = (pixels: Pixel[], index: number, pixel: Pixel) => {
+    if (pixels[index] === pixel) return false
+    if (
+      activeStroke?.frameId === activeFrameId.value &&
+      activeStroke.layerId === activeLayerId.value &&
+      !activeStroke.originals.has(index)
+    ) {
+      activeStroke.originals.set(index, pixels[index] ?? null)
+    }
+    pixels[index] = pixel
+    return true
   }
 
   const paintPixel = (x: number, y: number, color: Pixel = primaryColor.value) => {
-    const pixels = activeLayer.value?.cels[activeFrameId.value]
+    const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
     if (!pixels) return
     const radius = Math.floor((brushSize.value - 1) / 2)
     const drawingPixel = coercePixelToColorMode(project.value, color)
@@ -244,11 +298,10 @@ export const useEditor = () => {
           targetX < project.value.width &&
           targetY < project.value.height
         ) {
-          pixels[targetY * project.value.width + targetX] = drawingPixel
+          writeStrokePixel(pixels, targetY * project.value.width + targetX, drawingPixel)
         }
       }
     }
-    dirtyRevision.value += 1
   }
 
   const paintDitherPixel = (
@@ -256,7 +309,7 @@ export const useEditor = () => {
     y: number,
     colorTarget: 'primary' | 'secondary' = activeDrawingColor.value,
   ) => {
-    const pixels = activeLayer.value?.cels[activeFrameId.value]
+    const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
     if (!pixels) return
     const radius = Math.floor((brushSize.value - 1) / 2)
     const invert = colorTarget === 'secondary' ? 1 : 0
@@ -273,13 +326,42 @@ export const useEditor = () => {
           continue
         }
         const useSecondary = (targetX + targetY + invert) % 2 === 1
-        pixels[targetY * project.value.width + targetX] = coercePixelToColorMode(
-          project.value,
-          useSecondary ? secondaryColor.value : primaryColor.value,
+        writeStrokePixel(
+          pixels,
+          targetY * project.value.width + targetX,
+          coercePixelToColorMode(
+            project.value,
+            useSecondary ? secondaryColor.value : primaryColor.value,
+          ),
         )
       }
     }
-    dirtyRevision.value += 1
+  }
+
+  const commitPixelMutation = (action: string): PixelHistoryEntry | null => {
+    const completedStroke = activeStroke
+    activeStroke = null
+    if (!completedStroke) return null
+    const layer = project.value.layers.find((item) => item.id === completedStroke.layerId)
+    const pixels = rawPixels(layer?.cels[completedStroke.frameId])
+    if (!pixels) return null
+    const changes = [...completedStroke.originals.entries()]
+      .map(([index, before]) => ({ index, before, after: pixels[index] ?? null }))
+      .filter((change) => change.before !== change.after)
+    if (!changes.length) {
+      lastAction.value = 'Stroke unchanged'
+      return null
+    }
+    const entry: PixelHistoryEntry = {
+      kind: 'pixels',
+      frameId: completedStroke.frameId,
+      layerId: completedStroke.layerId,
+      changes,
+    }
+    pushHistory(entry)
+    future.value = []
+    touch(action)
+    return entry
   }
 
   const endStroke = () => {
@@ -291,15 +373,35 @@ export const useEditor = () => {
           : activeTool.value === 'dither'
             ? 'Painted dither pattern'
             : 'Painted pixels'
-    touch(action)
+    return Boolean(commitPixelMutation(action))
   }
 
   const cancelStroke = () => {
-    const previous = history.value.pop()
-    if (!previous) return false
-    project.value = previous
-    future.value = []
-    dirtyRevision.value += 1
+    const cancelledStroke = activeStroke
+    activeStroke = null
+    if (cancelledStroke) {
+      const layer = project.value.layers.find((item) => item.id === cancelledStroke.layerId)
+      const pixels = rawPixels(layer?.cels[cancelledStroke.frameId])
+      if (!pixels) return false
+      cancelledStroke.originals.forEach((pixel, index) => {
+        pixels[index] = pixel
+      })
+    } else {
+      const entry = committedTouchMutation
+      if (!entry || history.value.at(-1) !== entry) return false
+      const pixels = rawPixels(
+        project.value.layers.find((layer) => layer.id === entry.layerId)?.cels[entry.frameId],
+      )
+      if (!pixels) return false
+      entry.changes.forEach((change) => {
+        pixels[change.index] = change.before
+      })
+      history.value.pop()
+      future.value = []
+      project.value.updatedAt = new Date().toISOString()
+      dirtyRevision.value += 1
+    }
+    committedTouchMutation = null
     lastAction.value = 'Cancelled touch stroke'
     return true
   }
@@ -317,39 +419,39 @@ export const useEditor = () => {
     }
   }
 
-  const floodFill = (x: number, y: number, color: Pixel) => {
-    const pixels = activeLayer.value?.cels[activeFrameId.value]
+  const floodFill = (x: number, y: number, color: Pixel, cancellable = false) => {
+    const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
     if (!pixels) return false
     const fillColor = coercePixelToColorMode(project.value, color)
     const target = pixels[y * project.value.width + x]
     if (target === fillColor) return false
-    checkpoint('Fill area')
-    const queue: Array<[number, number]> = [[x, y]]
-    const visited = new Set<string>()
-    while (queue.length) {
-      const [currentX, currentY] = queue.shift()!
-      const key = `${currentX}:${currentY}`
-      if (visited.has(key)) continue
-      visited.add(key)
-      if (
-        currentX < 0 ||
-        currentY < 0 ||
-        currentX >= project.value.width ||
-        currentY >= project.value.height ||
-        pixels[currentY * project.value.width + currentX] !== target
-      ) {
-        continue
-      }
-      pixels[currentY * project.value.width + currentX] = fillColor
-      queue.push(
-        [currentX + 1, currentY],
-        [currentX - 1, currentY],
-        [currentX, currentY + 1],
-        [currentX, currentY - 1],
-      )
+    beginPixelMutation('Fill area')
+    const width = project.value.width
+    const height = project.value.height
+    const queue = [y * width + x]
+    const visited = new Uint8Array(pixels.length)
+    visited[queue[0]!] = 1
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const index = queue[cursor]!
+      if (pixels[index] !== target) continue
+      writeStrokePixel(pixels, index, fillColor)
+      const currentX = index % width
+      const currentY = Math.floor(index / width)
+      const neighbours = [
+        currentX + 1 < width ? index + 1 : -1,
+        currentX > 0 ? index - 1 : -1,
+        currentY + 1 < height ? index + width : -1,
+        currentY > 0 ? index - width : -1,
+      ]
+      neighbours.forEach((neighbour) => {
+        if (neighbour < 0 || visited[neighbour]) return
+        visited[neighbour] = 1
+        if (pixels[neighbour] === target) queue.push(neighbour)
+      })
     }
-    touch('Filled area')
-    return true
+    const entry = commitPixelMutation('Filled area')
+    if (cancellable) committedTouchMutation = entry
+    return Boolean(entry)
   }
 
   const drawLine = (
@@ -359,11 +461,11 @@ export const useEditor = () => {
     toY: number,
     color: Pixel = primaryColor.value,
   ) => {
-    checkpoint('Draw line')
+    beginPixelMutation('Draw line')
     rasterLine({ x: fromX, y: fromY }, { x: toX, y: toY }).forEach((point) =>
       paintPixel(point.x, point.y, color),
     )
-    touch('Drew line')
+    commitPixelMutation('Drew line')
   }
 
   const drawRectangle = (
@@ -373,11 +475,11 @@ export const useEditor = () => {
     toY: number,
     color: Pixel = primaryColor.value,
   ) => {
-    checkpoint('Draw rectangle')
+    beginPixelMutation('Draw rectangle')
     rasterRectangle({ x: fromX, y: fromY }, { x: toX, y: toY }).forEach((point) =>
       paintPixel(point.x, point.y, color),
     )
-    touch('Drew rectangle')
+    commitPixelMutation('Drew rectangle')
   }
 
   const drawCircle = (
@@ -387,11 +489,11 @@ export const useEditor = () => {
     toY: number,
     color: Pixel = primaryColor.value,
   ) => {
-    checkpoint('Draw circle')
+    beginPixelMutation('Draw circle')
     rasterCircle({ x: fromX, y: fromY }, { x: toX, y: toY }).forEach((point) =>
       paintPixel(point.x, point.y, color),
     )
-    touch('Drew circle')
+    commitPixelMutation('Drew circle')
   }
 
   const setSelection = (kind: PixelSelection['kind'], points: PixelPoint[]) => {
@@ -427,7 +529,7 @@ export const useEditor = () => {
 
   const moveSelection = (offsetX: number, offsetY: number) => {
     const current = activeSelection.value
-    const pixels = activeLayer.value?.cels[activeFrameId.value]
+    const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
     if (!current || !pixels || (offsetX === 0 && offsetY === 0)) return false
     checkpoint('Move selection')
     const captured = current.points.map((point) => ({
@@ -452,7 +554,7 @@ export const useEditor = () => {
 
   const transformSelection = (samples: PixelSample[], action: string) => {
     const current = activeSelection.value
-    const pixels = activeLayer.value?.cels[activeFrameId.value]
+    const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
     if (!current || !pixels || !samples.length) return false
     const transformed = new Map<string, PixelSample>()
     samples.forEach((sample) => {
@@ -484,7 +586,7 @@ export const useEditor = () => {
 
   const deleteSelectionPixels = () => {
     const current = activeSelection.value
-    const pixels = activeLayer.value?.cels[activeFrameId.value]
+    const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
     if (!current || !pixels) return false
     checkpoint('Clear selection')
     current.points.forEach((point) => {
@@ -495,19 +597,51 @@ export const useEditor = () => {
   }
 
   const undo = () => {
-    const previous = history.value.pop()
+    const previous = history.value.at(-1)
     if (!previous) return
-    future.value.push(cloneProject(project.value))
-    project.value = previous
+    let pixels: Pixel[] | undefined
+    if (previous.kind === 'pixels') {
+      pixels = rawPixels(
+        project.value.layers.find((layer) => layer.id === previous.layerId)?.cels[previous.frameId],
+      )
+      if (!pixels) return
+    }
+    history.value.pop()
+    if (previous.kind === 'project') {
+      future.value.push({ kind: 'project', project: cloneProject(project.value) })
+      project.value = previous.project
+    } else {
+      previous.changes.forEach((change) => {
+        pixels![change.index] = change.before
+      })
+      future.value.push(previous)
+    }
+    committedTouchMutation = null
     selection.value = null
     touch('Undo')
   }
 
   const redo = () => {
-    const next = future.value.pop()
+    const next = future.value.at(-1)
     if (!next) return
-    history.value.push(cloneProject(project.value))
-    project.value = next
+    let pixels: Pixel[] | undefined
+    if (next.kind === 'pixels') {
+      pixels = rawPixels(
+        project.value.layers.find((layer) => layer.id === next.layerId)?.cels[next.frameId],
+      )
+      if (!pixels) return
+    }
+    future.value.pop()
+    if (next.kind === 'project') {
+      pushHistory({ kind: 'project', project: cloneProject(project.value) })
+      project.value = next.project
+    } else {
+      next.changes.forEach((change) => {
+        pixels![change.index] = change.after
+      })
+      pushHistory(next)
+    }
+    committedTouchMutation = null
     selection.value = null
     touch('Redo')
   }

@@ -12,7 +12,7 @@ Zakape is in early alpha. The current milestone focuses on a reliable editor loo
 
 ## Quick start
 
-Prerequisites: Node.js 22+, pnpm 10+, Rust stable, and the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/).
+Prerequisites: the Node.js and Rust versions pinned by `.node-version` and `rust-toolchain.toml`, pnpm 10.17.1, and the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```bash
 pnpm install
@@ -28,6 +28,7 @@ pnpm test:e2e       # studio interaction and snapshot tests
 pnpm build          # static web builds
 pnpm build:desktop  # native Tauri bundle
 pnpm build:android:debug   # ARM64 debug APK
+pnpm build:android:fdroid  # unsigned release APK for F-Droid signing
 pnpm build:android:bundle  # signed Play bundle when a keystore is configured
 ```
 
@@ -49,7 +50,7 @@ docs/               Architecture, AI, release, and QA notes
 - Exports are ordinary files: PNG, sprite-sheet PNG + JSON, GIF, and `.zakape` project JSON.
 - Visual quality and keyboard accessibility are tested as product behavior, not treated as polish debt.
 
-Before making a large change, read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [project workspace](docs/project-workspace.md), [brand guide](docs/brand.md), [Android build guide](docs/android.md), [model assistant guide](docs/ai/model-assistant.md), and [release process](docs/release.md) cover their respective workflows.
+Before making a large change, read the [architecture](docs/architecture.md) and [contribution guide](CONTRIBUTING.md). The [project workspace](docs/project-workspace.md), [brand guide](docs/brand.md), [Android build guide](docs/android.md), [F-Droid notes](docs/fdroid.md), [model assistant guide](docs/ai/model-assistant.md), [privacy policy](docs/privacy.md), and [release process](docs/release.md) cover their respective workflows.
 
 ## License
 

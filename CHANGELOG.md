@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/surelle-ha/zakape/compare/v0.13.1...v0.14.0) (2026-09-04)
+
+
+### Features
+
+* add desktop login and resilient Android backups ([c9a352b](https://github.com/surelle-ha/zakape/commit/c9a352b996605c6261997137416627a80263683f))
+
 ## [0.13.1](https://github.com/surelle-ha/zakape/compare/v0.13.0...v0.13.1) (2026-09-04)
 
 

@@ -1,6 +1,6 @@
 [package]
 name = "zakape"
-version = "0.13.1"
+version = "0.14.0"
 description = "An open-source pixel art and sprite animation workbench"
 authors = ["Zakape contributors"]
 edition = "2021"

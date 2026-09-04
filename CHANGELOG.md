@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/surelle-ha/zakape/compare/v0.11.0...v0.12.0) (2026-09-03)
+
+
+### Features
+
+* refine canvas tools and workspace controls ([a0500e4](https://github.com/surelle-ha/zakape/commit/a0500e45e33fad56686e149dbf9f8e161cea3a8f))
+
 ## [0.11.0](https://github.com/surelle-ha/zakape/compare/v0.10.1...v0.11.0) (2026-09-03)
 
 

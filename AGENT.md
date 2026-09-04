@@ -127,7 +127,7 @@ Browser-level pinch zoom must remain disabled in the native app. Canvas zoom is 
 
 ## Brand and icon workflow
 
-Canonical artwork lives in `assets/brand/`. After changing the supplied source images, regenerate derived assets:
+Canonical artwork lives in `assets/brand/`. The README banner is curated artwork and must not be overwritten by generation scripts. After changing the supplied app-icon source, regenerate derived icon assets:
 
 ```bash
 python scripts/generate_brand_assets.py

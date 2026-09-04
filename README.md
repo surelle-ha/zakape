@@ -49,7 +49,7 @@ Start with the comprehensive [agent and contributor guide](AGENT.md), then read 
 ```text
 apps/studio/        Editor application and native packaging
 apps/site/          Public project website
-assets/brand/       Canonical source artwork, generated banner, and icon manifest
+assets/brand/       Canonical source artwork, curated banner, and icon manifest
 docs/               Architecture, AI, release, and QA notes
 .github/             CI, release, Pages, and contribution workflows
 ```

@@ -5,6 +5,8 @@ export interface GoogleAccountProfile {
   picture?: string
 }
 
+export type AccountAccessChoice = 'guest' | 'google'
+
 interface GoogleAuthConfiguration {
   available: boolean
   featureEnabled: boolean
@@ -19,6 +21,7 @@ interface GoogleAuthSession {
 }
 
 const profilePreference = 'google-account-profile'
+const accessPreference = 'account-access-choice'
 
 const isTauriRuntime = () => import.meta.client && '__TAURI_INTERNALS__' in window
 
@@ -42,6 +45,8 @@ export const useGoogleAccount = () => {
   const errorMessage = useState<string>('google-auth-error', () => '')
   const dialogOpen = useState<boolean>('google-account-dialog-open', () => false)
   const initialized = useState<boolean>('google-auth-initialized', () => false)
+  const ready = useState<boolean>('google-auth-ready', () => false)
+  const accessChoice = useState<AccountAccessChoice | null>('account-access-choice', () => null)
   const { loadPreference, savePreference } = useProjectRepository()
 
   const applySession = async (session: GoogleAuthSession) => {
@@ -50,7 +55,11 @@ export const useGoogleAccount = () => {
     account.value = session.account
     status.value = 'authenticated'
     errorMessage.value = ''
-    await savePreference(profilePreference, session.account)
+    accessChoice.value = 'google'
+    await Promise.all([
+      savePreference(profilePreference, session.account),
+      savePreference(accessPreference, 'google'),
+    ])
   }
 
   const loadConfiguration = async () => {
@@ -78,9 +87,13 @@ export const useGoogleAccount = () => {
       accessToken.value = null
       expiresAt.value = 0
       account.value = null
+      accessChoice.value = null
       status.value = 'idle'
       errorMessage.value = error instanceof Error ? error.message : String(error)
-      await savePreference(profilePreference, null)
+      await Promise.all([
+        savePreference(profilePreference, null),
+        savePreference(accessPreference, null),
+      ])
       return null
     }
   }
@@ -90,15 +103,38 @@ export const useGoogleAccount = () => {
     initialized.value = true
     try {
       const config = await loadConfiguration()
-      if (!config.available) return
+      const savedChoice = await loadPreference<AccountAccessChoice>(accessPreference)
+      accessChoice.value = ['guest', 'google'].includes(savedChoice ?? '') ? savedChoice : null
+      if (accessChoice.value !== 'google') return
+      if (!config.available) {
+        accessChoice.value = null
+        await savePreference(accessPreference, null)
+        return
+      }
       const savedProfile = await loadPreference<GoogleAccountProfile>(profilePreference)
-      if (!savedProfile) return
+      if (!savedProfile) {
+        accessChoice.value = null
+        await savePreference(accessPreference, null)
+        return
+      }
       account.value = savedProfile
       await refreshSession()
     } catch (error) {
       status.value = 'error'
       errorMessage.value = error instanceof Error ? error.message : String(error)
+    } finally {
+      ready.value = true
     }
+  }
+
+  const continueAsGuest = async () => {
+    account.value = null
+    accessToken.value = null
+    expiresAt.value = 0
+    status.value = 'idle'
+    errorMessage.value = ''
+    accessChoice.value = 'guest'
+    await savePreference(accessPreference, 'guest')
   }
 
   const signIn = async () => {
@@ -136,8 +172,12 @@ export const useGoogleAccount = () => {
       account.value = null
       accessToken.value = null
       expiresAt.value = 0
+      accessChoice.value = null
       status.value = 'idle'
-      await savePreference(profilePreference, null)
+      await Promise.all([
+        savePreference(profilePreference, null),
+        savePreference(accessPreference, null),
+      ])
     }
   }
 
@@ -153,8 +193,12 @@ export const useGoogleAccount = () => {
     status,
     errorMessage,
     dialogOpen,
+    ready,
+    accessChoice,
     authenticated: computed(() => Boolean(account.value)),
+    authenticationRequired: computed(() => ready.value && !accessChoice.value),
     initialize,
+    continueAsGuest,
     signIn,
     signOut,
     refreshSession,

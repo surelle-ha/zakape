@@ -699,6 +699,16 @@ export const useEditor = () => {
     return true
   }
 
+  const setFrameDuration = (frameId: string, duration: number) => {
+    const frame = project.value.frames.find((item) => item.id === frameId)
+    const nextDuration = Math.max(40, Math.min(10_000, Math.round(duration)))
+    if (!frame || !Number.isFinite(nextDuration) || frame.duration === nextDuration) return false
+    checkpoint('Change frame delay')
+    frame.duration = nextDuration
+    touch(`Set frame delay to ${nextDuration}ms`)
+    return true
+  }
+
   const addLayer = () => {
     checkpoint('Add layer')
     const id = makeId('layer')
@@ -859,6 +869,7 @@ export const useEditor = () => {
     addFrame,
     deleteFrame,
     moveFrame,
+    setFrameDuration,
     addLayer,
     deleteLayer,
     toggleLayer,

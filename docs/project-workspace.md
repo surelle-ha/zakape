@@ -1,6 +1,6 @@
 # Project workspace
 
-Zakape opens with a 4.8-second branded splash, then reveals the workbench Home tab. The project launcher stays hidden until the artist chooses a new-project or project-management action. It appears as a focused modal over Home or the active document and keeps project selection and document creation separate from drawing.
+Zakape opens with a 4.8-second branded splash. If the artist has not previously chosen Guest or Google access, a dedicated entry page appears before Home. After that choice is stored, later launches continue to the workbench Home tab. The project launcher stays hidden until the artist chooses a new-project or project-management action. It appears as a focused modal over Home or the active document and keeps project selection and document creation separate from drawing.
 
 ## Working directory
 
@@ -33,6 +33,8 @@ From the project launcher you can:
 - import a compatible layered binary sprite file in the desktop app, then save the converted project into the working directory
 - confirm the resolved desktop working-directory path
 
+Home and the project launcher share a local **Suites** library. Create a top-level folder for a related sprite set, then add nested folders for variants such as outfits, directions, or animation families. Selecting a suite filters its own projects and those in its subfolders. Every recent-project card can be moved to another suite or returned to **Unfiled**, and the new-project form can save a sprite directly into the selected suite. Folder names and project assignments are stored as local workspace preferences; they do not alter the portable `.zakape` project format or upload artwork.
+
 Binary sprite import is handled by Rust rather than browser code. The importer validates the file header, 32 MB size limit, 1,024 px dimensions, total pixel count, frame count, and layer count before decoding. It preserves frame order and duration, image-layer visibility and opacity, linked or compressed cel results, palette colors, and supported color mode. Group containers are omitted while their child artwork remains available. Browser builds explain that binary import requires the desktop app.
 
 Use **File → Projects** to reopen the launcher without closing the active document. **File → New sprite**, **Open project**, and **Save project** expose the corresponding keyboard-friendly actions.
@@ -51,13 +53,13 @@ The application close control and the operating system's native close request us
 
 Drag any frame directly into a new playback sequence. On touch screens, press and hold a frame for 400 ms, then drag it. A violet insertion line shows whether the frame will land before or after its target. The frame menu also exposes **Move frame left** and **Move frame right**; use **Ctrl+Left Arrow** or **Ctrl+Right Arrow** to move the active frame directly. Reordering keeps each frame's cel data and duration attached to its frame ID and creates one undo checkpoint.
 
-Use the arrow beside **Timeline** to collapse the frame strip when the canvas needs more room. Playback and the active frame's delay live in **Live Preview**, so the timeline itself stays focused on selecting, inserting, copying, deleting, and arranging frames.
+Use the arrow beside **Timeline** to collapse the frame strip when the canvas needs more room. Open a frame's action menu to set its delay from 40 to 10,000 milliseconds. Timing stays attached to the frame when it is rearranged, copied, saved, or exported.
 
 ## Canvas palette, preview, and layers
 
 The compact strip below the canvas shows the active project's color blocks instead of implementation-oriented cel status. Choosing a block makes it the primary drawing color. The color-mode and sRGB readout stays at the opposite edge on larger screens.
 
-Live Preview floats over the canvas, so it remains visible on phones without opening another panel. Layers and the optional Assistant live in matching hideable drawers on desktop, tablet, and phone. The desktop drawer leaves the rest of the editor interactive; touch layouts use a dismissible scrim. These surfaces and the Timeline use neutral charcoal glass with a restrained violet edge, leaving the accent for active controls and selection.
+Live Preview floats over the canvas, so it remains visible on phones without opening another panel. The **Live view** toggle sits directly beside **Onion skin** in the canvas toolbar and shows or hides that preview without changing playback or frame timing. The preview itself contains only playback and canvas information; per-frame delay belongs to each frame's context menu. Layers and the optional Assistant live in matching hideable drawers on desktop, tablet, and phone. The desktop drawer leaves the rest of the editor interactive; touch layouts use a dismissible scrim. These surfaces and the Timeline use neutral charcoal glass with a restrained violet edge, leaving the accent for active controls and selection.
 
 The standard animation term **onion skin** labels the previous-frame drawing guide throughout the interface and keyboard guide.
 

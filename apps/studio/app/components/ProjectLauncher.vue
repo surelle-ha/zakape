@@ -12,12 +12,13 @@ import {
   X,
 } from '@lucide/vue'
 import type { LauncherView } from '~/composables/useWorkspace'
-import type { WorkspaceProjectSummary } from '~/composables/useProjectRepository'
+import type { WorkspaceFolder, WorkspaceProjectSummary } from '~/composables/useProjectRepository'
 import type { CanvasBackground, ColorMode } from '~/types/editor'
 import { normalizePalette, palettePresets } from '~/utils/palettes'
 
 const props = defineProps<{
   projects: WorkspaceProjectSummary[]
+  folders: WorkspaceFolder[]
   workspaceDirectory: string
   view: LauncherView
   loading?: boolean
@@ -34,6 +35,7 @@ const emit = defineEmits<{
       background: CanvasBackground
       checkerSize: number
       palette: string[]
+      folderId: string | null
     },
   ]
   openProject: [projectId: string]
@@ -54,6 +56,7 @@ const customColor = ref('#8B5CF6')
 const customColorOpen = ref(false)
 const formError = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
+const { activeLibraryFolder, assignProjectToFolder } = useProjectRepository()
 const previewStyle = computed(() => ({
   aspectRatio: `${Math.max(1, width.value)} / ${Math.max(1, height.value)}`,
   '--checker-preview-size': `${Math.max(4, Math.min(24, checkerSize.value * 3))}px`,
@@ -63,6 +66,25 @@ const selectedPalette = computed(() =>
     ? normalizePalette(customPalette.value)
     : [...(palettePresets.find((preset) => preset.id === selectedPaletteId.value)?.colors ?? [])],
 )
+const newProjectFolderId = ref<string | null>(null)
+const filteredProjects = computed(() => {
+  if (activeLibraryFolder.value === 'all') return props.projects
+  if (activeLibraryFolder.value === 'unfiled') {
+    return props.projects.filter((project) => !project.folderId)
+  }
+  const folderIds = new Set([activeLibraryFolder.value])
+  let changed = true
+  while (changed) {
+    changed = false
+    props.folders.forEach((folder) => {
+      if (folder.parentId && folderIds.has(folder.parentId) && !folderIds.has(folder.id)) {
+        folderIds.add(folder.id)
+        changed = true
+      }
+    })
+  }
+  return props.projects.filter((project) => project.folderId && folderIds.has(project.folderId))
+})
 
 const selectPalette = (paletteId: string) => {
   selectedPaletteId.value = paletteId
@@ -126,6 +148,7 @@ const submit = () => {
     background: background.value,
     checkerSize: transparencyCheckerSize,
     palette: selectedPalette.value,
+    folderId: newProjectFolderId.value,
   })
 }
 
@@ -144,6 +167,11 @@ watch(
   async (view) => {
     formError.value = ''
     if (view === 'new') {
+      newProjectFolderId.value = props.folders.some(
+        (folder) => folder.id === activeLibraryFolder.value,
+      )
+        ? activeLibraryFolder.value
+        : null
       await nextTick()
       if (!window.matchMedia('(hover: none) and (pointer: coarse)').matches) {
         nameInput.value?.select()
@@ -240,6 +268,17 @@ watch(
                 autocomplete="off"
                 placeholder="Player idle…"
               />
+            </label>
+
+            <label class="launcher-field suite-field">
+              <span>Sprite suite</span>
+              <select v-model="newProjectFolderId" name="project-folder">
+                <option :value="null">Unfiled</option>
+                <option v-for="folder in folders" :key="folder.id" :value="folder.id">
+                  {{ folder.parentId ? `↳ ${folder.name}` : folder.name }}
+                </option>
+              </select>
+              <small>Keep related sprites and variants together.</small>
             </label>
 
             <div class="dimension-fields">
@@ -429,41 +468,62 @@ watch(
             <ArrowRight :size="15" />
           </button>
 
-          <div class="recent-heading-row">
-            <span>On this device</span><small>{{ projects.length }} indexed</small>
-          </div>
-          <div v-if="loading" class="launcher-empty" role="status" aria-live="polite">
-            Indexing Documents/zakape…
-          </div>
-          <div v-else-if="projects.length" class="launcher-recent-grid">
-            <button
-              v-for="project in projects"
-              :key="project.id"
-              type="button"
-              class="launcher-recent-card"
-              @click="emit('openProject', project.id)"
-            >
-              <ProjectThumbnail class="recent-thumb" :preview="project.preview" />
-              <span class="recent-copy">
-                <strong>{{ project.name }}</strong>
-                <small
-                  >{{ project.width }} × {{ project.height }} · {{ project.frameCount }} frame{{
-                    project.frameCount === 1 ? '' : 's'
-                  }}</small
+          <div class="launcher-library-layout">
+            <ProjectFolderRail :folders="folders" :projects="projects" />
+            <div class="launcher-library-content">
+              <div class="recent-heading-row">
+                <span>On this device</span><small>{{ filteredProjects.length }} shown</small>
+              </div>
+              <div v-if="loading" class="launcher-empty" role="status" aria-live="polite">
+                Indexing Documents/zakape…
+              </div>
+              <div v-else-if="filteredProjects.length" class="launcher-recent-grid">
+                <article
+                  v-for="project in filteredProjects"
+                  :key="project.id"
+                  class="launcher-recent-card"
                 >
-              </span>
-              <span class="recent-date"
-                ><Clock3 :size="11" /> {{ updatedLabel(project.updatedAt) }}</span
-              >
-            </button>
-          </div>
-          <div v-else class="launcher-empty">
-            <span class="empty-pixel" aria-hidden="true" />
-            <strong>No saved sprites yet</strong>
-            <p>Create a sprite or open a project file to begin.</p>
-            <button type="button" @click="emit('updateView', 'new')">
-              Create your first sprite
-            </button>
+                  <button type="button" @click="emit('openProject', project.id)">
+                    <ProjectThumbnail class="recent-thumb" :preview="project.preview" />
+                    <span class="recent-copy">
+                      <strong>{{ project.name }}</strong>
+                      <small
+                        >{{ project.width }} × {{ project.height }} ·
+                        {{ project.frameCount }} frame{{
+                          project.frameCount === 1 ? '' : 's'
+                        }}</small
+                      >
+                    </span>
+                    <span class="recent-date"
+                      ><Clock3 :size="11" /> {{ updatedLabel(project.updatedAt) }}</span
+                    >
+                  </button>
+                  <ProjectFolderPicker
+                    :project-id="project.id"
+                    :project-name="project.name"
+                    :folder-id="project.folderId"
+                    :folders="folders"
+                    @assign="assignProjectToFolder"
+                  />
+                </article>
+              </div>
+              <div v-else class="launcher-empty">
+                <span class="empty-pixel" aria-hidden="true" />
+                <strong>{{
+                  projects.length ? 'No sprites in this suite' : 'No saved sprites yet'
+                }}</strong>
+                <p>
+                  {{
+                    projects.length
+                      ? 'Create a sprite here or move an existing variant into this folder.'
+                      : 'Create a sprite or open a project file to begin.'
+                  }}
+                </p>
+                <button type="button" @click="emit('updateView', 'new')">
+                  Create your first sprite
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

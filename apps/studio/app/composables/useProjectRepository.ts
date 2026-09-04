@@ -1,6 +1,6 @@
 import type { PGlite } from '@electric-sql/pglite'
 import type { Pixel, SpriteProject } from '~/types/editor'
-import { parseSpriteProject } from '~/utils/project'
+import { makeId, parseSpriteProject } from '~/utils/project'
 import { getCompositePixels } from '~/utils/render'
 
 let databasePromise: Promise<PGlite> | null = null
@@ -12,7 +12,15 @@ export interface WorkspaceProjectSummary {
   height: number
   frameCount: number
   updatedAt: string
+  folderId?: string | null
   preview?: WorkspaceProjectPreview
+}
+
+export interface WorkspaceFolder {
+  id: string
+  name: string
+  parentId: string | null
+  createdAt: string
 }
 
 export interface WorkspaceProjectPreview {
@@ -22,6 +30,55 @@ export interface WorkspaceProjectPreview {
 }
 
 const previewEdge = 48
+const folderPreference = 'workspace-folders'
+const assignmentPreference = 'workspace-project-folders'
+
+const normalizeFolders = (value: unknown): WorkspaceFolder[] => {
+  if (!Array.isArray(value)) return []
+  const folders = value
+    .filter(
+      (entry): entry is WorkspaceFolder =>
+        Boolean(entry) &&
+        typeof entry === 'object' &&
+        typeof (entry as WorkspaceFolder).id === 'string' &&
+        typeof (entry as WorkspaceFolder).name === 'string' &&
+        typeof (entry as WorkspaceFolder).createdAt === 'string',
+    )
+    .slice(0, 128)
+    .map((entry) => ({
+      id: entry.id.slice(0, 128),
+      name: entry.name.trim().slice(0, 48),
+      parentId: typeof entry.parentId === 'string' ? entry.parentId.slice(0, 128) : null,
+      createdAt: entry.createdAt,
+    }))
+    .filter((entry) => entry.id && entry.name)
+  const ids = new Set(folders.map((folder) => folder.id))
+  return folders.map((folder) => ({
+    ...folder,
+    parentId:
+      folder.parentId && folder.parentId !== folder.id && ids.has(folder.parentId)
+        ? folder.parentId
+        : null,
+  }))
+}
+
+const normalizeAssignments = (
+  value: unknown,
+  folders: WorkspaceFolder[],
+): Record<string, string> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const folderIds = new Set(folders.map((folder) => folder.id))
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(
+        ([projectId, folderId]) =>
+          /^[a-z0-9_-]{1,128}$/i.test(projectId) &&
+          typeof folderId === 'string' &&
+          folderIds.has(folderId),
+      )
+      .slice(0, 1000),
+  ) as Record<string, string>
+}
 
 export const createProjectPreview = (project: SpriteProject): WorkspaceProjectPreview => {
   const frameId = project.frames[0]!.id
@@ -79,6 +136,12 @@ export const useProjectRepository = () => {
   )
   const workspaceDirectory = useState<string>('workspace-directory', () => 'Documents/zakape')
   const recentProjects = useState<WorkspaceProjectSummary[]>('workspace-projects', () => [])
+  const workspaceFolders = useState<WorkspaceFolder[]>('workspace-folders', () => [])
+  const projectFolderAssignments = useState<Record<string, string>>(
+    'workspace-project-folder-assignments',
+    () => ({}),
+  )
+  const activeLibraryFolder = useState<string>('workspace-active-folder', () => 'all')
 
   const databaseProjects = async (): Promise<WorkspaceProjectSummary[]> => {
     const database = await getDatabase()
@@ -109,7 +172,22 @@ export const useProjectRepository = () => {
     if (!import.meta.client) return []
     persistenceState.value = 'loading'
     try {
-      const browserProjects = await databaseProjects()
+      const [browserProjects, savedFolders, savedAssignments] = await Promise.all([
+        databaseProjects(),
+        loadPreference<WorkspaceFolder[]>(folderPreference),
+        loadPreference<Record<string, string>>(assignmentPreference),
+      ])
+      workspaceFolders.value = normalizeFolders(savedFolders)
+      projectFolderAssignments.value = normalizeAssignments(
+        savedAssignments,
+        workspaceFolders.value,
+      )
+      if (
+        !['all', 'unfiled'].includes(activeLibraryFolder.value) &&
+        !workspaceFolders.value.some((folder) => folder.id === activeLibraryFolder.value)
+      ) {
+        activeLibraryFolder.value = 'all'
+      }
       let desktopProjects: WorkspaceProjectSummary[] = []
       if (isTauriRuntime()) {
         const [directory, projects] = await Promise.all([
@@ -143,7 +221,10 @@ export const useProjectRepository = () => {
           }),
         )
       }
-      recentProjects.value = projects
+      recentProjects.value = projects.map((summary) => ({
+        ...summary,
+        folderId: projectFolderAssignments.value[summary.id] ?? null,
+      }))
       persistenceState.value = 'idle'
       return recentProjects.value
     } catch (error) {
@@ -222,6 +303,7 @@ export const useProjectRepository = () => {
         height: project.height,
         frameCount: project.frames.length,
         updatedAt: project.updatedAt,
+        folderId: projectFolderAssignments.value[project.id] ?? null,
         preview: createProjectPreview(project),
       }
       recentProjects.value = [
@@ -259,15 +341,57 @@ export const useProjectRepository = () => {
     )
   }
 
+  const createWorkspaceFolder = async (name: string, parentId: string | null = null) => {
+    const cleanName = name.trim().slice(0, 48)
+    const cleanParentId = workspaceFolders.value.some((folder) => folder.id === parentId)
+      ? parentId
+      : null
+    if (!cleanName) return null
+    const duplicate = workspaceFolders.value.some(
+      (folder) =>
+        folder.parentId === cleanParentId && folder.name.toLowerCase() === cleanName.toLowerCase(),
+    )
+    if (duplicate) return null
+    const folder: WorkspaceFolder = {
+      id: makeId('folder'),
+      name: cleanName,
+      parentId: cleanParentId,
+      createdAt: new Date().toISOString(),
+    }
+    workspaceFolders.value = [...workspaceFolders.value, folder]
+    activeLibraryFolder.value = folder.id
+    await savePreference(folderPreference, workspaceFolders.value)
+    return folder
+  }
+
+  const assignProjectToFolder = async (projectId: string, folderId: string | null) => {
+    const nextFolderId = workspaceFolders.value.some((folder) => folder.id === folderId)
+      ? folderId
+      : null
+    const nextAssignments = { ...projectFolderAssignments.value }
+    if (nextFolderId) nextAssignments[projectId] = nextFolderId
+    else Reflect.deleteProperty(nextAssignments, projectId)
+    projectFolderAssignments.value = nextAssignments
+    recentProjects.value = recentProjects.value.map((project) =>
+      project.id === projectId ? { ...project, folderId: nextFolderId } : project,
+    )
+    await savePreference(assignmentPreference, nextAssignments)
+  }
+
   return {
     persistenceState,
     workspaceDirectory,
     recentProjects,
+    workspaceFolders,
+    projectFolderAssignments,
+    activeLibraryFolder,
     refreshProjects,
     loadProject,
     loadLatest,
     saveProject,
     loadPreference,
     savePreference,
+    createWorkspaceFolder,
+    assignProjectToFolder,
   }
 }

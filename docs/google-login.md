@@ -1,12 +1,14 @@
 # Google login for desktop
 
-Google login is optional and currently available only in installed Windows, macOS, and Linux builds. Guest access remains the default, requires no network connection, and has the same drawing, animation, project, and export capabilities. Google login does not upload artwork or enable cloud project storage.
+Google login is optional and currently available only in installed Windows, macOS, and Linux builds. After the splash, a dedicated entry page asks the artist to choose Google or Guest access before Home opens. The saved choice is restored on later launches; the entry page returns after sign-out or whenever no valid choice exists. Guest access requires no network connection and has the same drawing, animation, project, and export capabilities. Google login does not upload artwork or enable cloud project storage.
 
 ## Authentication design
 
 Zakape uses Google's OAuth 2.0 Authorization Code flow for installed applications with PKCE, a cryptographically random and verified state value, and a loopback callback on a random local port. Authentication opens in the system browser rather than an embedded sign-in view.
 
 The short-lived access token remains in memory. The refresh token is stored in the operating-system credential vault. Zakape stores the account identifier, name, email address, and optional profile-picture URL in its local preferences so it can present the last connected identity before restoring the protected session. Signing out revokes the current access token when possible and deletes the stored refresh credential.
+
+The Home banner does not duplicate account identity. On desktop, the footer account name is the single persistent profile entry point. It opens a right-side drawer with identity details, connection state, local workspace location, recent activity, and on-device project, frame, and canvas-pixel statistics.
 
 Requested scopes are limited to:
 
@@ -53,8 +55,10 @@ Android and iOS builds do not enable Google login or expose account sign-in cont
 ## Verification checklist
 
 - Launch a desktop build without credentials and confirm the account panel gives a configuration message while Guest access works.
+- Choose Guest, restart, and confirm Home opens without asking again.
 - Sign in through the system browser and verify the returned name and email.
 - Cancel browser authorization and verify Zakape remains usable as Guest.
 - Restart Zakape and verify the credential-vault session restores.
-- Sign out and verify another restart does not restore the account.
+- Open the footer profile drawer and verify the Google name, email, artwork statistics, and workspace information.
+- Sign out and verify the dedicated entry page returns and another restart does not restore the account.
 - Confirm Android and F-Droid builds contain no Google authentication plugin.

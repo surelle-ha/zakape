@@ -12,14 +12,14 @@ import {
   Palette,
   ShieldCheck,
   Sparkles,
-  UserRound,
 } from '@lucide/vue'
-import type { WorkspaceProjectSummary } from '~/composables/useProjectRepository'
+import type { WorkspaceFolder, WorkspaceProjectSummary } from '~/composables/useProjectRepository'
 import zakapeMark from '../../../../assets/brand/zakape-icon.png'
 import changelogSource from '../../../../CHANGELOG.md?raw'
 
 const props = defineProps<{
   projects: WorkspaceProjectSummary[]
+  folders: WorkspaceFolder[]
   workspaceDirectory: string
   loading?: boolean
 }>()
@@ -31,13 +31,31 @@ const emit = defineEmits<{
 }>()
 
 const { currentVersion } = useAppUpdater()
-const { account, dialogOpen: accountDialogOpen } = useGoogleAccount()
+const { activeLibraryFolder, assignProjectToFolder } = useProjectRepository()
 const totalFrames = computed(() =>
   props.projects.reduce((total, project) => total + project.frameCount, 0),
 )
 const latestUpdate = computed(() =>
   props.projects[0] ? updatedLabel(props.projects[0].updatedAt) : 'Ready for a first canvas',
 )
+const filteredProjects = computed(() => {
+  if (activeLibraryFolder.value === 'all') return props.projects
+  if (activeLibraryFolder.value === 'unfiled') {
+    return props.projects.filter((project) => !project.folderId)
+  }
+  const folderIds = new Set([activeLibraryFolder.value])
+  let changed = true
+  while (changed) {
+    changed = false
+    props.folders.forEach((folder) => {
+      if (folder.parentId && folderIds.has(folder.parentId) && !folderIds.has(folder.id)) {
+        folderIds.add(folder.id)
+        changed = true
+      }
+    })
+  }
+  return props.projects.filter((project) => project.folderId && folderIds.has(project.folderId))
+})
 
 const releaseNotes = changelogSource
   .split(/^## /m)
@@ -108,17 +126,6 @@ function updatedLabel(value: string) {
         <div class="home-brand-swatches"><i /><i /><i /><i /></div>
         <small>{{ workspaceDirectory }}</small>
       </div>
-      <button type="button" class="home-account-action" @click="accountDialogOpen = true">
-        <img v-if="account?.picture" :src="account.picture" width="24" height="24" alt="" />
-        <UserRound v-else :size="15" />
-        <span
-          ><strong>{{ account?.name || 'Guest workspace' }}</strong
-          ><small>{{
-            account ? 'Google account connected' : 'Optional desktop sign-in'
-          }}</small></span
-        >
-        <ArrowRight :size="13" />
-      </button>
     </header>
 
     <section class="home-ledger" aria-label="Workspace summary">
@@ -156,36 +163,60 @@ function updatedLabel(value: string) {
             <span class="eyebrow"><Clock3 :size="12" /> Canvas shelf</span>
             <h2 id="recent-work-heading">Recent work</h2>
           </div>
-          <span>{{ projects.length }} indexed</span>
+          <span>{{ filteredProjects.length }} shown</span>
         </header>
 
-        <div v-if="loading" class="home-empty" role="status">Indexing your workspace…</div>
-        <div v-else-if="projects.length" class="home-recent-list">
-          <button
-            v-for="project in projects.slice(0, 8)"
-            :key="project.id"
-            type="button"
-            class="home-recent-item"
-            @click="emit('openProject', project.id)"
-          >
-            <ProjectThumbnail class="home-recent-art" :preview="project.preview" />
-            <span class="home-recent-copy">
-              <span class="home-recent-meta">{{ updatedLabel(project.updatedAt) }}</span>
-              <strong>{{ project.name }}</strong>
-              <small>
-                {{ project.width }} × {{ project.height }} · {{ project.frameCount }} frame{{
-                  project.frameCount === 1 ? '' : 's'
+        <div class="home-library-layout">
+          <ProjectFolderRail :folders="folders" :projects="projects" />
+          <div class="home-library-content">
+            <div v-if="loading" class="home-empty" role="status">Indexing your workspace…</div>
+            <div v-else-if="filteredProjects.length" class="home-recent-list">
+              <article
+                v-for="project in filteredProjects.slice(0, 8)"
+                :key="project.id"
+                class="home-recent-item"
+              >
+                <button
+                  type="button"
+                  class="home-project-open"
+                  @click="emit('openProject', project.id)"
+                >
+                  <ProjectThumbnail class="home-recent-art" :preview="project.preview" />
+                  <span class="home-recent-copy">
+                    <span class="home-recent-meta">{{ updatedLabel(project.updatedAt) }}</span>
+                    <strong>{{ project.name }}</strong>
+                    <small>
+                      {{ project.width }} × {{ project.height }} · {{ project.frameCount }} frame{{
+                        project.frameCount === 1 ? '' : 's'
+                      }}
+                    </small>
+                  </span>
+                  <ArrowRight :size="14" />
+                </button>
+                <ProjectFolderPicker
+                  :project-id="project.id"
+                  :project-name="project.name"
+                  :folder-id="project.folderId"
+                  :folders="folders"
+                  @assign="assignProjectToFolder"
+                />
+              </article>
+            </div>
+            <div v-else class="home-empty">
+              <span class="empty-pixel" aria-hidden="true" />
+              <strong>{{
+                projects.length ? 'This suite is ready' : 'Your canvas shelf is ready'
+              }}</strong>
+              <p>
+                {{
+                  projects.length
+                    ? 'Move a related sprite here or create a new variant in this folder.'
+                    : 'Create a sprite or open a project file. Its first frame will appear here.'
                 }}
-              </small>
-            </span>
-            <ArrowRight :size="14" />
-          </button>
-        </div>
-        <div v-else class="home-empty">
-          <span class="empty-pixel" aria-hidden="true" />
-          <strong>Your canvas shelf is ready</strong>
-          <p>Create a sprite or open a project file. Its first frame will appear here.</p>
-          <button type="button" @click="emit('new')">Create a sprite</button>
+              </p>
+              <button type="button" @click="emit('new')">Create a sprite</button>
+            </div>
+          </div>
         </div>
       </section>
 

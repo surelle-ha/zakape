@@ -82,8 +82,11 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await expect(page.getByTestId('app-titlebar')).toBeVisible()
   await expect(page.getByTestId('app-titlebar')).toContainText('ZAKAPE STUDIO')
-  await expect(page.locator('.home-workspace')).toBeVisible()
   await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
+  const authentication = page.getByRole('main', { name: /Your studio starts on this device/ })
+  await expect(authentication).toBeVisible()
+  await authentication.getByRole('button', { name: 'Continue as Guest' }).click()
+  await expect(page.locator('.home-workspace')).toBeVisible()
   await expect(page.getByTestId('project-launcher')).toBeHidden()
   await page.evaluate(() => document.fonts.ready)
   await expect(page.getByRole('status', { name: 'Indexing your workspace…' })).toBeHidden({
@@ -100,14 +103,14 @@ test('shows local account status and exposes desktop update controls', async ({ 
   expect(await page.evaluate(() => document.fonts.check('16px "Handjet Variable"'))).toBe(true)
 
   await statusbar.getByRole('button', { name: /Guest account/ }).click()
-  const accountDialog = page.getByRole('dialog', { name: /Keep Guest access/ })
+  const accountDialog = page.getByRole('dialog', { name: /Account & artwork/ })
   await expect(accountDialog).toBeVisible()
-  await expect(accountDialog).toContainText('Install the desktop app to use Google sign-in.')
-  await expect(accountDialog).toContainText('Projects and artwork stay local.')
-  await expect(accountDialog.getByRole('button', { name: 'Continue with Google' })).toBeDisabled()
+  await expect(accountDialog).toContainText('Guest artist')
+  await expect(accountDialog).toContainText('Artwork stats')
+  await expect(accountDialog).toContainText('Documents/zakape')
   await mkdir(snapshotDirectory, { recursive: true })
-  await page.screenshot({ path: resolve(snapshotDirectory, 'account-and-recovery.png') })
-  await accountDialog.getByRole('button', { name: 'Close account dialog' }).click()
+  await page.screenshot({ path: resolve(snapshotDirectory, 'profile-artwork-drawer.png') })
+  await accountDialog.getByRole('button', { name: 'Close profile drawer' }).click()
   await expect(accountDialog).toBeHidden()
 
   await page.getByRole('button', { name: 'Help' }).click()
@@ -214,6 +217,41 @@ test('creates a sprite with a preset or custom project palette', async ({ page }
   await enterEditor(page, { name: 'Palette study' })
   await expect(page.getByRole('list', { name: 'Project color palette' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Use #22AAFF as primary color' })).toBeVisible()
+})
+
+test('organizes projects in nested sprite suites from Home and the project launcher', async ({
+  page,
+}) => {
+  const homeFolders = page.getByRole('complementary', { name: 'Project folders' }).first()
+  await homeFolders.getByRole('button', { name: 'Create project folder' }).click()
+  await homeFolders.getByRole('textbox', { name: 'Folder name' }).fill('Hero set')
+  await homeFolders.getByRole('button', { name: 'Create', exact: true }).click()
+  await expect(homeFolders.locator('.project-folder-row > button').first()).toContainText(
+    'Hero set',
+  )
+  await homeFolders.getByRole('button', { name: 'Create subfolder in Hero set' }).click()
+  await homeFolders.getByRole('textbox', { name: 'Folder name' }).fill('Winter variants')
+  await homeFolders.getByRole('button', { name: 'Create', exact: true }).click()
+  await expect(homeFolders.getByText('Winter variants', { exact: true })).toBeVisible()
+  await expect(homeFolders.getByRole('textbox', { name: 'Folder name' })).toBeHidden()
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'project-suites-home.png') })
+
+  await page.getByRole('button', { name: 'New sprite', exact: true }).first().click()
+  const launcher = page.getByTestId('project-launcher')
+  await expect(launcher.getByLabel('Sprite suite')).toHaveValue(/folder_/)
+  await enterEditor(page, { name: 'Snow hero' })
+  await page.getByRole('tab', { name: 'Home', exact: true }).click()
+  await expect(page.locator('.home-recent-item').filter({ hasText: 'Snow hero' })).toBeVisible()
+  await expect(page.getByText('Winter variants', { exact: true }).first()).toBeVisible()
+
+  await page.reload()
+  await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
+  await expect(page.getByRole('main', { name: /Your studio starts on this device/ })).toBeHidden()
+  const restoredFolders = page.getByRole('complementary', { name: 'Project folders' }).first()
+  await expect(restoredFolders.getByText('Hero set', { exact: true })).toBeVisible()
+  await expect(restoredFolders.getByText('Winter variants', { exact: true })).toBeVisible()
+  await expect(page.locator('.home-recent-item').filter({ hasText: 'Snow hero' })).toBeVisible()
 })
 
 test('introduces the editor on the first project and keeps help available later', async ({
@@ -552,7 +590,7 @@ test('owns frame creation, copying, deletion, and onion skin in each frame menu'
   await expect(page.getByRole('button', { name: /Add frame|Duplicate frame/ })).toHaveCount(0)
 })
 
-test('collapses the timeline and keeps frame delay with Live Preview', async ({ page }) => {
+test('toggles Live View and edits frame delay from the frame context menu', async ({ page }) => {
   await enterEditor(page)
   const timeline = page.getByRole('region', { name: 'Animation timeline' })
   await expect(
@@ -560,7 +598,22 @@ test('collapses the timeline and keeps frame delay with Live Preview', async ({ 
   ).toHaveCount(0)
   await expect(
     page.getByRole('spinbutton', { name: 'Active frame delay in milliseconds' }),
-  ).toHaveValue('120')
+  ).toHaveCount(0)
+  const liveViewToggle = page.getByRole('button', { name: 'Toggle live view' })
+  await expect(liveViewToggle).toHaveAttribute('aria-pressed', 'true')
+  await liveViewToggle.click()
+  await expect(page.getByRole('region', { name: 'Live preview', exact: true })).toBeHidden()
+  await liveViewToggle.click()
+  await expect(page.getByRole('region', { name: 'Live preview', exact: true })).toBeVisible()
+  await openFrameActions(page)
+  const frameDelay = page.getByRole('spinbutton', { name: 'Frame delay in milliseconds' })
+  await expect(frameDelay).toHaveValue('120')
+  await frameDelay.fill('180')
+  await frameDelay.press('Enter')
+  await expect(page.locator('.frame-delay').first()).toHaveText('180ms')
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'live-view-frame-timing.png') })
+  await page.keyboard.press('Escape')
   await timeline.getByRole('button', { name: 'Hide timeline' }).click()
   await expect(timeline).toHaveClass(/collapsed/)
   await expect(page.getByTestId('app-shell')).toHaveClass(/timeline-collapsed/)

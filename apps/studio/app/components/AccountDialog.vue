@@ -1,115 +1,178 @@
 <script setup lang="ts">
-import { Check, LoaderCircle, LogIn, LogOut, Monitor, ShieldCheck, UserRound, X } from '@lucide/vue'
+import {
+  Brush,
+  CalendarClock,
+  Film,
+  FolderOpen,
+  Layers3,
+  LoaderCircle,
+  LogIn,
+  LogOut,
+  ShieldCheck,
+  UserRound,
+  X,
+} from '@lucide/vue'
+import type { WorkspaceProjectSummary } from '~/composables/useProjectRepository'
 
-const props = defineProps<{ open: boolean }>()
-
-const emit = defineEmits<{
-  close: []
+const props = defineProps<{
+  open: boolean
+  projects: WorkspaceProjectSummary[]
+  workspaceDirectory: string
 }>()
 
+const emit = defineEmits<{ close: [] }>()
 const { account, configuration, status, errorMessage, signIn, signOut } = useGoogleAccount()
-const dialog = ref<HTMLElement | null>(null)
-
-const buildState = computed(() => {
-  if (configuration.value?.available) return 'Google sign-in is ready in this desktop build.'
-  if (configuration.value?.platform !== 'desktop')
-    return 'Google sign-in is not available on mobile yet.'
-  if (configuration.value?.featureEnabled) return 'Developer credentials are required.'
-  return 'Install the desktop app to use Google sign-in.'
+const drawer = ref<HTMLElement | null>(null)
+const totalFrames = computed(() =>
+  props.projects.reduce((total, project) => total + project.frameCount, 0),
+)
+const totalCanvasPixels = computed(() =>
+  props.projects.reduce((total, project) => total + project.width * project.height, 0),
+)
+const latestProject = computed(() => props.projects[0] ?? null)
+const latestActivity = computed(() => {
+  if (!latestProject.value) return 'No saved work yet'
+  const date = new Date(latestProject.value.updatedAt)
+  if (Number.isNaN(date.getTime())) return 'Saved locally'
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
 })
+const compactPixelCount = computed(() =>
+  new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(
+    totalCanvasPixels.value,
+  ),
+)
+
+const connectGoogle = async () => {
+  await signIn()
+}
+
+const disconnect = async () => {
+  await signOut()
+  emit('close')
+}
 
 watch(
   () => props.open,
   async (open) => {
     if (!open) return
     await nextTick()
-    dialog.value?.focus()
+    drawer.value?.focus()
   },
 )
 </script>
 
 <template>
-  <div v-if="open" class="account-dialog-backdrop" @click.self="emit('close')">
-    <section
-      ref="dialog"
-      v-motion-enter="'dialog'"
-      class="account-dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="account-dialog-title"
-      tabindex="-1"
-    >
-      <header>
-        <div>
-          <span class="eyebrow"><Monitor :size="12" /> Desktop account</span>
-          <h2 id="account-dialog-title">Keep Guest access, or sign in on desktop.</h2>
-        </div>
-        <button type="button" aria-label="Close account dialog" @click="emit('close')">
-          <X :size="18" />
-        </button>
-      </header>
+  <Teleport to="body">
+    <Transition name="drawer-fade">
+      <div v-if="open" class="profile-drawer-layer" @click.self="emit('close')">
+        <section
+          ref="drawer"
+          v-motion-enter="'drawer'"
+          class="profile-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="profile-drawer-title"
+          tabindex="-1"
+        >
+          <header class="profile-drawer-header">
+            <div>
+              <span class="eyebrow"><UserRound :size="12" /> Studio profile</span>
+              <h2 id="profile-drawer-title">Account & artwork</h2>
+            </div>
+            <button type="button" aria-label="Close profile drawer" @click="emit('close')">
+              <X :size="18" />
+            </button>
+          </header>
 
-      <div class="account-choice-grid">
-        <article class="account-choice guest-choice" :class="{ active: !account }">
-          <span class="account-choice-icon"><UserRound :size="19" /></span>
-          <div>
-            <strong>Guest access</strong>
-            <p>Draw, animate, save, and export without an account or network connection.</p>
+          <div class="profile-identity">
+            <img v-if="account?.picture" :src="account.picture" width="58" height="58" alt="" />
+            <span v-else class="profile-avatar"><UserRound :size="25" /></span>
+            <div>
+              <span>{{ account ? 'Google account' : 'Local workspace' }}</span>
+              <strong>{{ account?.name || 'Guest artist' }}</strong>
+              <small>{{ account?.email || 'No email connected' }}</small>
+            </div>
+            <span class="profile-connection"><i /> {{ account ? 'Connected' : 'Guest' }}</span>
           </div>
-          <span class="account-choice-state"><Check :size="13" /> Always available</span>
-        </article>
 
-        <article class="account-choice google-choice" :class="{ active: Boolean(account) }">
-          <template v-if="account">
-            <img v-if="account.picture" :src="account.picture" width="42" height="42" alt="" />
-            <span v-else class="account-choice-icon"><UserRound :size="19" /></span>
-            <div>
-              <strong>{{ account.name }}</strong>
-              <p>{{ account.email }}</p>
+          <section class="profile-section" aria-labelledby="artwork-stats-heading">
+            <header>
+              <span><Brush :size="14" /> Artwork stats</span>
+              <small>On this device</small>
+            </header>
+            <h3 id="artwork-stats-heading" class="sr-only">Artwork statistics</h3>
+            <div class="profile-stat-grid">
+              <article>
+                <strong>{{ projects.length }}</strong
+                ><span>projects</span>
+              </article>
+              <article>
+                <strong>{{ totalFrames }}</strong
+                ><span>frames</span>
+              </article>
+              <article>
+                <strong>{{ compactPixelCount }}</strong
+                ><span>canvas pixels</span>
+              </article>
+              <article>
+                <strong>{{
+                  projects.length ? Math.round(totalFrames / projects.length) : 0
+                }}</strong
+                ><span>frames / project</span>
+              </article>
             </div>
-            <span class="account-choice-state"><ShieldCheck :size="13" /> Connected</span>
-          </template>
-          <template v-else>
-            <span class="account-choice-icon google-letter" aria-hidden="true">G</span>
+          </section>
+
+          <section class="profile-section profile-details" aria-label="Workspace details">
             <div>
-              <strong>Google account</strong>
-              <p>Use your Google identity in the desktop app. Projects and artwork stay local.</p>
+              <span><FolderOpen :size="14" /> Workspace</span>
+              <strong>{{ workspaceDirectory }}</strong>
             </div>
-            <span class="account-choice-state"><ShieldCheck :size="13" /> Optional</span>
-          </template>
-        </article>
+            <div>
+              <span><CalendarClock :size="14" /> Latest activity</span>
+              <strong>{{ latestActivity }}</strong>
+            </div>
+            <div>
+              <span><Film :size="14" /> Latest sprite</span>
+              <strong>{{ latestProject?.name || 'None yet' }}</strong>
+            </div>
+            <div>
+              <span><Layers3 :size="14" /> Storage</span>
+              <strong>Local files</strong>
+            </div>
+          </section>
+
+          <div class="profile-privacy-note">
+            <ShieldCheck :size="16" />
+            <p>
+              Account identity stays separate from your artwork. Signing in never uploads files.
+            </p>
+          </div>
+
+          <p v-if="errorMessage" class="account-message error" role="alert">{{ errorMessage }}</p>
+
+          <footer class="profile-actions">
+            <button
+              v-if="!account && configuration?.available"
+              type="button"
+              class="account-google-action"
+              :disabled="status === 'loading'"
+              @click="connectGoogle"
+            >
+              <LoaderCircle v-if="status === 'loading'" class="spin" :size="15" />
+              <LogIn v-else :size="15" /> Connect Google
+            </button>
+            <button v-if="account" type="button" class="account-danger-action" @click="disconnect">
+              <LogOut :size="15" /> Sign out
+            </button>
+            <small v-else>Guest access is active.</small>
+          </footer>
+        </section>
       </div>
-
-      <div class="account-privacy-note">
-        <ShieldCheck :size="16" />
-        <p>
-          Sign-in opens Google in your system browser. Zakape stores the account profile locally and
-          protects the desktop refresh token in your operating-system credential vault. No artwork
-          is uploaded.
-        </p>
-      </div>
-
-      <p v-if="errorMessage" class="account-message error" role="alert">{{ errorMessage }}</p>
-
-      <footer>
-        <div class="account-build-state">{{ buildState }}</div>
-        <div class="account-dialog-actions">
-          <button v-if="account" type="button" class="account-danger-action" @click="signOut">
-            <LogOut :size="15" /> Sign out
-          </button>
-          <button
-            v-else
-            type="button"
-            class="account-google-action"
-            :disabled="status === 'loading' || !configuration?.available"
-            @click="signIn"
-          >
-            <LoaderCircle v-if="status === 'loading'" class="spin" :size="16" />
-            <LogIn v-else :size="16" />
-            Continue with Google
-          </button>
-        </div>
-      </footer>
-    </section>
-  </div>
+    </Transition>
+  </Teleport>
 </template>

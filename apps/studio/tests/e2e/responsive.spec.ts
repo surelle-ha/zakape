@@ -2,6 +2,9 @@ import { expect, test } from '@playwright/test'
 
 const openEditor = async (page: import('@playwright/test').Page, name: string, size = 32) => {
   await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
+  const authentication = page.getByRole('main', { name: /Your studio starts on this device/ })
+  await expect(authentication).toBeVisible()
+  await authentication.getByRole('button', { name: 'Continue as Guest' }).click()
   const launcher = page.getByTestId('project-launcher')
   await expect(launcher).toBeHidden()
   await page.getByRole('button', { name: 'New sprite', exact: true }).first().click()

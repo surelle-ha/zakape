@@ -3,6 +3,7 @@ import {
   Check,
   ChevronDown,
   Download,
+  Eye,
   FileUp,
   Grid2X2,
   Grid3X3,
@@ -63,12 +64,14 @@ const { discardProposal } = useAiAssistant()
 const {
   persistenceState,
   recentProjects,
+  workspaceFolders,
   workspaceDirectory,
   refreshProjects,
   loadProject,
   saveProject,
   loadPreference,
   savePreference,
+  assignProjectToFolder,
 } = useProjectRepository()
 const {
   screen,
@@ -88,7 +91,7 @@ const {
 const { closeRequest, requestProjectClose, requestApplicationClose, cancelClose } =
   useCloseConfirmation()
 const appWindow = useAppWindow()
-const { dialogOpen: accountDialogOpen, initialize: initializeGoogleAccount } = useGoogleAccount()
+const { dialogOpen: accountDialogOpen } = useGoogleAccount()
 const exportOpen = ref(false)
 const inspectorOpen = ref(false)
 const timelineOpen = useState<boolean>('timeline-open', () => true)
@@ -100,6 +103,7 @@ const initialized = ref(false)
 const closeBusy = ref(false)
 const closeError = ref('')
 const playing = useState<boolean>('preview-playing', () => true)
+const livePreviewOpen = useState<boolean>('live-preview-open', () => true)
 const closingDocument = computed(() => {
   const request = closeRequest.value
   if (request?.kind !== 'project') return null
@@ -200,6 +204,7 @@ const createProject = async (spec: {
   background: CanvasBackground
   checkerSize: number
   palette: string[]
+  folderId: string | null
 }) => {
   const nextProject = createBlankProject(
     spec.width,
@@ -214,6 +219,7 @@ const createProject = async (spec: {
   nameDraft.value = nextProject.name
   showEditor()
   await saveProject(nextProject)
+  await assignProjectToFolder(nextProject.id, spec.folderId)
   await offerWalkthrough()
   await fitCompactCanvas()
 }
@@ -442,6 +448,11 @@ const keydown = (event: KeyboardEvent) => {
     onionSkin.value = !onionSkin.value
     return
   }
+  if (key === 'v') {
+    event.preventDefault()
+    livePreviewOpen.value = !livePreviewOpen.value
+    return
+  }
   if (key === 'g') {
     event.preventDefault()
     if (event.shiftKey) showTransparency.value = !showTransparency.value
@@ -560,7 +571,7 @@ watch(closeRequest, () => {
 
 onMounted(async () => {
   unlistenWindowClose = await appWindow.onCloseRequested(requestApplicationClose)
-  await Promise.all([refreshProjects(), initializeGoogleAccount()])
+  await refreshProjects()
   initialized.value = true
   window.addEventListener('keydown', keydown, true)
   window.addEventListener('keyup', keyup)
@@ -595,6 +606,7 @@ onBeforeUnmount(() => {
       <HomeWorkspace
         v-if="screen === 'home'"
         :projects="recentProjects"
+        :folders="workspaceFolders"
         :workspace-directory="workspaceDirectory"
         :loading="persistenceState === 'loading'"
         @new="requestNew"
@@ -829,6 +841,20 @@ onBeforeUnmount(() => {
               </button>
               <button
                 v-tooltip="{
+                  text: 'Live view',
+                  detail: 'Show or hide the animation preview beside the canvas.',
+                  shortcut: 'V',
+                }"
+                type="button"
+                :class="{ active: livePreviewOpen }"
+                :aria-pressed="livePreviewOpen"
+                aria-label="Toggle live view"
+                @click="livePreviewOpen = !livePreviewOpen"
+              >
+                <Eye :size="14" />
+              </button>
+              <button
+                v-tooltip="{
                   text: 'Pixel grid',
                   detail: 'Show or hide individual pixel boundaries.',
                   shortcut: 'G',
@@ -883,7 +909,7 @@ onBeforeUnmount(() => {
             </div>
             <span>{{ project.colorMode.toUpperCase() }} · sRGB</span>
           </footer>
-          <LivePreviewPanel />
+          <LivePreviewPanel v-if="livePreviewOpen" />
         </section>
 
         <button
@@ -914,6 +940,7 @@ onBeforeUnmount(() => {
     <ProjectLauncher
       v-if="launcherOpen"
       :projects="recentProjects"
+      :folders="workspaceFolders"
       :workspace-directory="workspaceDirectory"
       :view="launcherView"
       :loading="persistenceState === 'loading'"
@@ -937,7 +964,12 @@ onBeforeUnmount(() => {
     />
 
     <AssistantDrawer :open="assistantOpen" @close="assistantOpen = false" />
-    <AccountDialog :open="accountDialogOpen" @close="accountDialogOpen = false" />
+    <AccountDialog
+      :open="accountDialogOpen"
+      :projects="recentProjects"
+      :workspace-directory="workspaceDirectory"
+      @close="accountDialogOpen = false"
+    />
     <ShortcutGuide :open="shortcutGuideOpen" @close="shortcutGuideOpen = false" />
     <EditorWalkthrough :open="walkthroughOpen" @complete="completeWalkthrough" />
 

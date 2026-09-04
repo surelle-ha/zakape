@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronDown,
+  Clock3,
   Copy,
   Ellipsis,
   Layers3,
@@ -13,8 +14,9 @@ import {
 defineProps<{ collapsed?: boolean }>()
 const emit = defineEmits<{ toggle: [] }>()
 
-const { project, activeFrameId, addFrame, deleteFrame, moveFrame } = useEditor()
+const { project, activeFrameId, addFrame, deleteFrame, moveFrame, setFrameDuration } = useEditor()
 const frameMenu = ref<{ frameId: string; x: number; y: number } | null>(null)
+const durationDraft = ref(120)
 const draggingFrameId = ref<string | null>(null)
 const dropTarget = ref<{ frameId: string; side: 'before' | 'after' } | null>(null)
 const holdPendingFrameId = ref<string | null>(null)
@@ -46,6 +48,7 @@ const openFrameMenu = (event: MouseEvent, frameId: string) => {
     x: Math.max(8, Math.min(requestedX, window.innerWidth - 208)),
     y: Math.max(8, Math.min(requestedY, window.innerHeight - 284)),
   }
+  durationDraft.value = project.value.frames.find((frame) => frame.id === frameId)?.duration ?? 120
 }
 
 const cancelHoldTimer = () => {
@@ -194,6 +197,14 @@ const moveMenuFrame = (offset: -1 | 1) => {
 }
 
 const closeFrameMenu = () => (frameMenu.value = null)
+const commitFrameDuration = () => {
+  if (!frameMenu.value) return
+  const duration = Number(durationDraft.value)
+  if (!Number.isFinite(duration)) return
+  setFrameDuration(frameMenu.value.frameId, duration)
+  durationDraft.value =
+    project.value.frames.find((frame) => frame.id === frameMenu.value?.frameId)?.duration ?? 120
+}
 const onKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
     closeFrameMenu()
@@ -326,6 +337,24 @@ onBeforeUnmount(() => {
         @pointerdown.stop
         @contextmenu.prevent
       >
+        <div class="frame-duration-menu-item" role="group" aria-label="Frame timing">
+          <Clock3 :size="13" />
+          <label>
+            <span>Frame delay</span>
+            <input
+              v-model.number="durationDraft"
+              type="number"
+              min="40"
+              max="10000"
+              step="10"
+              aria-label="Frame delay in milliseconds"
+              @change="commitFrameDuration"
+              @keydown.enter.prevent="commitFrameDuration"
+            />
+            <small>ms</small>
+          </label>
+        </div>
+        <span class="menu-separator" role="separator" />
         <button type="button" role="menuitem" @click="addAdjacent(false, 'left')">
           <Plus :size="13" /><span>Blank frame to left</span><kbd>←</kbd>
         </button>

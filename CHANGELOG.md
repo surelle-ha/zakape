@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/surelle-ha/zakape/compare/v0.12.0...v0.12.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* optimize canvas and harden F-Droid build ([385b075](https://github.com/surelle-ha/zakape/commit/385b0755e7641f9fcdb3f5f6bcc7135c20691dd1))
+
 ## [0.12.0](https://github.com/surelle-ha/zakape/compare/v0.11.0...v0.12.0) (2026-09-03)
 
 

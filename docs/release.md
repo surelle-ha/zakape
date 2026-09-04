@@ -58,6 +58,17 @@ Create the certificate and app-specific password through the paid Apple Develope
 
 Without these secrets, the workflow publishes Windows and Linux assets and adds a macOS availability notice. After configuring the secrets, run **Desktop release** with the published tag and the **macos** target to attach the signed package to the existing release.
 
+For device testing without an Apple Developer membership, manually run **macOS unsigned test build** from the Actions page. It produces a universal Apple Silicon and Intel application artifact with an ad-hoc signature, no notarization ticket, and no updater archive. This testing package is deliberately not attached to a public release because macOS cannot establish its publisher identity.
+
+After downloading and extracting the artifact, move `Zakape.app` to `/Applications`, then clear the download quarantine and open it:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Zakape.app
+open /Applications/Zakape.app
+```
+
+The artifact includes the same instructions in `INSTALL.txt` and a SHA-256 checksum. Only bypass Gatekeeper for an artifact downloaded from a trusted Zakape Actions run. Public distribution still requires the Developer ID and notarization process above.
+
 ## Publish Android builds
 
 The **Android** workflow builds and verifies an Android package (APK) on relevant pushes and pull requests as a development quality gate. Release attachment belongs to the **Desktop release** workflow itself. The release job passes the draft release ID directly to every asset uploader because GitHub can temporarily expose a newly tagged draft under an `untagged-*` placeholder. Uploading by immutable release ID avoids that lookup race. The release cannot publish without `Zakape-X.Y.Z-android-arm64.apk`.

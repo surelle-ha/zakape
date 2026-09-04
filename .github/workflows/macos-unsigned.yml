@@ -1,0 +1,117 @@
+name: macOS unsigned test build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-unsigned-main
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Universal macOS app
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.17.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/studio/src-tauri -> target
+      - run: pnpm install --frozen-lockfile
+      - name: Build universal app without Apple credentials
+        env:
+          APPLE_SIGNING_IDENTITY: '-'
+          ZAKAPE_GOOGLE_DESKTOP_CLIENT_ID: ${{ vars.ZAKAPE_GOOGLE_DESKTOP_CLIENT_ID }}
+          ZAKAPE_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.ZAKAPE_GOOGLE_DESKTOP_CLIENT_SECRET }}
+        run: >-
+          pnpm --filter @zakape/studio tauri build
+          --features google-auth
+          --target universal-apple-darwin
+          --bundles app
+          --config '{"bundle":{"createUpdaterArtifacts":false}}'
+      - name: Verify and package the testing build
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_path="apps/studio/src-tauri/target/universal-apple-darwin/release/bundle/macos/Zakape.app"
+          executable="$app_path/Contents/MacOS/zakape"
+          version="$(node -p "require('./apps/studio/package.json').version")"
+          payload="$RUNNER_TEMP/Zakape-$version-macOS-unnotarized-universal"
+          archive="$RUNNER_TEMP/Zakape-$version-macOS-unnotarized-universal.zip"
+
+          test -d "$app_path"
+          test -x "$executable"
+          architectures="$(lipo -archs "$executable")"
+          [[ " $architectures " == *" arm64 "* ]]
+          [[ " $architectures " == *" x86_64 "* ]]
+
+          codesign --force --deep --sign - "$app_path"
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          signature_details="$(codesign --display --verbose=4 "$app_path" 2>&1)"
+          if grep -q "Authority=Developer ID Application" <<<"$signature_details"; then
+            echo "::error::The testing bundle unexpectedly contains a Developer ID signature."
+            exit 1
+          fi
+
+          mkdir -p "$payload"
+          ditto "$app_path" "$payload/Zakape.app"
+          cat >"$payload/INSTALL.txt" <<'EOF'
+          ZAKAPE FOR MACOS — UNNOTARIZED TEST BUILD
+
+          This universal build runs on Apple Silicon and Intel Macs. It has an ad-hoc
+          signature only. It is not signed with an Apple Developer ID and has not been
+          notarized by Apple, so Gatekeeper will block it after download.
+
+          1. Move Zakape.app into /Applications.
+          2. Open Terminal and run:
+
+             xattr -dr com.apple.quarantine /Applications/Zakape.app
+             open /Applications/Zakape.app
+
+          If macOS still blocks the app, open System Settings > Privacy & Security and
+          choose Open Anyway for Zakape. Only use this build when you trust the GitHub
+          Actions run that produced it.
+
+          This package is for testing. It is excluded from Zakape's automatic updater.
+          EOF
+          ditto -c -k --sequesterRsrc --keepParent "$payload" "$archive"
+          (
+            cd "$RUNNER_TEMP"
+            shasum -a 256 "$(basename "$archive")" >"$(basename "$archive").sha256"
+          )
+
+          echo "archive=$archive" >>"$GITHUB_OUTPUT"
+          echo "checksum=$archive.sha256" >>"$GITHUB_OUTPUT"
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+      - name: Upload unsigned macOS package
+        uses: actions/upload-artifact@v6
+        with:
+          name: Zakape-${{ steps.package.outputs.version }}-macOS-unnotarized-universal
+          path: |
+            ${{ steps.package.outputs.archive }}
+            ${{ steps.package.outputs.checksum }}
+          if-no-files-found: error
+          retention-days: 30
+      - name: Explain installation
+        run: |
+          echo '### macOS testing package' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download the artifact from this run and read `INSTALL.txt` before opening Zakape.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This package is ad-hoc signed, unnotarized, and excluded from automatic updates.' >> "$GITHUB_STEP_SUMMARY"

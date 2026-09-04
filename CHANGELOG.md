@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/surelle-ha/zakape/compare/v0.14.0...v0.15.0) (2026-09-04)
+
+
+### Features
+
+* add studio entry and sprite suites ([8add9b5](https://github.com/surelle-ha/zakape/commit/8add9b5d0c6b2d24253019f107203b7fb3577605))
+
 ## [0.14.0](https://github.com/surelle-ha/zakape/compare/v0.13.1...v0.14.0) (2026-09-04)
 
 

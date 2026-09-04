@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/surelle-ha/zakape/compare/v0.13.0...v0.13.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* preserve custom project banner ([667f2ab](https://github.com/surelle-ha/zakape/commit/667f2ab17a794844b4faae10ad3cf0bc4855640a))
+
 ## [0.13.0](https://github.com/surelle-ha/zakape/compare/v0.12.1...v0.13.0) (2026-09-04)
 
 

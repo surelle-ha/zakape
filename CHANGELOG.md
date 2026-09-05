@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/surelle-ha/zakape/compare/v0.15.0...v0.16.0) (2026-09-05)
+
+
+### Features
+
+* **studio:** add Godot project bridge ([5678597](https://github.com/surelle-ha/zakape/commit/56785972bbde8c9c9ffb9e1e4da95d7c4c25ec25))
+
 ## [0.15.0](https://github.com/surelle-ha/zakape/compare/v0.14.0...v0.15.0) (2026-09-04)
 
 

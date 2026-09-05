@@ -4,6 +4,7 @@ import {
   CircleHelp,
   Cloud,
   FolderOpen,
+  Gamepad2,
   Grid3X3,
   Info,
   Keyboard,
@@ -18,8 +19,15 @@ const props = withDefaults(defineProps<{ menusEnabled?: boolean }>(), {
   menusEnabled: true,
 })
 
-const { screen, requestNew, requestOpen, showHome, showShortcutGuide, showWalkthrough } =
-  useWorkspace()
+const {
+  screen,
+  requestNew,
+  requestOpen,
+  showHome,
+  showGodotBridge,
+  showShortcutGuide,
+  showWalkthrough,
+} = useWorkspace()
 const { project, canRedo, canUndo, onionSkin, redo, showGrid, undo } = useEditor()
 const { saveProject, workspaceDirectory } = useProjectRepository()
 const { checkForUpdates, currentVersion, status: updateStatus } = useAppUpdater()
@@ -151,6 +159,9 @@ watch(
           </button>
           <button type="button" role="menuitem" @click="run(requestOpen)">
             <FolderOpen :size="13" /> Open project <kbd>Ctrl O</kbd>
+          </button>
+          <button type="button" role="menuitem" @click="run(showGodotBridge)">
+            <Gamepad2 :size="13" /> Godot Bridge
           </button>
           <span class="menu-separator" role="separator" />
           <button type="button" role="menuitem" :disabled="screen !== 'editor'" @click="run(save)">

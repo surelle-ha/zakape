@@ -34,6 +34,23 @@ test.describe('phone workbench', () => {
     hasTouch: true,
   })
 
+  test('keeps the desktop-only Godot handoff understandable on a phone', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByTestId('app-splash')).toBeHidden({ timeout: 30_000 })
+    const authentication = page.getByRole('main', { name: /Your studio starts on this device/ })
+    await authentication.getByRole('button', { name: 'Continue as Guest' }).click()
+    await page.getByRole('button', { name: 'Godot Bridge', exact: true }).click()
+
+    const bridge = page.getByRole('dialog', { name: 'Godot Bridge' })
+    await expect(bridge).toBeVisible()
+    const bounds = await bridge.boundingBox()
+    expect(bounds!.width).toBe(412)
+    expect(bounds!.height).toBe(839)
+    await expect(bridge).toContainText('filesystem access sandboxed')
+    await bridge.getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(bridge).toBeHidden()
+  })
+
   test('keeps drawing, tools, layers, and frames reachable by touch', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByTestId('app-titlebar')).toBeHidden()

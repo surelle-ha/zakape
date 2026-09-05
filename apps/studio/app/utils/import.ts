@@ -1,7 +1,7 @@
 import type { Frame, Layer, SpriteProject } from '~/types/editor'
 import { parseSpriteProject } from '~/utils/project'
 
-interface ImportedSpritePayload {
+export interface ImportedSpritePayload {
   sourceHash: string
   name: string
   width: number
@@ -14,7 +14,10 @@ interface ImportedSpritePayload {
 
 const isTauriRuntime = () => import.meta.client && '__TAURI_INTERNALS__' in window
 
-export const importedSpriteProject = (payload: ImportedSpritePayload): SpriteProject => {
+export const importedSpriteProject = (
+  payload: ImportedSpritePayload,
+  source: 'ase' | 'godot' = 'ase',
+): SpriteProject => {
   const now = new Date().toISOString()
   const safeLayers = payload.layers.map((layer, index) => ({
     ...layer,
@@ -22,7 +25,7 @@ export const importedSpriteProject = (payload: ImportedSpritePayload): SpritePro
   }))
   return parseSpriteProject({
     version: 1,
-    id: `project_ase_${payload.sourceHash}`,
+    id: `project_${source}_${payload.sourceHash}`,
     name: payload.name || 'Imported sprite',
     width: payload.width,
     height: payload.height,

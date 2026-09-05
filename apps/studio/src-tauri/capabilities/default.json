@@ -11,6 +11,7 @@
     "core:window:allow-destroy",
     "core:window:allow-start-dragging",
     "core:window:allow-is-maximized",
+    "dialog:allow-open",
     "dialog:allow-save",
     "fs:allow-write-file"
   ]

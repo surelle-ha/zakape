@@ -5659,6 +5659,1016 @@ kbd {
   }
 }
 
+/* Godot Bridge */
+.godot-backdrop {
+  z-index: 760;
+  padding: 16px;
+  background: rgb(5 7 10 / 82%);
+  backdrop-filter: blur(5px) saturate(0.7);
+}
+
+.godot-workspace {
+  display: grid;
+  width: min(1180px, calc(100vw - 32px));
+  height: min(720px, calc(100dvh - 64px));
+  min-height: 580px;
+  grid-template-rows: 58px minmax(0, 1fr) 28px;
+  overflow: hidden;
+  border: 1px solid #506477;
+  border-radius: 8px;
+  color: var(--text);
+  background: #11151b;
+  box-shadow:
+    0 36px 120px rgb(0 0 0 / 72%),
+    10px 10px 0 rgb(75 145 196 / 7%);
+}
+
+.godot-workspace-header {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 36px auto minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 13px;
+  border-bottom: 1px solid #34404b;
+  background: #151a21;
+}
+
+.godot-workspace-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #47799d;
+  border-radius: 5px;
+  color: #91c9ec;
+  background: rgb(71 140 191 / 9%);
+}
+
+.godot-workspace-header h2,
+.godot-publisher h3,
+.godot-unavailable h3 {
+  font-family: var(--font-display);
+  font-weight: 650;
+  font-variation-settings:
+    'ELGR' 1,
+    'ELSH' 2;
+  letter-spacing: 0.035em;
+  word-spacing: 0.12em;
+}
+
+.godot-workspace-header h2 {
+  margin: 3px 0 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.godot-live-path {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-self: end;
+  gap: 7px;
+  overflow: hidden;
+  color: #7c94a7;
+  font:
+    8px/1 'Azeret Mono Variable',
+    monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.godot-live-path i {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #65a8d6;
+  box-shadow: 0 0 0 3px rgb(71 140 191 / 12%);
+}
+
+.godot-workspace-body {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: 190px minmax(360px, 1fr) 292px;
+}
+
+.godot-projects,
+.godot-publisher {
+  min-width: 0;
+  min-height: 0;
+  background: #0e1217;
+}
+
+.godot-projects {
+  display: grid;
+  grid-template-rows: 36px minmax(0, 1fr) auto;
+  padding: 0 8px 9px;
+  border-right: 1px solid #2e3740;
+}
+
+.godot-projects > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5px;
+  color: #899aa8;
+  font:
+    8px/1 'Azeret Mono Variable',
+    monospace;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.godot-projects > header small {
+  color: #52606c;
+  font-size: 7px;
+}
+
+.godot-project-list {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  overflow: auto;
+}
+
+.godot-project-item {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 26px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+
+.godot-project-item:hover {
+  background: #171d24;
+}
+
+.godot-project-item.active {
+  border-color: #41627a;
+  background: rgb(71 140 191 / 9%);
+}
+
+.godot-project-select {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 7px 4px 7px 6px;
+  border: 0;
+  color: #bec8d1;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.godot-project-select > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.godot-project-select strong,
+.godot-project-select small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.godot-project-select strong {
+  font-size: 9px;
+}
+
+.godot-project-select small {
+  color: #71808c;
+  font-size: 7px;
+}
+
+.godot-project-select small.missing {
+  color: #d59ba7;
+}
+
+.godot-project-glyph {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid #354653;
+  border-radius: 4px;
+  color: #7bb6dc;
+  background: #121820;
+}
+
+.godot-project-item > button:last-child {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  color: #5e6b76;
+  background: transparent;
+  cursor: pointer;
+}
+
+.godot-project-item > button:last-child:hover {
+  color: #e5a3b0;
+  background: rgb(225 95 116 / 9%);
+}
+
+.godot-connect {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 8px;
+  border: 1px dashed #48667c;
+  border-radius: 4px;
+  color: #92bdd8;
+  background: rgb(71 140 191 / 6%);
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.godot-connect:hover:not(:disabled) {
+  border-style: solid;
+  color: #c1e4f8;
+  background: rgb(71 140 191 / 11%);
+}
+
+.godot-project-empty {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  padding: 16px;
+  color: #566571;
+  text-align: center;
+}
+
+.godot-project-empty strong {
+  color: #9eabb5;
+  font-size: 9px;
+}
+
+.godot-project-empty p {
+  margin: 0;
+  font-size: 7px;
+  line-height: 1.5;
+}
+
+.godot-explorer {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: 42px 31px auto 31px minmax(0, 1fr) 58px;
+  background-color: #14191f;
+  background-image:
+    linear-gradient(rgb(80 100 119 / 3%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(80 100 119 / 3%) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.godot-explorer-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 31px auto;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px 5px;
+  border-bottom: 1px solid #29323a;
+}
+
+.godot-explorer-tools label {
+  display: grid;
+  min-width: 0;
+  height: 30px;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 0 7px;
+  border: 1px solid #34414b;
+  border-radius: 4px;
+  color: #738795;
+  background: #0f1419;
+}
+
+.godot-explorer-tools input {
+  min-width: 0;
+  height: 28px;
+  padding: 0 5px;
+  border: 0;
+  outline: 0;
+  color: var(--text);
+  background: transparent;
+  font-size: 9px;
+}
+
+.godot-explorer-tools kbd {
+  color: #526370;
+  font-size: 6px;
+}
+
+.godot-explorer-tools > button {
+  display: flex;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid #34414b;
+  border-radius: 4px;
+  color: #899aa7;
+  background: #11171c;
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.godot-breadcrumbs {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 1px;
+  padding: 0 10px;
+  overflow: auto hidden;
+  border-bottom: 1px solid #29323a;
+  color: #556672;
+  scrollbar-width: none;
+}
+
+.godot-breadcrumbs::-webkit-scrollbar {
+  display: none;
+}
+
+.godot-breadcrumbs button {
+  flex: 0 0 auto;
+  padding: 3px 4px;
+  border: 0;
+  color: #8eafc5;
+  background: transparent;
+  font:
+    7px/1 'Azeret Mono Variable',
+    monospace;
+  cursor: pointer;
+}
+
+.godot-folder-form {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #34414b;
+  color: #7db4d6;
+  background: #111820;
+}
+
+.godot-folder-form input,
+.godot-field input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #3a4854;
+  border-radius: 3px;
+  color: var(--text);
+  background: #0d1217;
+  font-size: 9px;
+}
+
+.godot-folder-form input {
+  padding: 0 8px;
+}
+
+.godot-folder-form .button-primary,
+.godot-folder-form .button-quiet {
+  height: 28px;
+}
+
+.godot-kind-tabs {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  overflow: auto hidden;
+  border-bottom: 1px solid #29323a;
+  scrollbar-width: none;
+}
+
+.godot-kind-tabs button {
+  height: 22px;
+  flex: 0 0 auto;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #667783;
+  background: transparent;
+  font-size: 7px;
+  cursor: pointer;
+}
+
+.godot-kind-tabs button.active {
+  border-color: #42647a;
+  color: #acd7ef;
+  background: rgb(71 140 191 / 10%);
+}
+
+.godot-resource-table {
+  min-height: 0;
+  overflow: auto;
+}
+
+.godot-resource-table > header,
+.godot-resource-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 70px 54px 14px;
+  align-items: center;
+  gap: 5px;
+}
+
+.godot-resource-table > header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  height: 25px;
+  padding: 0 8px 0 11px;
+  border-bottom: 1px solid #2a343c;
+  color: #596a76;
+  background: #11171c;
+  font:
+    6px/1 'Azeret Mono Variable',
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.godot-resource-row {
+  width: 100%;
+  height: 47px;
+  padding: 0 8px;
+  border: 0;
+  border-bottom: 1px solid rgb(48 59 68 / 58%);
+  color: #9eabb5;
+  background: rgb(16 21 26 / 84%);
+  text-align: left;
+  cursor: pointer;
+}
+
+.godot-resource-row:hover,
+.godot-resource-row.selected {
+  background: #19222a;
+}
+
+.godot-resource-row.selected {
+  box-shadow: inset 2px 0 #65a8d6;
+}
+
+.godot-resource-row > span:first-child {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 29px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+}
+
+.godot-resource-row > span:first-child > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.godot-resource-row strong,
+.godot-resource-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.godot-resource-row strong {
+  color: #cbd2d8;
+  font-size: 9px;
+  font-weight: 560;
+}
+
+.godot-resource-row small {
+  color: #586772;
+  font:
+    6px/1 'Azeret Mono Variable',
+    monospace;
+}
+
+.godot-resource-row > span:nth-child(2),
+.godot-resource-row > span:nth-child(3) {
+  overflow: hidden;
+  color: #687985;
+  font-size: 7px;
+  text-overflow: ellipsis;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.godot-resource-icon {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border: 1px solid #34424d;
+  border-radius: 3px;
+  color: #768c9c;
+  background: #11171d;
+}
+
+.godot-resource-icon.folder,
+.godot-resource-icon.texture {
+  color: #80bcdf;
+}
+
+.godot-resource-icon.scene,
+.godot-resource-icon.resource {
+  color: var(--mint);
+}
+
+.godot-resource-icon.script {
+  color: #d8b4fe;
+}
+
+.godot-resource-empty {
+  display: flex;
+  min-height: 180px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: #667783;
+  font-size: 8px;
+  text-align: center;
+}
+
+.godot-selection-bar {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-top: 1px solid #34404a;
+  background: #10161b;
+}
+
+.godot-selection-bar > span:not(.godot-selection-hint) {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  color: #7caac6;
+}
+
+.godot-selection-bar > span > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.godot-selection-bar strong,
+.godot-selection-bar small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.godot-selection-bar strong {
+  color: #c7d0d6;
+  font-size: 8px;
+}
+
+.godot-selection-bar small,
+.godot-selection-hint {
+  color: #60717d;
+  font-size: 7px;
+}
+
+.godot-index-warning {
+  position: absolute;
+  right: 8px;
+  bottom: 2px;
+  color: #d2a873;
+  font-size: 6px;
+}
+
+.godot-publisher {
+  padding: 15px 14px 12px;
+  overflow: auto;
+  border-left: 1px solid #2e3740;
+}
+
+.godot-publisher > header h3 {
+  margin: 5px 0 3px;
+  font-size: 20px;
+}
+
+.godot-publisher > header p {
+  margin: 0;
+  overflow: hidden;
+  color: #71818d;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.godot-publish-kind {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 13px 0 11px;
+}
+
+.godot-publish-kind button {
+  display: grid;
+  min-width: 0;
+  min-height: 56px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  padding: 7px;
+  border: 1px solid #303c46;
+  border-radius: 4px;
+  color: #758590;
+  background: #12171c;
+  text-align: left;
+  cursor: pointer;
+}
+
+.godot-publish-kind button.active {
+  border-color: #47799d;
+  color: #96caea;
+  background: rgb(71 140 191 / 9%);
+}
+
+.godot-publish-kind button span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.godot-publish-kind strong {
+  color: #c3ced6;
+  font-size: 8px;
+}
+
+.godot-publish-kind small {
+  overflow: hidden;
+  font-size: 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.godot-field {
+  display: grid;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.godot-field > span,
+.godot-output-path > span,
+.godot-file-plan > span {
+  color: #778793;
+  font-size: 8px;
+}
+
+.godot-field input {
+  width: 100%;
+  padding: 0 8px;
+}
+
+.godot-output-path {
+  display: grid;
+  gap: 4px;
+  margin-top: 11px;
+  padding: 8px;
+  border: 1px solid #2d3942;
+  border-radius: 4px;
+  background: #11171c;
+}
+
+.godot-output-path strong {
+  overflow: hidden;
+  color: #8abbd8;
+  font:
+    7px/1.3 'Azeret Mono Variable',
+    monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.godot-output-path small {
+  color: #586772;
+  font-size: 6px;
+}
+
+.godot-check {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  gap: 7px;
+  margin-top: 10px;
+  color: #aab5bd;
+  cursor: pointer;
+}
+
+.godot-check input,
+.godot-conflict input {
+  accent-color: #65a8d6;
+}
+
+.godot-check span {
+  display: grid;
+  gap: 2px;
+}
+
+.godot-check strong {
+  font-size: 8px;
+  font-weight: 560;
+}
+
+.godot-check small {
+  color: #61717c;
+  font-size: 6px;
+}
+
+.godot-file-plan {
+  display: grid;
+  gap: 4px;
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid #29333b;
+}
+
+.godot-file-plan code {
+  overflow: hidden;
+  color: #899da9;
+  font:
+    7px/1.3 'Azeret Mono Variable',
+    monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.godot-conflict {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 6px;
+  margin-top: 11px;
+  padding: 8px;
+  border: 1px solid #795944;
+  border-radius: 4px;
+  color: #d6aa7f;
+  background: rgb(150 93 48 / 10%);
+}
+
+.godot-conflict > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.godot-conflict strong {
+  font-size: 8px;
+}
+
+.godot-conflict small {
+  overflow: hidden;
+  font-size: 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.godot-conflict label {
+  display: flex;
+  grid-column: 2;
+  align-items: center;
+  gap: 5px;
+  font-size: 7px;
+}
+
+.godot-publish-note {
+  margin: 10px 0 0;
+  color: #788995;
+  font-size: 7px;
+  line-height: 1.45;
+}
+
+.godot-publish-note.warning {
+  color: #c4a276;
+}
+
+.godot-publish-button {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 12px;
+  border: 1px solid #5d93b7;
+  border-radius: 4px;
+  color: #ecf8ff;
+  background: #397eae;
+  font-size: 9px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.godot-publish-button:hover:not(:disabled) {
+  background: #478fc0;
+}
+
+.godot-statusbar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  padding: 0 11px;
+  overflow: hidden;
+  border-top: 1px solid #303b44;
+  color: #657581;
+  background: #0d1115;
+  font:
+    7px/1 'Azeret Mono Variable',
+    monospace;
+}
+
+.godot-statusbar span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.godot-statusbar i {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #65a8d6;
+}
+
+.godot-statusbar .error {
+  color: #dda0aa;
+}
+
+.godot-statusbar .success {
+  color: #a8d2bd;
+}
+
+.godot-unavailable {
+  display: grid;
+  width: min(610px, calc(100% - 40px));
+  grid-column: 1;
+  grid-row: 2;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  place-self: center;
+  padding: 22px;
+  border: 1px solid #3d4d5a;
+  border-radius: 6px;
+  background: #11171d;
+}
+
+.godot-unavailable > span {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border: 1px solid #47799d;
+  color: #8fc8ea;
+  background: rgb(71 140 191 / 9%);
+}
+
+.godot-unavailable h3 {
+  margin: 5px 0;
+  font-size: 19px;
+}
+
+.godot-unavailable p {
+  margin: 0;
+  color: #84939e;
+  font-size: 8px;
+  line-height: 1.55;
+}
+
+.home-godot-action {
+  border: 1px solid #47799d;
+  color: #c1e4f8;
+  background: #162431;
+}
+
+.home-godot-action:hover {
+  border-color: #65a8d6;
+  background: #1b3040;
+}
+
+@media (max-width: 1023px) {
+  .godot-backdrop {
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding-left: max(16px, env(safe-area-inset-left));
+  }
+
+  .godot-workspace {
+    height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    min-height: 0;
+  }
+
+  .godot-workspace-body {
+    grid-template-columns: 170px minmax(0, 1fr);
+    overflow: auto;
+  }
+
+  .godot-publisher {
+    min-height: 360px;
+    grid-column: 1 / -1;
+    border-top: 1px solid #2e3740;
+    border-left: 0;
+  }
+
+  .godot-projects button,
+  .godot-explorer-tools button,
+  .godot-folder-form button,
+  .godot-resource-row,
+  .godot-selection-bar button,
+  .godot-publisher button,
+  .godot-publisher input {
+    min-height: 42px;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-actions {
+    flex-wrap: wrap;
+  }
+
+  .home-actions button {
+    min-width: calc(50% - 4px);
+  }
+
+  .home-actions .home-godot-action {
+    flex-basis: 100%;
+  }
+
+  .godot-backdrop {
+    padding: 0;
+  }
+
+  .godot-workspace {
+    width: 100%;
+    height: 100dvh;
+    grid-template-rows: max(58px, calc(44px + env(safe-area-inset-top))) minmax(0, 1fr);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .godot-workspace-header {
+    padding-top: env(safe-area-inset-top);
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-left: max(10px, env(safe-area-inset-left));
+  }
+
+  .godot-live-path {
+    display: none;
+  }
+
+  .godot-workspace-header {
+    grid-template-columns: 36px minmax(0, 1fr) 38px;
+  }
+
+  .godot-workspace-header > .icon-button {
+    grid-column: 3;
+  }
+
+  .godot-unavailable {
+    width: calc(100% - 24px);
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+    gap: 13px;
+    padding: 18px;
+  }
+
+  .godot-unavailable .button-secondary {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
 /* Account entry, profile drawer, and sprite-suite library */
 .authentication-page {
   position: absolute;

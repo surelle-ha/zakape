@@ -9,11 +9,13 @@ export const useWorkspace = () => {
   const modelConnectionOpen = useState<boolean>('workspace-model-connection-open', () => false)
   const shortcutGuideOpen = useState<boolean>('workspace-shortcut-guide-open', () => false)
   const walkthroughOpen = useState<boolean>('workspace-walkthrough-open', () => false)
+  const godotOpen = useState<boolean>('workspace-godot-open', () => false)
   const showHome = () => {
     assistantOpen.value = false
     modelConnectionOpen.value = false
     shortcutGuideOpen.value = false
     walkthroughOpen.value = false
+    godotOpen.value = false
     launcherView.value = 'recent'
     launcherOpen.value = false
     screen.value = 'home'
@@ -22,6 +24,15 @@ export const useWorkspace = () => {
   const showEditor = () => {
     launcherOpen.value = false
     screen.value = 'editor'
+  }
+
+  const showGodotBridge = () => {
+    launcherOpen.value = false
+    assistantOpen.value = false
+    modelConnectionOpen.value = false
+    shortcutGuideOpen.value = false
+    walkthroughOpen.value = false
+    godotOpen.value = true
   }
 
   const requestOpen = () => {
@@ -61,8 +72,10 @@ export const useWorkspace = () => {
     modelConnectionOpen,
     shortcutGuideOpen,
     walkthroughOpen,
+    godotOpen,
     showHome,
     showEditor,
+    showGodotBridge,
     requestOpen,
     requestNew,
     toggleAssistant,

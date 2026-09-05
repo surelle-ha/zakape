@@ -27,7 +27,7 @@ const saveBytes = async (name: string, bytes: Uint8Array, mime: string) => {
   window.setTimeout(() => URL.revokeObjectURL(url), 500)
 }
 
-const canvasToBytes = async (canvas: HTMLCanvasElement) => {
+export const canvasToPngBytes = async (canvas: HTMLCanvasElement) => {
   const blob = await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
       (value) => (value ? resolve(value) : reject(new Error('PNG encoding failed.'))),
@@ -37,7 +37,7 @@ const canvasToBytes = async (canvas: HTMLCanvasElement) => {
   return new Uint8Array(await blob.arrayBuffer())
 }
 
-const renderFrameCanvas = (project: SpriteProject, frameId: string, scale: number) => {
+export const renderFrameCanvas = (project: SpriteProject, frameId: string, scale: number) => {
   const canvas = document.createElement('canvas')
   canvas.width = project.width * scale
   canvas.height = project.height * scale
@@ -46,18 +46,21 @@ const renderFrameCanvas = (project: SpriteProject, frameId: string, scale: numbe
   return canvas
 }
 
-const safeName = (name: string) =>
+export const safeExportName = (name: string) =>
   name
     .trim()
     .replace(/[^a-z0-9-_]+/gi, '-')
     .replace(/^-|-$/g, '') || 'sprite'
 
 export const exportCurrentPng = async (project: SpriteProject, frameId: string, scale = 1) => {
-  const bytes = await canvasToBytes(renderFrameCanvas(project, frameId, scale))
-  await saveBytes(`${safeName(project.name)}.png`, bytes, 'image/png')
+  const bytes = await canvasToPngBytes(renderFrameCanvas(project, frameId, scale))
+  await saveBytes(`${safeExportName(project.name)}.png`, bytes, 'image/png')
 }
 
-export const exportSpriteSheet = async (project: SpriteProject, scale = 1) => {
+export const renderCurrentPngBytes = async (project: SpriteProject, frameId: string, scale = 1) =>
+  canvasToPngBytes(renderFrameCanvas(project, frameId, scale))
+
+export const renderSpriteSheetPngBytes = async (project: SpriteProject, scale = 1) => {
   const canvas = document.createElement('canvas')
   canvas.width = project.width * project.frames.length * scale
   canvas.height = project.height * scale
@@ -68,8 +71,12 @@ export const exportSpriteSheet = async (project: SpriteProject, scale = 1) => {
     drawProjectFrame(context, project, frame.id, scale)
     context.restore()
   })
-  const base = safeName(project.name)
-  await saveBytes(`${base}-sheet.png`, await canvasToBytes(canvas), 'image/png')
+  return canvasToPngBytes(canvas)
+}
+
+export const exportSpriteSheet = async (project: SpriteProject, scale = 1) => {
+  const base = safeExportName(project.name)
+  await saveBytes(`${base}-sheet.png`, await renderSpriteSheetPngBytes(project, scale), 'image/png')
   const metadata = {
     image: `${base}-sheet.png`,
     frameWidth: project.width * scale,
@@ -92,7 +99,7 @@ export const exportSpriteSheet = async (project: SpriteProject, scale = 1) => {
 
 export const exportProjectFile = async (project: SpriteProject) => {
   await saveBytes(
-    `${safeName(project.name)}.zakape`,
+    `${safeExportName(project.name)}.zakape`,
     new TextEncoder().encode(JSON.stringify(project, null, 2)),
     'application/json',
   )
@@ -114,5 +121,5 @@ export const exportAnimatedGif = async (project: SpriteProject, scale = 1) => {
     })
   })
   gif.finish()
-  await saveBytes(`${safeName(project.name)}.gif`, gif.bytes(), 'image/gif')
+  await saveBytes(`${safeExportName(project.name)}.gif`, gif.bytes(), 'image/gif')
 }

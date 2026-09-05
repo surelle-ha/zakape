@@ -6,6 +6,7 @@ import {
   FilePlus2,
   Film,
   FolderOpen,
+  Gamepad2,
   HardDrive,
   History,
   Layers3,
@@ -27,6 +28,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   new: []
   browse: []
+  godot: []
   openProject: [projectId: string]
 }>()
 
@@ -116,6 +118,9 @@ function updatedLabel(value: string) {
           </button>
           <button type="button" class="home-open-action" @click="emit('browse')">
             <FolderOpen :size="16" /> Open file
+          </button>
+          <button type="button" class="home-godot-action" @click="emit('godot')">
+            <Gamepad2 :size="16" /> Godot Bridge
           </button>
         </div>
       </div>

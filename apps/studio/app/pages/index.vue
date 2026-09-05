@@ -19,7 +19,7 @@ import {
   Undo2,
   X,
 } from '@lucide/vue'
-import type { CanvasBackground, ColorMode, ToolId } from '~/types/editor'
+import type { CanvasBackground, ColorMode, SpriteProject, ToolId } from '~/types/editor'
 import { cloneProject, createBlankProject } from '~/utils/project'
 import { importProjectFile } from '~/utils/import'
 import { toolDefinitions } from '~/utils/commands'
@@ -81,8 +81,10 @@ const {
   modelConnectionOpen,
   shortcutGuideOpen,
   walkthroughOpen,
+  godotOpen,
   showHome,
   showEditor,
+  showGodotBridge,
   requestNew,
   toggleAssistant,
   showShortcutGuide,
@@ -240,6 +242,15 @@ const openRecentProject = async (projectId: string) => {
   await fitCompactCanvas()
 }
 
+const openGodotProject = async (nextProject: SpriteProject, sourceLabel: string) => {
+  replaceProject(nextProject, sourceLabel)
+  nameDraft.value = nextProject.name
+  showEditor()
+  await saveProject(nextProject)
+  await offerWalkthrough()
+  await fitCompactCanvas()
+}
+
 async function offerWalkthrough() {
   const completed = await loadPreference<boolean>('editor-walkthrough-complete')
   if (!completed) showWalkthrough()
@@ -330,6 +341,7 @@ const keydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
     if (modelConnectionOpen.value) return
     if (accountDialogOpen.value) accountDialogOpen.value = false
+    else if (godotOpen.value) godotOpen.value = false
     else if (shortcutGuideOpen.value) shortcutGuideOpen.value = false
     else if (walkthroughOpen.value) void completeWalkthrough()
     else if (inspectorOpen.value) inspectorOpen.value = false
@@ -590,7 +602,7 @@ onBeforeUnmount(() => {
     <main
       class="studio-shell"
       :class="{ 'home-active': screen === 'home', 'timeline-collapsed': !timelineOpen }"
-      :inert="launcherOpen || accountDialogOpen || Boolean(closeRequest)"
+      :inert="launcherOpen || godotOpen || accountDialogOpen || Boolean(closeRequest)"
       data-testid="app-shell"
       @click="exportOpen = false"
       @contextmenu.prevent
@@ -611,6 +623,7 @@ onBeforeUnmount(() => {
         :loading="persistenceState === 'loading'"
         @new="requestNew"
         @browse="fileInput?.click()"
+        @godot="showGodotBridge"
         @open-project="openRecentProject"
       />
 
@@ -961,6 +974,15 @@ onBeforeUnmount(() => {
       :error="closeError"
       @cancel="cancelClose"
       @confirm="confirmClose"
+    />
+
+    <GodotWorkspaceDialog
+      :open="godotOpen"
+      :project="project"
+      :active-frame-id="activeFrameId"
+      :can-publish="!isPlaceholder"
+      @close="godotOpen = false"
+      @open-project="openGodotProject"
     />
 
     <AssistantDrawer :open="assistantOpen" @close="assistantOpen = false" />

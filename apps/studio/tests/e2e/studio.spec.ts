@@ -168,6 +168,18 @@ test('keeps an indismissable Home tab with recent work and release notes', async
   await expect(page.getByTestId('pixel-canvas')).toBeVisible()
 })
 
+test('exposes the Godot Bridge with a clear browser capability boundary', async ({ page }) => {
+  await page.getByRole('button', { name: 'Godot Bridge', exact: true }).click()
+  const bridge = page.getByRole('dialog', { name: 'Godot Bridge' })
+  await expect(bridge).toBeVisible()
+  await expect(bridge).toContainText('Connect projects from the Zakape desktop app.')
+  await expect(bridge).toContainText('browse res://')
+  await expect(page.getByTestId('app-shell')).toHaveAttribute('inert', '')
+
+  await page.keyboard.press('Escape')
+  await expect(bridge).toBeHidden()
+})
+
 test('creates a named custom-size sprite from the modal launcher', async ({ page }) => {
   await page.getByRole('button', { name: 'New sprite', exact: true }).first().click()
   const launcher = page.getByTestId('project-launcher')

@@ -37,6 +37,12 @@ Home and the project launcher share a local **Suites** library. Create a top-lev
 
 Binary sprite import is handled by Rust rather than browser code. The importer validates the file header, 32 MB size limit, 1,024 px dimensions, total pixel count, frame count, and layer count before decoding. It preserves frame order and duration, image-layer visibility and opacity, linked or compressed cel results, palette colors, and supported color mode. Group containers are omitted while their child artwork remains available. Browser builds explain that binary import requires the desktop app.
 
+## Godot projects
+
+Use **Godot Bridge** from Home, File, or Export in the desktop app to connect a project root or scan a parent folder for multiple projects. The bridge remembers local connections, browses and searches their `res://` resources, creates asset folders, and opens supported PNG, Aseprite, or `.zakape` resources as regular Zakape documents.
+
+With a canvas open, browse to a destination and publish either the current frame or an animation bundle. Animation output includes a horizontal PNG sheet and a Godot 4 `SpriteFrames` resource with AtlasTexture regions and preserved frame delays; an editable `.zakape` source copy is optional. Existing paths are listed before replacement and require explicit confirmation. Detailed compatibility and validation limits are documented in `docs/godot-integration.md`.
+
 Use **File → Projects** to reopen the launcher without closing the active document. **File → New sprite**, **Open project**, and **Save project** expose the corresponding keyboard-friendly actions.
 
 ## Open documents

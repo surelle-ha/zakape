@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileArchive, Film, Image, LayoutGrid, LoaderCircle } from '@lucide/vue'
+import { FileArchive, Film, Gamepad2, Image, LayoutGrid, LoaderCircle } from '@lucide/vue'
 import {
   exportAnimatedGif,
   exportCurrentPng,
@@ -9,6 +9,7 @@ import {
 
 const emit = defineEmits<{ close: [] }>()
 const { project, activeFrameId } = useEditor()
+const { showGodotBridge } = useWorkspace()
 const busy = ref('')
 const error = ref('')
 
@@ -23,6 +24,11 @@ const run = async (label: string, task: () => Promise<void>) => {
   } finally {
     busy.value = ''
   }
+}
+
+const openGodotBridge = () => {
+  emit('close')
+  showGodotBridge()
 }
 </script>
 
@@ -60,6 +66,11 @@ const run = async (label: string, task: () => Promise<void>) => {
         ><strong>Zakape project</strong><small>Open JSON format</small></span
       >
       <LoaderCircle v-if="busy === 'project'" class="spin" :size="14" />
+    </button>
+    <button type="button" role="menuitem" @click="openGodotBridge">
+      <Gamepad2 :size="17" /><span
+        ><strong>Godot Bridge</strong><small>Browse res:// and publish assets</small></span
+      >
     </button>
     <p v-if="error" class="inline-error">{{ error }}</p>
   </div>

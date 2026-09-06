@@ -5,6 +5,7 @@ import type {
   AssistantChatEntry,
   AssistantEditScope,
   AssistantProjectAction,
+  AssistantSkillId,
   ModelConnection,
   ModelProvider,
   Pixel,
@@ -13,6 +14,8 @@ import type {
 import { getCompositePixels } from '~/utils/render'
 import { cloneProject, makeId, normalizeHex } from '~/utils/project'
 import { applyAssistantChanges } from '~/utils/assistant'
+import { ASSISTANT_TOOL_CATALOG, assistantSkill } from '~/utils/assistantSkills'
+import { renderAssistantVision } from '~/utils/assistantVision'
 
 const MAX_OPERATIONS_PER_FRAME = 32
 const MAX_TARGET_FRAMES = 64
@@ -31,6 +34,15 @@ export interface AssistantModel {
 export interface AssistantMessage {
   role: 'system' | 'user'
   content: string
+  images?: string[]
+}
+
+export interface CodexCliStatus {
+  available: boolean
+  authenticated: boolean
+  compatible: boolean
+  version: string | null
+  executablePath: string | null
 }
 
 export const assistantSystemPrompt = `You are Zakape's senior pixel artist and animation cleanup director. Convert the artist's request into precise, reviewable pixel operations. Think through the art privately, then return JSON only.
@@ -45,7 +57,9 @@ PIXEL-ART CRAFT
 - Use ordered, repeating dithering patterns only when a tonal bridge or texture is needed. Never scatter random noise.
 - Make the fewest changes that fully solve the request. Every one-pixel mark must have a purpose at the native resolution.
 - Use set_pixels for organic contours and cleanup. Use fill_rect or outline_rect only when the intended shape is genuinely rectangular. Use replace_palette_color only for an exact, deliberate recolor.
+- Use translate_region for exact integer movement or copied motion. Use flip_region only when a mirrored cluster is artistically correct; do not mirror asymmetric lighting or details blindly.
 - composite_rows show the visible result. active_layer_rows show the initially editable layer; editable_layer_rows also include layers you created in earlier passes. Do not flatten other visible layers into an editable layer. Erasing an editable-layer pixel may reveal a lower layer.
+- When rendered vision images are attached, inspect them at their stated integer preview scale. Their order maps exactly to vision.frames. The indexed grids remain the source of truth for coordinates and colors.
 
 PRIVATE CRAFT WORKFLOW
 1. Diagnose silhouette, pose, and negative space.
@@ -62,6 +76,7 @@ ANIMATION CRAFT
 
 AGENTIC REVIEW
 - You may create frames or layers when the artist asks for them or when they materially improve the requested animation. Never add organizational clutter.
+- You may correct frame timing with set_frame_duration. A timing-only change still needs a concrete animation reason.
 - Each response is one incremental pass. On review passes, inspect the updated composite_rows produced by your earlier work, identify concrete visual defects, then return only the corrections needed.
 - Set ready to true only when the result is readable at 1x and has clean clusters, coherent lighting, deliberate palette use, and consistent animation volumes.
 
@@ -72,6 +87,7 @@ Return exactly one JSON object:
 Allowed actions:
 - {"type":"create_layer","layer_id":"new_layer_descriptive_id","name":"Highlights"}
 - {"type":"create_frame","frame_id":"new_frame_descriptive_id","name":"F2","duration_ms":120,"after_frame_id":"existing or earlier new frame id","copy_from_frame_id":"existing frame id or null"}
+- {"type":"set_frame_duration","frame_id":"existing or earlier new frame id","duration_ms":120}
 
 Each edit is {"layer_id":"editable layer id","frame_id":"target or newly-created frame id","operations":[...]}. You may edit only the active_layer or a layer created in this response or an earlier pass. Do not edit reference-only frames.
 
@@ -80,6 +96,8 @@ Allowed operations:
 - {"type":"fill_rect","x":0,"y":0,"width":2,"height":2,"color":"#rrggbb"}
 - {"type":"outline_rect","x":0,"y":0,"width":2,"height":2,"color":"#rrggbb"}
 - {"type":"replace_palette_color","from":"#rrggbb","to":"#rrggbb"}
+- {"type":"translate_region","x":0,"y":0,"width":8,"height":8,"offset_x":1,"offset_y":0,"mode":"move"}
+- {"type":"flip_region","x":0,"y":0,"width":8,"height":8,"axis":"horizontal"}
 
 Use null only to erase. New IDs must start with new_layer_ or new_frame_ and contain only lowercase letters, numbers, underscores, or hyphens. Coordinates start at the top-left. Stay inside the canvas. Before responding, silently audit silhouette readability, cluster cleanliness, palette discipline, animation continuity, frame and layer IDs, coordinates, and JSON validity. Do not include markdown or commentary outside the JSON.`
 
@@ -145,6 +163,34 @@ const legacyAssistantResponseFormat = {
                     to: { type: ['string', 'null'] },
                   },
                 },
+                {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['type', 'x', 'y', 'width', 'height', 'offset_x', 'offset_y', 'mode'],
+                  properties: {
+                    type: { const: 'translate_region' },
+                    x: { type: 'integer', minimum: 0 },
+                    y: { type: 'integer', minimum: 0 },
+                    width: { type: 'integer', minimum: 1 },
+                    height: { type: 'integer', minimum: 1 },
+                    offset_x: { type: 'integer' },
+                    offset_y: { type: 'integer' },
+                    mode: { enum: ['move', 'copy'] },
+                  },
+                },
+                {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['type', 'x', 'y', 'width', 'height', 'axis'],
+                  properties: {
+                    type: { const: 'flip_region' },
+                    x: { type: 'integer', minimum: 0 },
+                    y: { type: 'integer', minimum: 0 },
+                    width: { type: 'integer', minimum: 1 },
+                    height: { type: 'integer', minimum: 1 },
+                    axis: { enum: ['horizontal', 'vertical'] },
+                  },
+                },
               ],
             },
           },
@@ -195,6 +241,16 @@ export const assistantResponseFormat = {
               duration_ms: { type: 'integer', minimum: 40, maximum: 10_000 },
               after_frame_id: { type: ['string', 'null'] },
               copy_from_frame_id: { type: ['string', 'null'] },
+            },
+          },
+          {
+            type: 'object',
+            additionalProperties: false,
+            required: ['type', 'frame_id', 'duration_ms'],
+            properties: {
+              type: { const: 'set_frame_duration' },
+              frame_id: { type: 'string' },
+              duration_ms: { type: 'integer', minimum: 40, maximum: 10_000 },
             },
           },
         ],
@@ -251,6 +307,32 @@ export const normalizeOllamaBaseUrl = (value: string) => {
     throw new Error('Ollama must use a loopback address: 127.0.0.1, localhost, or [::1].')
   }
 
+  return url.toString().replace(/\/$/, '')
+}
+
+export const normalizeCompatibleBaseUrl = (value: string) => {
+  let url: URL
+  try {
+    url = new URL(value.trim())
+  } catch {
+    throw new Error('Enter a valid HTTP or HTTPS model API base URL.')
+  }
+  const hostname = url.hostname.toLowerCase()
+  const isLoopback = hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]'
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    throw new Error('Enter a valid HTTP or HTTPS model API base URL.')
+  }
+  if (
+    (url.protocol === 'http:' && !isLoopback) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error(
+      'Use HTTPS for remote providers, or HTTP on localhost, without credentials, query text, or a hash.',
+    )
+  }
   return url.toString().replace(/\/$/, '')
 }
 
@@ -327,6 +409,21 @@ export const mapOllamaError = (error: unknown, baseUrl: string, model?: string) 
   return message
 }
 
+export const mapCodexCliError = (error: unknown) => {
+  const message = errorText(error)
+  const lowerMessage = message.toLowerCase()
+  if (lowerMessage.includes('not installed') || lowerMessage.includes('could not find')) {
+    return 'Codex CLI was not found. Install Codex, then restart Zakape so it can detect the executable.'
+  }
+  if (lowerMessage.includes('not logged in') || lowerMessage.includes('authentication')) {
+    return 'Codex CLI is not signed in. Run codex login, then check the connection again.'
+  }
+  if (lowerMessage.includes('timed out') || lowerMessage.includes('timeout')) {
+    return 'Codex did not finish the art pass in time. Try a smaller scope or another model.'
+  }
+  return message
+}
+
 const validateColor = (value: unknown, allowNull = true): string | null => {
   if (value === null && allowNull) return null
   if (typeof value !== 'string') throw new Error('The proposal contains an invalid color.')
@@ -335,7 +432,34 @@ const validateColor = (value: unknown, allowNull = true): string | null => {
   return color
 }
 
-const validateOperations = (input: unknown, width: number, height: number): ArtOperation[] => {
+const validateRegion = (
+  operation: Record<string, unknown>,
+  canvasWidth: number,
+  canvasHeight: number,
+) => {
+  const x = Number(operation.x)
+  const y = Number(operation.y)
+  const width = Number(operation.width)
+  const height = Number(operation.height)
+  if (
+    ![x, y, width, height].every(Number.isInteger) ||
+    width < 1 ||
+    height < 1 ||
+    x < 0 ||
+    y < 0 ||
+    x + width > canvasWidth ||
+    y + height > canvasHeight
+  ) {
+    throw new Error('The proposal contains an invalid pixel region.')
+  }
+  return { x, y, width, height }
+}
+
+const validateOperations = (
+  input: unknown,
+  width: number,
+  height: number,
+): { operations: ArtOperation[]; pixelCount: number } => {
   if (!Array.isArray(input) || input.length > MAX_OPERATIONS_PER_FRAME) {
     throw new Error('A frame proposal has an invalid number of operations.')
   }
@@ -403,16 +527,53 @@ const validateOperations = (input: unknown, width: number, height: number): ArtO
       }
     }
     if (operation.type === 'replace_palette_color') {
+      pixelCount += width * height
+      if (pixelCount > pixelLimit) throw new Error('A frame proposal changes too many pixels.')
       return {
         type: 'replace_palette_color',
         from: validateColor(operation.from, false)!,
         to: validateColor(operation.to),
       }
     }
+    if (operation.type === 'translate_region') {
+      const region = validateRegion(operation, width, height)
+      const offsetX = Number(operation.offset_x)
+      const offsetY = Number(operation.offset_y)
+      if (
+        !Number.isInteger(offsetX) ||
+        !Number.isInteger(offsetY) ||
+        (offsetX === 0 && offsetY === 0) ||
+        region.x + offsetX < 0 ||
+        region.y + offsetY < 0 ||
+        region.x + offsetX + region.width > width ||
+        region.y + offsetY + region.height > height ||
+        (operation.mode !== 'move' && operation.mode !== 'copy')
+      ) {
+        throw new Error('The proposal contains an invalid region translation.')
+      }
+      pixelCount += region.width * region.height * (operation.mode === 'move' ? 2 : 1)
+      if (pixelCount > pixelLimit) throw new Error('A frame proposal changes too many pixels.')
+      return {
+        type: 'translate_region',
+        ...region,
+        offsetX,
+        offsetY,
+        mode: operation.mode,
+      }
+    }
+    if (operation.type === 'flip_region') {
+      const region = validateRegion(operation, width, height)
+      if (operation.axis !== 'horizontal' && operation.axis !== 'vertical') {
+        throw new Error('The proposal contains an invalid flip axis.')
+      }
+      pixelCount += region.width * region.height
+      if (pixelCount > pixelLimit) throw new Error('A frame proposal changes too many pixels.')
+      return { type: 'flip_region', ...region, axis: operation.axis }
+    }
     throw new Error(`Unsupported assistant operation: ${String(operation.type)}`)
   })
 
-  return operations
+  return { operations, pixelCount }
 }
 
 export interface AssistantValidationContext {
@@ -524,9 +685,21 @@ export const validateProposal = (
         copyFromFrameId,
       }
     }
+    if (action.type === 'set_frame_duration') {
+      const frameId = String(action.frame_id)
+      const duration = Number(action.duration_ms)
+      if (!knownFrames.has(frameId) || !targetFrames.has(frameId)) {
+        throw new Error('A timing change targets an unavailable or reference-only frame.')
+      }
+      if (!Number.isInteger(duration) || duration < 40 || duration > 10_000) {
+        throw new Error('A timing change has an invalid frame duration.')
+      }
+      return { type: 'set_frame_duration', frameId, duration }
+    }
     throw new Error(`Unsupported assistant action: ${String(action.type)}`)
   })
 
+  const framePixelCounts = new Map<string, number>()
   const edits: AssistantArtEdit[] = candidate.edits.map((rawEdit) => {
     if (!rawEdit || typeof rawEdit !== 'object') throw new Error('An art edit is not an object.')
     const edit = rawEdit as Record<string, unknown>
@@ -538,10 +711,20 @@ export const validateProposal = (
     if (!editableLayers.has(layerId)) {
       throw new Error('The proposal edits a layer that was not made available to the assistant.')
     }
+    const validated = validateOperations(edit.operations, context.width, context.height)
+    const framePixelCount = (framePixelCounts.get(frameId) ?? 0) + validated.pixelCount
+    const framePixelLimit = Math.min(
+      context.width * context.height * 2,
+      MAX_PIXEL_CHANGES_PER_FRAME,
+    )
+    if (framePixelCount > framePixelLimit) {
+      throw new Error('A frame proposal changes too many pixels across its editable layers.')
+    }
+    framePixelCounts.set(frameId, framePixelCount)
     return {
       frameId,
       layerId,
-      operations: validateOperations(edit.operations, context.width, context.height),
+      operations: validated.operations,
     }
   })
 
@@ -601,10 +784,15 @@ const neighboringFrameIds = (project: SpriteProject, frameId: string) => {
 
 export interface AssistantIterationContext {
   pass: number
+  skill?: AssistantSkillId
   createdFrameIds?: string[]
   editableLayerIds?: string[]
   priorSummary?: string
   priorReviewNotes?: string[]
+  vision?: {
+    frameIds: string[]
+    scale: number
+  }
 }
 
 export const createAssistantMessages = (
@@ -650,6 +838,7 @@ export const createAssistantMessages = (
       ),
     ),
   )
+  const selectedSkill = assistantSkill(iteration.skill ?? 'fix')
 
   return [
     { role: 'system', content: assistantSystemPrompt },
@@ -657,6 +846,10 @@ export const createAssistantMessages = (
       role: 'user',
       content: JSON.stringify({
         request: prompt,
+        skill: {
+          id: selectedSkill.id,
+          instruction: selectedSkill.prompt,
+        },
         agent_pass: {
           number: iteration.pass,
           phase: iteration.pass === 1 ? 'draft' : 'visual_review',
@@ -699,8 +892,24 @@ export const createAssistantMessages = (
         capabilities: {
           create_layers: true,
           create_frames: true,
+          set_frame_timing: true,
+          transform_regions: true,
+          rendered_vision: Boolean(iteration.vision?.frameIds.length),
           incremental_visual_review: true,
         },
+        tools: ASSISTANT_TOOL_CATALOG,
+        vision: iteration.vision
+          ? {
+              format: 'image/png',
+              integer_preview_scale: iteration.vision.scale,
+              frames: iteration.vision.frameIds.map((visionFrameId, imageIndex) => ({
+                image_index: imageIndex,
+                frame_id: visionFrameId,
+              })),
+              instruction:
+                'Inspect the attached rendered composites visually; use the indexed grids for exact edits.',
+            }
+          : null,
         frames: contextFrameIds.map((contextFrameId) => {
           const frame = project.frames.find((item) => item.id === contextFrameId)!
           return {
@@ -749,6 +958,20 @@ export const createOllamaChatBody = (model: string, messages: AssistantMessage[]
   options: { temperature: 0.1, top_p: 0.9, num_ctx: 16_384 },
 })
 
+export const createCompatibleChatMessages = (messages: AssistantMessage[]) =>
+  messages.map((message) => ({
+    role: message.role,
+    content: message.images?.length
+      ? [
+          { type: 'text', text: message.content },
+          ...message.images.map((image) => ({
+            type: 'image_url',
+            image_url: { url: `data:image/png;base64,${image}` },
+          })),
+        ]
+      : message.content,
+  }))
+
 export const readOllamaChatContent = (input: unknown) => {
   if (!input || typeof input !== 'object') return ''
   const message = (input as { message?: unknown }).message
@@ -771,13 +994,16 @@ export const readCompatibleChatContent = (input: unknown) => {
 
 const isTauriRuntime = () => import.meta.client && '__TAURI_INTERNALS__' in window
 
-const invokeDesktop = async <T>(command: string, args: Record<string, unknown>): Promise<T> => {
+const invokeDesktop = async <T>(command: string, args?: Record<string, unknown>): Promise<T> => {
   const { invoke } = await import('@tauri-apps/api/core')
   return invoke<T>(command, args)
 }
 
 const directOllamaModels = async (baseUrl: string) => {
-  const response = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(12_000) })
+  const response = await fetch(`${baseUrl}/api/tags`, {
+    redirect: 'error',
+    signal: AbortSignal.timeout(12_000),
+  })
   if (!response.ok) throw new Error(`Ollama returned ${response.status}.`)
   return normalizeOllamaModels(await response.json())
 }
@@ -790,8 +1016,22 @@ const discoverModels = async (connection: ModelConnection): Promise<AssistantMod
       : directOllamaModels(baseUrl)
   }
 
-  const baseUrl = connection.baseUrl.replace(/\/$/, '')
+  if (connection.provider === 'codex-cli') {
+    if (!isTauriRuntime()) {
+      throw new Error('Codex CLI is available in the Zakape desktop app.')
+    }
+    const cli = await invokeDesktop<CodexCliStatus>('codex_cli_status')
+    if (!cli.available) throw new Error('Codex CLI is not installed.')
+    if (!cli.compatible) {
+      throw new Error('Update Codex CLI to a version with image and structured-output support.')
+    }
+    if (!cli.authenticated) throw new Error('Codex CLI is not logged in.')
+    return [{ id: connection.model || cli.version || 'Codex default model' }]
+  }
+
+  const baseUrl = normalizeCompatibleBaseUrl(connection.baseUrl)
   const response = await fetch(`${baseUrl}/models`, {
+    redirect: 'error',
     signal: AbortSignal.timeout(12_000),
     headers: {
       'Content-Type': 'application/json',
@@ -808,6 +1048,7 @@ export const useAiAssistant = () => {
     baseUrl: OLLAMA_DEFAULT_URL,
     model: '',
     apiKey: '',
+    visionEnabled: true,
   }))
   const status = useState<'idle' | 'testing' | 'working' | 'connected' | 'error'>(
     'assistant-status',
@@ -849,7 +1090,9 @@ export const useAiAssistant = () => {
       errorMessage.value =
         connection.value.provider === 'ollama'
           ? mapOllamaError(error, connection.value.baseUrl, connection.value.model)
-          : errorText(error)
+          : connection.value.provider === 'codex-cli'
+            ? mapCodexCliError(error)
+            : errorText(error)
       return []
     }
   }
@@ -909,6 +1152,7 @@ export const useAiAssistant = () => {
       }
       const response = await fetch(`${baseUrl}/api/chat`, {
         method: 'POST',
+        redirect: 'error',
         signal: AbortSignal.timeout(180_000),
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(createOllamaChatBody(connection.value.model, messages)),
@@ -920,14 +1164,24 @@ export const useAiAssistant = () => {
       return readOllamaChatContent(await response.json())
     }
 
+    if (connection.value.provider === 'codex-cli') {
+      if (!isTauriRuntime()) throw new Error('Codex CLI is available in the Zakape desktop app.')
+      return invokeDesktop<string>('codex_cli_chat', {
+        model: connection.value.model,
+        messages,
+      })
+    }
+
+    connection.value.baseUrl = normalizeCompatibleBaseUrl(connection.value.baseUrl)
     const response = await fetch(endpoint('/chat/completions'), {
       method: 'POST',
+      redirect: 'error',
       signal: AbortSignal.timeout(180_000),
       headers: headers(),
       body: JSON.stringify({
         model: connection.value.model,
         temperature: 0.1,
-        messages,
+        messages: createCompatibleChatMessages(messages),
         response_format: { type: 'json_object' },
       }),
     })
@@ -944,10 +1198,17 @@ export const useAiAssistant = () => {
     frameId: string,
     layerId: string,
     scope: AssistantEditScope,
+    skill: AssistantSkillId = 'fix',
   ) => {
     if (!prompt.trim()) return
     if (chatProjectId.value !== project.id) await loadChat(project.id)
-    appendChat({ role: 'user', content: prompt.trim().slice(0, 4000), scope, state: 'message' })
+    appendChat({
+      role: 'user',
+      content: prompt.trim().slice(0, 4000),
+      skill,
+      scope,
+      state: 'message',
+    })
     status.value = 'working'
     errorMessage.value = ''
     proposal.value = null
@@ -967,13 +1228,24 @@ export const useAiAssistant = () => {
           scope === 'sheet'
             ? workingProject.frames.map((frame) => frame.id)
             : [frameId, ...createdFrameIds]
+        const vision = connection.value.visionEnabled
+          ? await renderAssistantVision(workingProject, frameId, scope, createdFrameIds)
+          : null
         const messages = createAssistantMessages(prompt, workingProject, frameId, layerId, scope, {
           pass: passNumber,
+          skill,
           createdFrameIds,
           editableLayerIds,
           priorSummary: summary,
           priorReviewNotes: reviewNotes.slice(-4),
+          vision: vision
+            ? {
+                frameIds: vision.frameIds,
+                scale: vision.scale,
+              }
+            : undefined,
         })
+        if (vision?.images.length) messages[1]!.images = vision.images
         const content = await requestModel(messages)
         if (!content) throw new Error('The provider returned an empty response.')
         const pass = validateProposal(parseJsonObject(content), {
@@ -991,7 +1263,7 @@ export const useAiAssistant = () => {
         reviewNotes.push(...pass.reviewNotes)
         pass.actions.forEach((action) => {
           if (action.type === 'create_frame') createdFrameIds.push(action.frameId)
-          else editableLayerIds.push(action.layerId)
+          else if (action.type === 'create_layer') editableLayerIds.push(action.layerId)
         })
         if (passNumber >= MIN_AGENT_PASSES && pass.ready) break
       }
@@ -1001,21 +1273,30 @@ export const useAiAssistant = () => {
       }
       proposal.value = {
         summary,
+        skill,
         scope,
         actions,
         edits,
         reviewNotes: [...new Set(reviewNotes)].slice(-8),
         passes: agentPass.value.current,
       }
-      appendChat({ role: 'assistant', content: summary, scope, state: 'proposal' })
+      appendChat({ role: 'assistant', content: summary, skill, scope, state: 'proposal' })
       status.value = 'connected'
     } catch (error) {
       status.value = 'error'
       errorMessage.value =
         connection.value.provider === 'ollama'
           ? mapOllamaError(error, connection.value.baseUrl, connection.value.model)
-          : errorText(error)
-      appendChat({ role: 'assistant', content: errorMessage.value, scope, state: 'error' })
+          : connection.value.provider === 'codex-cli'
+            ? mapCodexCliError(error)
+            : errorText(error)
+      appendChat({
+        role: 'assistant',
+        content: errorMessage.value,
+        skill,
+        scope,
+        state: 'error',
+      })
     } finally {
       agentPass.value = { current: 0, total: MAX_AGENT_PASSES }
     }

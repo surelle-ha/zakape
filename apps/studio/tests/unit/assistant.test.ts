@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   assistantSystemPrompt,
+  createCompatibleChatMessages,
   createAssistantMessages,
   createOllamaChatBody,
   mapOllamaError,
+  mapCodexCliError,
+  normalizeCompatibleBaseUrl,
   normalizeCompatibleModels,
   normalizeOllamaBaseUrl,
   normalizeOllamaModels,
@@ -13,6 +16,8 @@ import {
 } from '~/composables/useAiAssistant'
 import { createDemoProject } from '~/utils/project'
 import { applyAssistantChanges } from '~/utils/assistant'
+import { ASSISTANT_SKILLS, ASSISTANT_TOOL_CATALOG } from '~/utils/assistantSkills'
+import { assistantVisionScale, planAssistantVision } from '~/utils/assistantVision'
 
 describe('assistant proposal validation', () => {
   const context = {
@@ -36,6 +41,17 @@ describe('assistant proposal validation', () => {
             operations: [
               { type: 'set_pixels', pixels: [{ x: 2, y: 3, color: '#FFD36A' }] },
               { type: 'outline_rect', x: 4, y: 4, width: 3, height: 3, color: '#ff875f' },
+              {
+                type: 'translate_region',
+                x: 1,
+                y: 1,
+                width: 3,
+                height: 3,
+                offset_x: 2,
+                offset_y: 0,
+                mode: 'copy',
+              },
+              { type: 'flip_region', x: 8, y: 8, width: 4, height: 4, axis: 'horizontal' },
             ],
           },
         ],
@@ -45,12 +61,44 @@ describe('assistant proposal validation', () => {
       context,
     )
 
-    expect(proposal.edits[0]!.operations).toHaveLength(2)
+    expect(proposal.edits[0]!.operations).toHaveLength(4)
     expect(proposal.edits[0]!.operations[0]).toMatchObject({
       type: 'set_pixels',
       pixels: [{ x: 2, y: 3, color: '#ffd36a' }],
     })
     expect(proposal.ready).toBe(true)
+  })
+
+  it('rejects region tools that leave the canvas', () => {
+    expect(() =>
+      validateProposal(
+        {
+          summary: 'Move the pose outside the canvas.',
+          actions: [],
+          edits: [
+            {
+              layer_id: 'layer_1',
+              frame_id: 'frame_1',
+              operations: [
+                {
+                  type: 'translate_region',
+                  x: 12,
+                  y: 12,
+                  width: 4,
+                  height: 4,
+                  offset_x: 1,
+                  offset_y: 0,
+                  mode: 'move',
+                },
+              ],
+            },
+          ],
+          review_notes: [],
+          ready: false,
+        },
+        context,
+      ),
+    ).toThrow(/invalid region translation/)
   })
 
   it('rejects out-of-bounds edits', () => {
@@ -72,6 +120,25 @@ describe('assistant proposal validation', () => {
         context,
       ),
     ).toThrow(/out-of-bounds/)
+  })
+
+  it('enforces the pixel budget across repeated edits to one frame', () => {
+    expect(() =>
+      validateProposal(
+        {
+          summary: 'Replace too many full cels.',
+          actions: [],
+          edits: Array.from({ length: 3 }, () => ({
+            layer_id: 'layer_1',
+            frame_id: 'frame_1',
+            operations: [{ type: 'replace_palette_color', from: '#000000', to: '#ffffff' }],
+          })),
+          review_notes: [],
+          ready: false,
+        },
+        context,
+      ),
+    ).toThrow(/across its editable layers/)
   })
 
   it('rejects unknown operations', () => {
@@ -122,6 +189,7 @@ describe('assistant proposal validation', () => {
             after_frame_id: 'frame_1',
             copy_from_frame_id: 'frame_1',
           },
+          { type: 'set_frame_duration', frame_id: 'new_frame_impact', duration_ms: 95 },
         ],
         edits: [
           {
@@ -135,7 +203,7 @@ describe('assistant proposal validation', () => {
       },
       context,
     )
-    expect(proposal.actions).toHaveLength(2)
+    expect(proposal.actions).toHaveLength(3)
     expect(proposal.edits[0]).toMatchObject({
       frameId: 'new_frame_impact',
       layerId: 'new_layer_fx',
@@ -159,6 +227,7 @@ describe('assistant project changes', () => {
           afterFrameId: sourceFrameId,
           copyFromFrameId: sourceFrameId,
         },
+        { type: 'set_frame_duration', frameId: 'new_frame_impact', duration: 95 },
       ],
       [
         {
@@ -169,11 +238,54 @@ describe('assistant project changes', () => {
       ],
     )
 
-    expect(result).toEqual({ framesCreated: 1, layersCreated: 1, editedCels: 1 })
-    expect(project.frames[1]).toMatchObject({ id: 'new_frame_impact', duration: 80 })
+    expect(result).toEqual({
+      framesCreated: 1,
+      layersCreated: 1,
+      durationsChanged: 1,
+      editedCels: 1,
+    })
+    expect(project.frames[1]).toMatchObject({ id: 'new_frame_impact', duration: 95 })
     const layer = project.layers.find((item) => item.id === 'new_layer_fx')!
     expect(layer.cels[sourceFrameId]!.every((pixel) => pixel === null)).toBe(true)
     expect(layer.cels.new_frame_impact![2 * project.width + 2]).toBe('#f0abfc')
+  })
+
+  it('moves and flips regions from stable pixel snapshots', () => {
+    const project = createDemoProject()
+    const frameId = project.frames[0]!.id
+    const layer = project.layers[0]!
+    layer.cels[frameId]!.fill(null)
+    layer.cels[frameId]![1 * project.width + 1] = '#112233'
+    layer.cels[frameId]![1 * project.width + 2] = '#445566'
+
+    applyAssistantChanges(
+      project,
+      [],
+      [
+        {
+          frameId,
+          layerId: layer.id,
+          operations: [
+            {
+              type: 'translate_region',
+              x: 1,
+              y: 1,
+              width: 2,
+              height: 1,
+              offsetX: 2,
+              offsetY: 0,
+              mode: 'move',
+            },
+            { type: 'flip_region', x: 3, y: 1, width: 2, height: 1, axis: 'horizontal' },
+          ],
+        },
+      ],
+    )
+
+    expect(layer.cels[frameId]![1 * project.width + 1]).toBeNull()
+    expect(layer.cels[frameId]![1 * project.width + 2]).toBeNull()
+    expect(layer.cels[frameId]![1 * project.width + 3]).toBe('#445566')
+    expect(layer.cels[frameId]![1 * project.width + 4]).toBe('#112233')
   })
 })
 
@@ -187,6 +299,17 @@ describe('Ollama provider adapter', () => {
   })
 
   it('normalizes installed Ollama models and compatible model lists', () => {
+    expect(normalizeCompatibleBaseUrl('https://models.example.com/v1/')).toBe(
+      'https://models.example.com/v1',
+    )
+    expect(normalizeCompatibleBaseUrl('http://localhost:8080/v1/')).toBe('http://localhost:8080/v1')
+    expect(() => normalizeCompatibleBaseUrl('http://models.example.com/v1')).toThrow(
+      /HTTPS for remote providers/,
+    )
+    expect(() => normalizeCompatibleBaseUrl('file:///tmp/model')).toThrow(/HTTP or HTTPS/)
+    expect(() => normalizeCompatibleBaseUrl('https://token@example.com/v1')).toThrow(
+      /without credentials/,
+    )
     expect(
       normalizeOllamaModels({
         models: [
@@ -274,12 +397,17 @@ describe('Ollama provider adapter', () => {
       'frame',
       {
         pass: 2,
+        skill: 'fix',
         priorSummary: 'Drafted the outer contour.',
         priorReviewNotes: ['Check the top-left cluster.'],
+        vision: { frameIds: [frameId], scale: 8 },
       },
     )
     const payload = JSON.parse(messages[1]!.content) as {
       agent_pass: { number: number; phase: string; prior_summary: string }
+      skill: { id: string }
+      vision: { integer_preview_scale: number; frames: Array<{ frame_id: string }> }
+      tools: Array<{ name: string }>
       frames: Array<{ composite_rows: number[][]; editable_layer_rows: Record<string, number[][]> }>
     }
 
@@ -290,6 +418,12 @@ describe('Ollama provider adapter', () => {
     })
     expect(payload.frames[0]!.composite_rows[0]![0]).toBeGreaterThanOrEqual(0)
     expect(payload.frames[0]!.editable_layer_rows[layerId]![0]![0]).toBeGreaterThanOrEqual(0)
+    expect(payload.skill.id).toBe('fix')
+    expect(payload.vision).toMatchObject({
+      integer_preview_scale: 8,
+      frames: [{ frame_id: frameId }],
+    })
+    expect(payload.tools.map((tool) => tool.name)).toContain('translate_region')
   })
 
   it('turns local runtime failures into actionable guidance', () => {
@@ -322,5 +456,53 @@ describe('Ollama provider adapter', () => {
     expect(payload.edit_scope).toBe('full_animation')
     expect(payload.target_frame_ids).toEqual(project.frames.map((frame) => frame.id))
     expect(payload.frames.every((frame) => frame.role === 'target')).toBe(true)
+  })
+})
+
+describe('assistant skills and rendered vision', () => {
+  it('exposes six focused skills and the bounded tool catalog', () => {
+    expect(ASSISTANT_SKILLS.map((skill) => skill.id)).toEqual([
+      'generate',
+      'animate',
+      'inbetween',
+      'restyle',
+      'fix',
+      'extend',
+    ])
+    expect(ASSISTANT_TOOL_CATALOG.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining([
+        'set_pixels',
+        'translate_region',
+        'flip_region',
+        'set_frame_duration',
+      ]),
+    )
+  })
+
+  it('uses integer preview scales and samples long animations within the vision budget', () => {
+    const project = createDemoProject()
+    project.frames = Array.from({ length: 20 }, (_, index) => ({
+      id: `frame_${index + 1}`,
+      name: `F${index + 1}`,
+      duration: 120,
+    }))
+    expect(assistantVisionScale(32, 32)).toBe(8)
+    const vision = planAssistantVision(project, 'frame_10', 'sheet')
+    expect(vision.scale).toBe(8)
+    expect(vision.frameIds.length).toBeLessThanOrEqual(4)
+    expect(vision.frameIds).toContain('frame_10')
+  })
+
+  it('adapts attached PNG data to OpenAI-compatible multimodal messages', () => {
+    const messages = createCompatibleChatMessages([
+      { role: 'system', content: 'system' },
+      { role: 'user', content: 'inspect', images: ['cG5n'] },
+    ])
+    expect(messages[0]!.content).toBe('system')
+    expect(messages[1]!.content).toEqual([
+      { type: 'text', text: 'inspect' },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,cG5n' } },
+    ])
+    expect(mapCodexCliError(new Error('not logged in'))).toMatch(/codex login/i)
   })
 })

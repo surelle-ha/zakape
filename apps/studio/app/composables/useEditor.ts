@@ -809,6 +809,9 @@ export const useEditor = () => {
       result.framesCreated
         ? `${result.framesCreated} frame${result.framesCreated === 1 ? '' : 's'}`
         : '',
+      result.durationsChanged
+        ? `${result.durationsChanged} timing change${result.durationsChanged === 1 ? '' : 's'}`
+        : '',
       result.editedCels ? `${result.editedCels} cel${result.editedCels === 1 ? '' : 's'}` : '',
     ].filter(Boolean)
     touch(`Applied assistant work${parts.length ? `: ${parts.join(', ')}` : ''}`)

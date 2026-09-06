@@ -49,6 +49,43 @@ const applyOperation = (project: SpriteProject, pixels: Pixel[], operation: ArtO
         }
       }
     })
+    return
+  }
+
+  const source = Array.from({ length: operation.height }, (_, row) =>
+    Array.from(
+      { length: operation.width },
+      (_, column) => pixels[(operation.y + row) * project.width + operation.x + column] ?? null,
+    ),
+  )
+  if (operation.type === 'translate_region') {
+    if (operation.mode === 'move') {
+      for (let row = 0; row < operation.height; row += 1) {
+        for (let column = 0; column < operation.width; column += 1) {
+          set(operation.x + column, operation.y + row, null)
+        }
+      }
+    }
+    for (let row = 0; row < operation.height; row += 1) {
+      for (let column = 0; column < operation.width; column += 1) {
+        set(
+          operation.x + operation.offsetX + column,
+          operation.y + operation.offsetY + row,
+          source[row]![column]!,
+        )
+      }
+    }
+    return
+  }
+
+  if (operation.type === 'flip_region') {
+    for (let row = 0; row < operation.height; row += 1) {
+      for (let column = 0; column < operation.width; column += 1) {
+        const sourceRow = operation.axis === 'vertical' ? operation.height - row - 1 : row
+        const sourceColumn = operation.axis === 'horizontal' ? operation.width - column - 1 : column
+        set(operation.x + column, operation.y + row, source[sourceRow]![sourceColumn]!)
+      }
+    }
   }
 }
 
@@ -59,6 +96,7 @@ export const applyAssistantChanges = (
 ) => {
   const frameActions = actions.filter((action) => action.type === 'create_frame')
   const layerActions = actions.filter((action) => action.type === 'create_layer')
+  const durationActions = actions.filter((action) => action.type === 'set_frame_duration')
 
   frameActions.forEach((action) => {
     if (project.frames.some((frame) => frame.id === action.frameId)) return
@@ -91,6 +129,14 @@ export const applyAssistantChanges = (
     })
   })
 
+  let durationsChanged = 0
+  durationActions.forEach((action) => {
+    const frame = project.frames.find((item) => item.id === action.frameId)
+    if (!frame || frame.duration === action.duration) return
+    frame.duration = action.duration
+    durationsChanged += 1
+  })
+
   edits.forEach((edit) => {
     const layer = project.layers.find((item) => item.id === edit.layerId)
     if (!layer || !project.frames.some((frame) => frame.id === edit.frameId)) return
@@ -103,6 +149,7 @@ export const applyAssistantChanges = (
   return {
     framesCreated: frameActions.length,
     layersCreated: layerActions.length,
+    durationsChanged,
     editedCels: edits.filter((edit) => edit.operations.length > 0).length,
   }
 }

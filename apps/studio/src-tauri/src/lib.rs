@@ -1,5 +1,6 @@
 #![recursion_limit = "256"]
 
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -13,12 +14,25 @@ use std::{
 use tauri::{AppHandle, Manager};
 
 #[cfg(all(feature = "google-auth", desktop))]
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 #[cfg(all(feature = "google-auth", desktop))]
 use sha2::{Digest, Sha256};
+#[cfg(desktop)]
+use std::{
+    env,
+    process::{Command, Stdio},
+    thread,
+    time::Instant,
+};
+#[cfg(desktop)]
+use wait_timeout::ChildExt;
 const OLLAMA_CONNECT_TIMEOUT: Duration = Duration::from_secs(4);
 const OLLAMA_DISCOVERY_TIMEOUT: Duration = Duration::from_secs(12);
 const OLLAMA_CHAT_TIMEOUT: Duration = Duration::from_secs(180);
+const CODEX_CLI_TIMEOUT: Duration = Duration::from_secs(180);
+const MAX_ASSISTANT_REQUEST_BYTES: usize = 2_000_000;
+const MAX_ASSISTANT_VISION_IMAGES: usize = 4;
+const MAX_ASSISTANT_VISION_BYTES: usize = 8 * 1024 * 1024;
 const MAX_PROJECT_BYTES: usize = 32 * 1024 * 1024;
 const MAX_IMPORTED_PIXELS: usize = 1_048_576;
 const MAX_GODOT_CONFIG_BYTES: u64 = 1024 * 1024;
@@ -74,10 +88,22 @@ struct GoogleTokenResponse {
     refresh_token: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct AssistantMessage {
     role: String,
     content: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    images: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CodexCliStatus {
+    available: bool,
+    authenticated: bool,
+    compatible: bool,
+    version: Option<String>,
+    executable_path: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1652,6 +1678,16 @@ fn assistant_response_format() -> Value {
                                 "after_frame_id": { "type": ["string", "null"] },
                                 "copy_from_frame_id": { "type": ["string", "null"] }
                             }
+                        },
+                        {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["type", "frame_id", "duration_ms"],
+                            "properties": {
+                                "type": { "const": "set_frame_duration" },
+                                "frame_id": { "type": "string" },
+                                "duration_ms": { "type": "integer", "minimum": 40, "maximum": 10000 }
+                            }
                         }
                     ]
                 }
@@ -1711,6 +1747,34 @@ fn assistant_response_format() -> Value {
                                             "type": { "const": "replace_palette_color" },
                                             "from": { "type": "string" },
                                             "to": { "type": ["string", "null"] }
+                                        }
+                                    },
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": ["type", "x", "y", "width", "height", "offset_x", "offset_y", "mode"],
+                                        "properties": {
+                                            "type": { "const": "translate_region" },
+                                            "x": { "type": "integer", "minimum": 0 },
+                                            "y": { "type": "integer", "minimum": 0 },
+                                            "width": { "type": "integer", "minimum": 1 },
+                                            "height": { "type": "integer", "minimum": 1 },
+                                            "offset_x": { "type": "integer" },
+                                            "offset_y": { "type": "integer" },
+                                            "mode": { "enum": ["move", "copy"] }
+                                        }
+                                    },
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": ["type", "x", "y", "width", "height", "axis"],
+                                        "properties": {
+                                            "type": { "const": "flip_region" },
+                                            "x": { "type": "integer", "minimum": 0 },
+                                            "y": { "type": "integer", "minimum": 0 },
+                                            "width": { "type": "integer", "minimum": 1 },
+                                            "height": { "type": "integer", "minimum": 1 },
+                                            "axis": { "enum": ["horizontal", "vertical"] }
                                         }
                                     }
                                 ]
@@ -1772,6 +1836,390 @@ fn short_response(value: &str) -> String {
     value.chars().take(180).collect()
 }
 
+fn validate_assistant_messages(messages: &[AssistantMessage]) -> Result<(), String> {
+    if messages.is_empty()
+        || messages.len() > 4
+        || messages
+            .iter()
+            .any(|message| !matches!(message.role.as_str(), "system" | "user"))
+        || messages
+            .iter()
+            .map(|message| message.content.len())
+            .sum::<usize>()
+            > MAX_ASSISTANT_REQUEST_BYTES
+    {
+        return Err("The assistant request is outside Zakape's safety limits.".to_string());
+    }
+
+    let images: Vec<&String> = messages
+        .iter()
+        .flat_map(|message| message.images.iter())
+        .collect();
+    if images.len() > MAX_ASSISTANT_VISION_IMAGES
+        || images.iter().map(|image| image.len()).sum::<usize>()
+            > MAX_ASSISTANT_VISION_BYTES.saturating_mul(2)
+    {
+        return Err("The rendered vision request is too large.".to_string());
+    }
+    let mut decoded_bytes = 0_usize;
+    let mut decoded_pixels = 0_u64;
+    for encoded in images {
+        let bytes = STANDARD
+            .decode(encoded)
+            .map_err(|_| "The rendered vision image is not valid base64.".to_string())?;
+        decoded_bytes = decoded_bytes.saturating_add(bytes.len());
+        if decoded_bytes > MAX_ASSISTANT_VISION_BYTES {
+            return Err("The rendered vision request exceeds Zakape's 8 MB limit.".to_string());
+        }
+        let preview = image::load_from_memory_with_format(&bytes, image::ImageFormat::Png)
+            .map_err(|_| "The rendered vision attachment is not a valid PNG.".to_string())?;
+        decoded_pixels = decoded_pixels
+            .saturating_add(u64::from(preview.width()).saturating_mul(u64::from(preview.height())));
+        if decoded_pixels > 2_097_152 {
+            return Err("The rendered vision request contains too many pixels.".to_string());
+        }
+    }
+    Ok(())
+}
+
+#[cfg(desktop)]
+fn is_codex_executable_name(path: &Path) -> bool {
+    let name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    if cfg!(windows) {
+        name.eq_ignore_ascii_case("codex.exe")
+    } else {
+        name == "codex"
+    }
+}
+
+#[cfg(desktop)]
+fn checked_codex_executable(path: PathBuf) -> Option<PathBuf> {
+    if !is_codex_executable_name(&path) {
+        return None;
+    }
+    let canonical = fs::canonicalize(path).ok()?;
+    canonical.is_file().then_some(canonical)
+}
+
+#[cfg(desktop)]
+fn find_codex_in_tree(root: PathBuf, max_depth: usize) -> Option<PathBuf> {
+    if !root.is_dir() {
+        return None;
+    }
+    let mut queue = VecDeque::from([(root, 0_usize)]);
+    let mut visited = 0_usize;
+    let mut matches = Vec::new();
+    while let Some((directory, depth)) = queue.pop_front() {
+        visited += 1;
+        if visited > 4_000 {
+            break;
+        }
+        let Ok(entries) = fs::read_dir(directory) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let Ok(file_type) = entry.file_type() else {
+                continue;
+            };
+            if file_type.is_symlink() {
+                continue;
+            }
+            let path = entry.path();
+            if file_type.is_file() && is_codex_executable_name(&path) {
+                if let Some(candidate) = checked_codex_executable(path) {
+                    matches.push(candidate);
+                }
+            } else if file_type.is_dir() && depth < max_depth {
+                queue.push_back((path, depth + 1));
+            }
+        }
+    }
+    matches.sort();
+    matches.pop()
+}
+
+#[cfg(desktop)]
+fn find_codex_executable() -> Option<PathBuf> {
+    if let Some(candidate) = env::var_os("CODEX_BINARY")
+        .map(PathBuf::from)
+        .and_then(checked_codex_executable)
+    {
+        return Some(candidate);
+    }
+
+    let executable_name = if cfg!(windows) { "codex.exe" } else { "codex" };
+    if let Some(candidate) = env::var_os("PATH").and_then(|value| {
+        env::split_paths(&value)
+            .find_map(|path| checked_codex_executable(path.join(executable_name)))
+    }) {
+        return Some(candidate);
+    }
+
+    if cfg!(windows) {
+        if let Some(candidate) = env::var_os("APPDATA")
+            .map(PathBuf::from)
+            .and_then(|path| find_codex_in_tree(path.join("npm/node_modules/@openai/codex"), 8))
+        {
+            return Some(candidate);
+        }
+        if let Some(candidate) = env::var_os("USERPROFILE")
+            .map(PathBuf::from)
+            .and_then(|path| find_codex_in_tree(path.join(".vscode/extensions"), 5))
+        {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+#[cfg(desktop)]
+fn run_codex_probe(binary: &Path, arguments: &[&str]) -> Result<(bool, String), String> {
+    let mut child = Command::new(binary)
+        .args(arguments)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|_| "Zakape could not start Codex CLI.".to_string())?;
+    let status = child
+        .wait_timeout(Duration::from_secs(12))
+        .map_err(|_| "Zakape could not inspect Codex CLI.".to_string())?;
+    if status.is_none() {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err("Codex CLI did not respond in time.".to_string());
+    }
+    let output = child
+        .wait_with_output()
+        .map_err(|_| "Zakape could not read Codex CLI status.".to_string())?;
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    )
+    .trim()
+    .to_string();
+    Ok((output.status.success(), text))
+}
+
+#[cfg(desktop)]
+fn inspect_codex_cli() -> CodexCliStatus {
+    let Some(binary) = find_codex_executable() else {
+        return CodexCliStatus {
+            available: false,
+            authenticated: false,
+            compatible: false,
+            version: None,
+            executable_path: None,
+        };
+    };
+    let version = run_codex_probe(&binary, &["--version"])
+        .ok()
+        .filter(|(success, _)| *success)
+        .map(|(_, value)| value);
+    let compatible = run_codex_probe(&binary, &["exec", "--help"])
+        .ok()
+        .filter(|(success, _)| *success)
+        .is_some_and(|(_, output)| {
+            output.contains("--output-schema")
+                && output.contains("--image")
+                && output.contains("--ephemeral")
+                && output.contains("--disable")
+                && output.contains("--config")
+        });
+    let authenticated = run_codex_probe(&binary, &["login", "status"])
+        .ok()
+        .is_some_and(|(success, output)| {
+            success && output.to_ascii_lowercase().contains("logged in")
+        });
+    CodexCliStatus {
+        available: true,
+        authenticated,
+        compatible,
+        version,
+        executable_path: Some(binary.to_string_lossy().into_owned()),
+    }
+}
+
+#[tauri::command]
+async fn codex_cli_status() -> Result<CodexCliStatus, String> {
+    #[cfg(desktop)]
+    {
+        tauri::async_runtime::spawn_blocking(inspect_codex_cli)
+            .await
+            .map_err(|_| "Zakape could not inspect Codex CLI.".to_string())
+    }
+    #[cfg(not(desktop))]
+    {
+        Ok(CodexCliStatus {
+            available: false,
+            authenticated: false,
+            compatible: false,
+            version: None,
+            executable_path: None,
+        })
+    }
+}
+
+#[cfg(desktop)]
+fn run_codex_art_pass(
+    binary: PathBuf,
+    model: String,
+    messages: Vec<AssistantMessage>,
+) -> Result<String, String> {
+    validate_assistant_messages(&messages)?;
+    let temporary = tempfile::tempdir()
+        .map_err(|_| "Zakape could not prepare a temporary Codex workspace.".to_string())?;
+    let schema_path = temporary.path().join("zakape-art-schema.json");
+    let output_path = temporary.path().join("zakape-art-response.json");
+    let diagnostics_path = temporary.path().join("codex-diagnostics.log");
+    fs::write(
+        &schema_path,
+        serde_json::to_vec(&assistant_response_format())
+            .map_err(|_| "Zakape could not prepare the art response schema.".to_string())?,
+    )
+    .map_err(|_| "Zakape could not write the temporary art response schema.".to_string())?;
+
+    let mut image_paths = Vec::new();
+    for (index, encoded) in messages
+        .iter()
+        .flat_map(|message| message.images.iter())
+        .enumerate()
+    {
+        let bytes = STANDARD
+            .decode(encoded)
+            .map_err(|_| "The rendered vision image is not valid base64.".to_string())?;
+        let path = temporary.path().join(format!("vision-{index}.png"));
+        fs::write(&path, bytes)
+            .map_err(|_| "Zakape could not stage rendered vision for Codex.".to_string())?;
+        image_paths.push(path);
+    }
+
+    let prompt = messages
+        .iter()
+        .map(|message| {
+            format!(
+                "{}\n{}",
+                if message.role == "system" {
+                    "SYSTEM INSTRUCTIONS"
+                } else {
+                    "ARTIST REQUEST AND PROJECT CONTEXT"
+                },
+                message.content
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    let diagnostics = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&diagnostics_path)
+        .map_err(|_| "Zakape could not prepare Codex diagnostics.".to_string())?;
+    let mut command = Command::new(binary);
+    command
+        .arg("exec")
+        .arg("--ephemeral")
+        .arg("--ignore-user-config")
+        .arg("--ignore-rules")
+        .arg("--disable")
+        .arg("shell_tool")
+        .arg("--disable")
+        .arg("multi_agent")
+        .arg("--disable")
+        .arg("remote_plugin")
+        .arg("--disable")
+        .arg("skill_mcp_dependency_install")
+        .arg("--config")
+        .arg("web_search=\"disabled\"")
+        .arg("--config")
+        .arg("tools.view_image=false")
+        .arg("--config")
+        .arg("allow_login_shell=false")
+        .arg("--sandbox")
+        .arg("read-only")
+        .arg("--skip-git-repo-check")
+        .arg("--color")
+        .arg("never")
+        .arg("--cd")
+        .arg(temporary.path())
+        .arg("--output-schema")
+        .arg(&schema_path)
+        .arg("--output-last-message")
+        .arg(&output_path);
+    if !model.trim().is_empty() {
+        if model.len() > 200 {
+            return Err("The Codex model override is too long.".to_string());
+        }
+        command.arg("--model").arg(model.trim());
+    }
+    for image_path in &image_paths {
+        command.arg("--image").arg(image_path);
+    }
+    let mut child = command
+        .arg("-")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::from(diagnostics))
+        .spawn()
+        .map_err(|_| "Zakape could not start Codex CLI.".to_string())?;
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| "Zakape could not open the Codex request stream.".to_string())?
+        .write_all(prompt.as_bytes())
+        .map_err(|_| "Zakape could not send the art request to Codex.".to_string())?;
+
+    let started = Instant::now();
+    loop {
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|_| "Zakape could not monitor Codex CLI.".to_string())?
+        {
+            if !status.success() {
+                let details = fs::read_to_string(&diagnostics_path).unwrap_or_default();
+                return Err(format!(
+                    "Codex CLI could not complete the art pass: {}",
+                    short_response(details.trim())
+                ));
+            }
+            break;
+        }
+        if started.elapsed() >= CODEX_CLI_TIMEOUT {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err("Codex CLI timed out after three minutes.".to_string());
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+    let response = fs::read_to_string(output_path)
+        .map_err(|_| "Codex CLI did not write an art proposal.".to_string())?;
+    if response.trim().is_empty() || response.len() > MAX_ASSISTANT_REQUEST_BYTES {
+        return Err("Codex CLI returned an empty or oversized art proposal.".to_string());
+    }
+    Ok(response)
+}
+
+#[tauri::command]
+async fn codex_cli_chat(model: String, messages: Vec<AssistantMessage>) -> Result<String, String> {
+    #[cfg(desktop)]
+    {
+        let binary = find_codex_executable().ok_or_else(|| {
+            "Codex CLI is not installed. Install it, then restart Zakape.".to_string()
+        })?;
+        tauri::async_runtime::spawn_blocking(move || run_codex_art_pass(binary, model, messages))
+            .await
+            .map_err(|_| "Zakape could not finish the Codex art pass.".to_string())?
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = (model, messages);
+        Err("Codex CLI is available in the Zakape desktop app.".to_string())
+    }
+}
+
 async fn response_error(response: reqwest::Response, model: Option<&str>) -> String {
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
@@ -1824,19 +2272,7 @@ async fn ollama_chat(
     if model.is_empty() || model.len() > 200 {
         return Err("Choose an installed Ollama model before requesting an edit.".to_string());
     }
-    if messages.is_empty()
-        || messages.len() > 4
-        || messages
-            .iter()
-            .any(|message| !matches!(message.role.as_str(), "system" | "user"))
-        || messages
-            .iter()
-            .map(|message| message.content.len())
-            .sum::<usize>()
-            > 2_000_000
-    {
-        return Err("The assistant request is outside Zakape's safety limits.".to_string());
-    }
+    validate_assistant_messages(&messages)?;
 
     let request = OllamaChatRequest {
         model,
@@ -1891,6 +2327,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             ollama_list_models,
             ollama_chat,
+            codex_cli_status,
+            codex_cli_chat,
             workspace_directory,
             workspace_list_projects,
             workspace_read_project,
@@ -1915,11 +2353,15 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(desktop)]
+    use super::is_codex_executable_name;
     use super::{
         checked_godot_relative_path, checked_project_id, godot_config_version,
         godot_feature_version, godot_write_assets, imported_name, ollama_endpoint,
-        parse_imported_png, parse_imported_sprite, quoted_project_setting, GodotAssetFile,
+        parse_imported_png, parse_imported_sprite, quoted_project_setting,
+        validate_assistant_messages, AssistantMessage, GodotAssetFile,
     };
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
     use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
     use std::{
         fs,
@@ -1965,6 +2407,45 @@ mod tests {
         assert!(ollama_endpoint("http://192.168.1.10:11434", "api/tags").is_err());
         assert!(ollama_endpoint("https://example.com", "api/tags").is_err());
         assert!(ollama_endpoint("http://127.0.0.1:11434/v1", "api/tags").is_err());
+    }
+
+    #[test]
+    fn validates_bounded_rendered_vision_payloads() {
+        let encoded = STANDARD.encode(minimal_png_bytes([17, 34, 51, 255]));
+        let messages = vec![
+            AssistantMessage {
+                role: "system".to_string(),
+                content: "Return JSON only.".to_string(),
+                images: Vec::new(),
+            },
+            AssistantMessage {
+                role: "user".to_string(),
+                content: "Inspect this frame.".to_string(),
+                images: vec![encoded.clone()],
+            },
+        ];
+        assert!(validate_assistant_messages(&messages).is_ok());
+
+        let mut malformed = messages.clone();
+        malformed[1].images = vec!["not base64".to_string()];
+        assert!(validate_assistant_messages(&malformed).is_err());
+
+        let mut too_many = messages;
+        too_many[1].images = vec![encoded; 5];
+        assert!(validate_assistant_messages(&too_many).is_err());
+    }
+
+    #[cfg(desktop)]
+    #[test]
+    fn recognizes_only_the_native_codex_executable_name() {
+        let valid = if cfg!(windows) { "codex.exe" } else { "codex" };
+        assert!(is_codex_executable_name(PathBuf::from(valid).as_path()));
+        assert!(!is_codex_executable_name(
+            PathBuf::from("codex.cmd").as_path()
+        ));
+        assert!(!is_codex_executable_name(
+            PathBuf::from("other.exe").as_path()
+        ));
     }
 
     #[test]

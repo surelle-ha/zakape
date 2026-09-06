@@ -1,7 +1,22 @@
 <script setup lang="ts">
-import { Check, Cloud, Cpu, KeyRound, Link2, LoaderCircle, ShieldCheck, X } from '@lucide/vue'
+import {
+  Check,
+  Cloud,
+  Cpu,
+  Eye,
+  KeyRound,
+  Link2,
+  LoaderCircle,
+  ShieldCheck,
+  SquareTerminal,
+  X,
+} from '@lucide/vue'
 import type { ModelConnection, ModelProvider } from '~/types/editor'
-import { OLLAMA_DEFAULT_URL, normalizeOllamaBaseUrl } from '~/composables/useAiAssistant'
+import {
+  OLLAMA_DEFAULT_URL,
+  normalizeCompatibleBaseUrl,
+  normalizeOllamaBaseUrl,
+} from '~/composables/useAiAssistant'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
@@ -13,14 +28,18 @@ const provider = ref<ModelProvider>(connection.value.provider)
 const baseUrl = ref(connection.value.baseUrl)
 const model = ref(connection.value.model)
 const apiKey = ref(connection.value.apiKey)
+const visionEnabled = ref(connection.value.visionEnabled)
 const saved = ref(false)
 const dialog = ref<HTMLElement | null>(null)
 let previousFocus: HTMLElement | null = null
 
 const isOllama = computed(() => provider.value === 'ollama')
+const isCompatible = computed(() => provider.value === 'openai-compatible')
+const isCodex = computed(() => provider.value === 'codex-cli')
 const runtimeLabel = computed(() => {
   if (status.value === 'testing') return 'Checking'
   if (status.value === 'connected') {
+    if (isCodex.value) return 'CLI ready'
     const count = availableModels.value.length
     return `${count} model${count === 1 ? '' : 's'} ready`
   }
@@ -41,9 +60,12 @@ const draftConnection = (): ModelConnection => ({
   provider: provider.value,
   baseUrl: isOllama.value
     ? normalizeOllamaBaseUrl(baseUrl.value)
-    : baseUrl.value.trim().replace(/\/$/, ''),
+    : isCompatible.value
+      ? normalizeCompatibleBaseUrl(baseUrl.value)
+      : '',
   model: model.value.trim(),
-  apiKey: isOllama.value ? '' : apiKey.value,
+  apiKey: isCompatible.value ? apiKey.value : '',
+  visionEnabled: visionEnabled.value,
 })
 
 const saveConnection = async (showConfirmation = true) => {
@@ -54,6 +76,7 @@ const saveConnection = async (showConfirmation = true) => {
       provider: connection.value.provider,
       baseUrl: connection.value.baseUrl,
       model: connection.value.model,
+      visionEnabled: connection.value.visionEnabled,
     })
     if (showConfirmation) {
       saved.value = true
@@ -70,7 +93,7 @@ const saveConnection = async (showConfirmation = true) => {
 const test = async () => {
   if (!(await saveConnection(false))) return
   const models = await testConnection()
-  if (!model.value && models[0]) {
+  if (!isCodex.value && !model.value && models[0]) {
     model.value = models[0].id
     connection.value.model = models[0].id
     await saveConnection(false)
@@ -115,30 +138,37 @@ watch(
     previousFocus = document.activeElement as HTMLElement | null
     clearConnectionState()
     const preference = await loadPreference<Partial<ModelConnection>>('model-connection')
-    if (preference?.baseUrl) {
+    if (preference?.provider || preference?.baseUrl) {
       const inferredProvider: ModelProvider =
         preference.provider ??
-        (/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]):11434(?:\/v1)?\/?$/i.test(preference.baseUrl)
+        (/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]):11434(?:\/v1)?\/?$/i.test(
+          preference.baseUrl ?? '',
+        )
           ? 'ollama'
           : 'openai-compatible')
       provider.value = inferredProvider
       baseUrl.value =
         inferredProvider === 'ollama'
-          ? preference.baseUrl.replace(/\/v1\/?$/i, '')
-          : preference.baseUrl
+          ? (preference.baseUrl ?? OLLAMA_DEFAULT_URL).replace(/\/v1\/?$/i, '')
+          : inferredProvider === 'openai-compatible'
+            ? (preference.baseUrl ?? '')
+            : ''
       model.value = preference.model ?? ''
       connection.value = {
         provider: inferredProvider,
         baseUrl: baseUrl.value,
         model: model.value,
         apiKey: connection.value.apiKey,
+        visionEnabled: preference.visionEnabled ?? true,
       }
     } else {
       provider.value = connection.value.provider
       baseUrl.value = connection.value.baseUrl
       model.value = connection.value.model
+      connection.value.visionEnabled ??= true
     }
     apiKey.value = connection.value.apiKey
+    visionEnabled.value = connection.value.visionEnabled
     await nextTick()
     dialog.value?.focus()
   },
@@ -184,12 +214,21 @@ watch(
           </button>
           <button
             type="button"
-            :class="{ active: !isOllama }"
-            :aria-pressed="!isOllama"
+            :class="{ active: isCompatible }"
+            :aria-pressed="isCompatible"
             @click="switchProvider('openai-compatible')"
           >
             <Cloud :size="17" aria-hidden="true" />
             <span><strong>Compatible API</strong><small>Local or hosted endpoint</small></span>
+          </button>
+          <button
+            type="button"
+            :class="{ active: isCodex }"
+            :aria-pressed="isCodex"
+            @click="switchProvider('codex-cli')"
+          >
+            <SquareTerminal :size="17" aria-hidden="true" />
+            <span><strong>Codex CLI</strong><small>Existing ChatGPT sign-in</small></span>
           </button>
         </div>
 
@@ -199,24 +238,38 @@ watch(
             <strong>On-device by default.</strong> Zakape connects only to Ollama on this computer's
             loopback address. Your prompt and canvas do not pass through Zakape servers.
           </p>
-          <p v-else>
+          <p v-else-if="isCompatible">
             <strong>Direct by design.</strong> Requests go from this device to your endpoint. The
             API key stays in memory and is never saved in the project database.
           </p>
+          <p v-else>
+            <strong>Uses your Codex account.</strong> Zakape starts the installed CLI in a
+            read-only, temporary workspace. Prompts and rendered frames follow your Codex provider's
+            privacy terms.
+          </p>
         </div>
 
-        <div v-if="isOllama" class="local-runtime" data-testid="ollama-runtime">
-          <span class="runtime-glyph"><Cpu :size="17" aria-hidden="true" /></span>
+        <div
+          v-if="isOllama || isCodex"
+          class="local-runtime"
+          :data-testid="isOllama ? 'ollama-runtime' : 'codex-runtime'"
+        >
+          <span class="runtime-glyph">
+            <Cpu v-if="isOllama" :size="17" aria-hidden="true" />
+            <SquareTerminal v-else :size="17" aria-hidden="true" />
+          </span>
           <span>
-            <strong>Local runtime</strong>
-            <small>{{ baseUrl || OLLAMA_DEFAULT_URL }}</small>
+            <strong>{{ isOllama ? 'Local runtime' : 'Codex command line' }}</strong>
+            <small>{{
+              isOllama ? baseUrl || OLLAMA_DEFAULT_URL : 'codex login · read-only run'
+            }}</small>
           </span>
           <span :class="['runtime-state', status]" aria-live="polite">
             <i aria-hidden="true" /> {{ runtimeLabel }}
           </span>
         </div>
 
-        <label class="field-label">
+        <label v-if="isOllama" class="field-label">
           <span>
             <Link2 :size="14" aria-hidden="true" />
             {{ isOllama ? 'Ollama address' : 'Base URL' }}
@@ -252,7 +305,7 @@ watch(
           <small>Models are discovered from the Ollama installation on this device.</small>
         </div>
 
-        <template v-else>
+        <template v-if="isCompatible">
           <label class="field-label">
             <span>Model ID</span>
             <input
@@ -277,6 +330,28 @@ watch(
           </label>
         </template>
 
+        <label v-if="isCodex" class="field-label">
+          <span>Model override <em>Optional</em></span>
+          <input
+            v-model="model"
+            name="codex-model-id"
+            type="text"
+            placeholder="Use the Codex default"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <small>Leave blank to use the current Codex default model.</small>
+        </label>
+
+        <label class="assistant-vision-toggle">
+          <span class="runtime-glyph"><Eye :size="17" aria-hidden="true" /></span>
+          <span>
+            <strong>Rendered vision</strong>
+            <small>Attach bounded PNG previews so every review pass can inspect the artwork.</small>
+          </span>
+          <input v-model="visionEnabled" type="checkbox" aria-label="Enable rendered vision" />
+        </label>
+
         <p v-if="errorMessage" class="inline-error" role="alert">{{ errorMessage }}</p>
         <footer>
           <span
@@ -286,7 +361,7 @@ watch(
             aria-live="polite"
           >
             <Check :size="14" aria-hidden="true" />
-            {{ isOllama ? 'Ollama is ready' : 'Connection works' }}
+            {{ isOllama ? 'Ollama is ready' : isCodex ? 'Codex is ready' : 'Connection works' }}
           </span>
           <span v-else />
           <button
@@ -305,7 +380,15 @@ watch(
             @click="test"
           >
             <LoaderCircle v-if="status === 'testing'" class="spin" :size="15" aria-hidden="true" />
-            {{ status === 'testing' ? 'Checking…' : isOllama ? 'Find models' : 'Test connection' }}
+            {{
+              status === 'testing'
+                ? 'Checking…'
+                : isOllama
+                  ? 'Find models'
+                  : isCodex
+                    ? 'Check Codex'
+                    : 'Test connection'
+            }}
           </button>
         </footer>
       </section>

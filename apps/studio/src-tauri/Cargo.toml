@@ -14,7 +14,6 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [features]
 default = []
 google-auth = [
-  "dep:base64",
   "dep:getrandom",
   "dep:keyring",
   "dep:open",
@@ -26,7 +25,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 ah-asefile = "0.4.1"
-base64 = { version = "0.22", optional = true }
+base64 = "0.22"
 getrandom = { version = "0.3", optional = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
@@ -46,3 +45,5 @@ open = { version = "5.3.2", optional = true }
 tauri-plugin-process = "2.3.1"
 tauri-plugin-single-instance = "2.4.4"
 tauri-plugin-updater = "2.11.0"
+tempfile = "3"
+wait-timeout = "0.2"

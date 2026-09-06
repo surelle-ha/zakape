@@ -82,9 +82,35 @@ export interface ReplaceColorOperation {
   to: string | null
 }
 
-export type ArtOperation = SetPixelsOperation | FillRectOperation | ReplaceColorOperation
+export interface TranslateRegionOperation {
+  type: 'translate_region'
+  x: number
+  y: number
+  width: number
+  height: number
+  offsetX: number
+  offsetY: number
+  mode: 'move' | 'copy'
+}
+
+export interface FlipRegionOperation {
+  type: 'flip_region'
+  x: number
+  y: number
+  width: number
+  height: number
+  axis: 'horizontal' | 'vertical'
+}
+
+export type ArtOperation =
+  | SetPixelsOperation
+  | FillRectOperation
+  | ReplaceColorOperation
+  | TranslateRegionOperation
+  | FlipRegionOperation
 
 export type AssistantEditScope = 'frame' | 'sheet'
+export type AssistantSkillId = 'generate' | 'animate' | 'inbetween' | 'restyle' | 'fix' | 'extend'
 
 export interface AssistantArtEdit {
   frameId: string
@@ -107,10 +133,17 @@ export interface CreateFrameAction {
   copyFromFrameId: string | null
 }
 
-export type AssistantProjectAction = CreateLayerAction | CreateFrameAction
+export interface SetFrameDurationAction {
+  type: 'set_frame_duration'
+  frameId: string
+  duration: number
+}
+
+export type AssistantProjectAction = CreateLayerAction | CreateFrameAction | SetFrameDurationAction
 
 export interface ArtProposal {
   summary: string
+  skill: AssistantSkillId
   scope: AssistantEditScope
   actions: AssistantProjectAction[]
   edits: AssistantArtEdit[]
@@ -123,15 +156,17 @@ export interface AssistantChatEntry {
   role: 'user' | 'assistant'
   content: string
   createdAt: string
+  skill?: AssistantSkillId
   scope?: AssistantEditScope
   state?: 'message' | 'proposal' | 'applied' | 'discarded' | 'error'
 }
 
-export type ModelProvider = 'ollama' | 'openai-compatible'
+export type ModelProvider = 'ollama' | 'openai-compatible' | 'codex-cli'
 
 export interface ModelConnection {
   provider: ModelProvider
   baseUrl: string
   model: string
   apiKey: string
+  visionEnabled: boolean
 }

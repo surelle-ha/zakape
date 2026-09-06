@@ -820,6 +820,24 @@ test('discovers installed Ollama models and switches providers', async ({ page }
 
   await page.getByRole('button', { name: /Compatible API/ }).click()
   await expect(page.getByLabel(/API key/)).toBeVisible()
+  await page.getByRole('button', { name: /Codex CLI/ }).click()
+  await expect(page.getByTestId('codex-runtime')).toBeVisible()
+  await expect(page.getByLabel('Enable rendered vision')).toBeChecked()
+  await expect(page.getByRole('textbox', { name: /Model override/ })).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: /Compatible API/ }).click()
+  await page.getByRole('button', { name: /Codex CLI/ }).click()
+  const dialogBox = await page
+    .getByRole('dialog', { name: 'Choose where the model runs' })
+    .boundingBox()
+  expect(dialogBox).not.toBeNull()
+  expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(390)
+  expect(
+    await page
+      .locator('.provider-switch button')
+      .first()
+      .evaluate((button) => button.clientHeight),
+  ).toBeGreaterThanOrEqual(44)
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: /Manage model/ })).toBeFocused()
 })
@@ -853,7 +871,7 @@ test('asks whether the assistant should edit one frame or the entire sheet', asy
     assistantPass += 1
     const body = route.request().postDataJSON() as {
       format: { type: string }
-      messages: Array<{ content: string }>
+      messages: Array<{ content: string; images?: string[] }>
     }
     const artRequest = JSON.parse(body.messages[1]!.content) as {
       edit_scope: string
@@ -865,6 +883,8 @@ test('asks whether the assistant should edit one frame or the entire sheet', asy
     expect(artRequest.edit_scope).toBe('full_animation')
     expect(artRequest.target_frame_ids).toHaveLength(4)
     expect(artRequest.agent_pass.number).toBe(assistantPass)
+    expect(body.messages[1]!.images?.length).toBeGreaterThan(0)
+    expect(body.messages[1]!.images!.length).toBeLessThanOrEqual(4)
     await route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
@@ -900,7 +920,9 @@ test('asks whether the assistant should edit one frame or the entire sheet', asy
   await page.getByRole('button', { name: /Manage model/ }).click()
   await page.getByRole('button', { name: 'Find models' }).click()
   await page.keyboard.press('Escape')
-  await page.getByTestId('assistant-scope-sheet').click()
+  const skillRack = page.locator('.assistant-skill-rack')
+  await expect(skillRack.getByRole('button')).toHaveCount(6)
+  await skillRack.getByRole('button', { name: 'Animate' }).click()
   await expect(page.getByTestId('assistant-scope-sheet')).toHaveAttribute('aria-pressed', 'true')
   await page
     .getByLabel('Assistant message')

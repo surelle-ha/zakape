@@ -10,7 +10,7 @@ Zakape is an open-source pixel-art and sprite-animation studio for desktop, Andr
 
 ## Description
 
-Create sprites frame by frame, preview motion as you work, and export PNG, GIF, sprite-sheet metadata, or a portable `.zakape` project. Guest access works offline, with optional Google login in desktop builds. When repetitive cleanup or a controlled variation would help, connect local Ollama or a compatible model endpoint. Assistant proposals stay scoped, reviewable, and reversible; drawing and animation remain fully usable without AI.
+Create sprites frame by frame, preview motion as you work, and export PNG, GIF, sprite-sheet metadata, or a portable `.zakape` project. Guest access works offline, with optional Google login in desktop builds. When repetitive cleanup or a controlled variation would help, connect local Ollama, a compatible model endpoint, or Codex CLI with an existing ChatGPT sign-in. The assistant can inspect bounded renders of its in-memory draft, but every tool operation stays validated, scoped, reviewable, and reversible; drawing and animation remain fully usable without AI.
 
 ## Project status
 

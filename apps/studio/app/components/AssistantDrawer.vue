@@ -2,6 +2,7 @@
 import {
   Bot,
   Check,
+  Eye,
   Film,
   LoaderCircle,
   ScanLine,
@@ -9,9 +10,11 @@ import {
   Settings2,
   Sparkles,
   UserRound,
+  Wrench,
   X,
 } from '@lucide/vue'
-import type { AssistantEditScope } from '~/types/editor'
+import type { AssistantEditScope, AssistantSkillId } from '~/types/editor'
+import { ASSISTANT_SKILLS, assistantSkill } from '~/utils/assistantSkills'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
@@ -38,6 +41,7 @@ const {
 } = useAiAssistant()
 const prompt = ref('')
 const scope = ref<AssistantEditScope>('frame')
+const skill = useState<AssistantSkillId>('assistant-skill', () => 'fix')
 const closeButton = ref<HTMLButtonElement | null>(null)
 const promptInput = ref<HTMLTextAreaElement | null>(null)
 const conversation = ref<HTMLElement | null>(null)
@@ -47,6 +51,7 @@ const activeFrameIndex = computed(() =>
     project.value.frames.findIndex((frame) => frame.id === activeFrameId.value),
   ),
 )
+const selectedSkill = computed(() => assistantSkill(skill.value))
 const proposalOperationCount = computed(
   () => proposal.value?.edits.reduce((total, edit) => total + edit.operations.length, 0) ?? 0,
 )
@@ -64,10 +69,14 @@ const proposalLayerCount = computed(
 const proposalCreatedFrameCount = computed(
   () => proposal.value?.actions.filter((action) => action.type === 'create_frame').length ?? 0,
 )
+const proposalTimingCount = computed(
+  () =>
+    proposal.value?.actions.filter((action) => action.type === 'set_frame_duration').length ?? 0,
+)
 const workingLabel = computed(() =>
   agentPass.value.current <= 1
-    ? 'Building the first pass'
-    : `Reviewing the rendered result · pass ${agentPass.value.current}`,
+    ? `${selectedSkill.value.label} · building the first pass`
+    : `${selectedSkill.value.label} · inspecting rendered pass ${agentPass.value.current}`,
 )
 
 const scrollToLatest = async () => {
@@ -78,7 +87,7 @@ const scrollToLatest = async () => {
 const submitPrompt = async () => {
   const message = prompt.value.trim()
   if (!message || status.value === 'working') return
-  if (!connection.value.model) {
+  if (connection.value.provider !== 'codex-cli' && !connection.value.model) {
     connectionOpen.value = true
     return
   }
@@ -89,6 +98,7 @@ const submitPrompt = async () => {
     activeFrameId.value,
     activeLayerId.value,
     scope.value,
+    skill.value,
   )
   await scrollToLatest()
   promptInput.value?.focus()
@@ -102,6 +112,14 @@ const applyProposal = () => {
 const selectScope = (nextScope: AssistantEditScope) => {
   if (scope.value === nextScope) return
   scope.value = nextScope
+  discardProposal(true)
+}
+
+const selectSkill = (nextSkill: AssistantSkillId) => {
+  if (skill.value === nextSkill || status.value === 'working') return
+  skill.value = nextSkill
+  const recommendedScope = assistantSkill(nextSkill).recommendedScope
+  if (scope.value !== recommendedScope) scope.value = recommendedScope
   discardProposal(true)
 }
 
@@ -142,7 +160,7 @@ watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
             <button
               v-tooltip="{
                 text: 'Model management',
-                detail: 'Choose local Ollama or a compatible endpoint.',
+                detail: 'Choose Ollama, a compatible API, or your signed-in Codex CLI.',
               }"
               type="button"
               class="assistant-model-button"
@@ -164,6 +182,31 @@ watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
         </header>
 
         <div class="assistant-chat-shell">
+          <section class="assistant-skill-rack" aria-labelledby="assistant-skill-title">
+            <header>
+              <span id="assistant-skill-title">Art skill</span>
+              <small :class="{ active: connection.visionEnabled }">
+                <Eye :size="11" aria-hidden="true" />
+                {{ connection.visionEnabled ? 'Vision on' : 'Grids only' }}
+              </small>
+            </header>
+            <div role="group" aria-label="Zakape art skills">
+              <button
+                v-for="item in ASSISTANT_SKILLS"
+                :key="item.id"
+                type="button"
+                :class="{ active: skill === item.id }"
+                :aria-pressed="skill === item.id"
+                :disabled="status === 'working'"
+                :title="item.description"
+                @click="selectSkill(item.id)"
+              >
+                {{ item.label }}
+              </button>
+            </div>
+            <p>{{ selectedSkill.description }}</p>
+          </section>
+
           <fieldset class="assistant-scope">
             <legend>Edit scope</legend>
             <div class="scope-switch">
@@ -209,6 +252,11 @@ watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
                 Describe an edit or animation. The assistant renders a draft in memory, inspects its
                 pixels, and refines it before asking you to apply anything.
               </p>
+              <ul class="assistant-capability-strip" aria-label="Assistant capabilities">
+                <li><Wrench :size="11" aria-hidden="true" /> Bounded tools</li>
+                <li><Eye :size="11" aria-hidden="true" /> Rendered vision</li>
+                <li><ScanLine :size="11" aria-hidden="true" /> Self-review</li>
+              </ul>
             </div>
 
             <article
@@ -223,6 +271,7 @@ watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
               <div>
                 <span class="assistant-message-meta">
                   {{ entry.role === 'user' ? 'You' : 'Zakape' }}
+                  <i v-if="entry.skill">{{ assistantSkill(entry.skill).label }}</i>
                   <i v-if="entry.scope">{{
                     entry.scope === 'sheet' ? 'entire sheet' : 'this frame'
                   }}</i>
@@ -245,7 +294,10 @@ watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
             </article>
 
             <article v-if="proposal" class="proposal-card">
-              <span class="eyebrow">Ready after {{ proposal.passes }} passes</span>
+              <span class="eyebrow">
+                {{ assistantSkill(proposal.skill).label }} · Ready after
+                {{ proposal.passes }} passes
+              </span>
               <strong>{{ proposal.summary }}</strong>
               <p>
                 {{ proposalOperationCount }} operation{{
@@ -259,6 +311,11 @@ watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
                     proposalCreatedFrameCount === 1 ? '' : 's'
                   }}
                   and {{ proposalLayerCount }} layer{{ proposalLayerCount === 1 ? '' : 's' }}.
+                </template>
+                <template v-if="proposalTimingCount">
+                  Adjusts {{ proposalTimingCount }} frame timing{{
+                    proposalTimingCount === 1 ? '' : 's'
+                  }}.
                 </template>
               </p>
               <ul v-if="proposal.reviewNotes.length">
@@ -285,7 +342,9 @@ watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
               v-model="prompt"
               rows="3"
               :placeholder="
-                scope === 'sheet' ? 'Describe an animation change…' : 'Describe a pixel-art edit…'
+                scope === 'sheet'
+                  ? `${selectedSkill.label}: describe an animation change…`
+                  : `${selectedSkill.label}: describe a pixel-art edit…`
               "
               aria-label="Assistant message"
               @keydown.meta.enter.prevent="submitPrompt"
@@ -298,7 +357,7 @@ watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
                     ? `${project.frames.length} frames`
                     : `Frame ${activeFrameIndex + 1}`
                 }}
-                · {{ activeLayer?.name }}
+                · {{ activeLayer?.name }} · {{ connection.visionEnabled ? 'vision' : 'grids' }}
               </span>
               <button
                 v-tooltip="{

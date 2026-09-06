@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.1](https://github.com/surelle-ha/zakape/compare/v0.17.0...v0.17.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **studio:** flatten mobile home layout ([76d6c84](https://github.com/surelle-ha/zakape/commit/76d6c846f2baca390acdb9eafa4766c2970b18d2))
+
 ## [0.17.0](https://github.com/surelle-ha/zakape/compare/v0.16.0...v0.17.0) (2026-09-06)
 
 

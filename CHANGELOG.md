@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/surelle-ha/zakape/compare/v0.16.0...v0.17.0) (2026-09-06)
+
+
+### Features
+
+* **studio:** add vision-guided AI art assistant ([eb5f1fe](https://github.com/surelle-ha/zakape/commit/eb5f1fef32afc6e9668ba32cb13f1da6d59681ef))
+
 ## [0.16.0](https://github.com/surelle-ha/zakape/compare/v0.15.0...v0.16.0) (2026-09-05)
 
 

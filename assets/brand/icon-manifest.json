@@ -1,6 +1,5 @@
 {
   "default": "zakape-app-icon.png",
   "bg_color": "#0f0d17",
-  "android_fg": "zakape-icon.png",
-  "android_fg_scale": 56
+  "android_fg": "zakape-android-foreground.png"
 }

@@ -1,4 +1,4 @@
-![Zakape: open-source pixel workbench](assets/brand/zakape-banner.png)
+![Zakape — Pixel Art. Smarter. Together.](assets/brand/zakape-banner.png)
 
 # Zakape
 

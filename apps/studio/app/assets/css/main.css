@@ -8785,6 +8785,124 @@ kbd {
 }
 
 @media (max-width: 640px) {
+  .home-hero,
+  .home-ledger,
+  .home-recents,
+  .home-changelog,
+  .home-workspace-card,
+  .home-assistant-note,
+  .home-workflow {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .home-hero {
+    gap: 14px;
+    padding: 10px 1px 20px;
+    overflow: visible;
+  }
+
+  .home-brand-canvas {
+    width: auto;
+    min-height: 126px;
+    margin-inline: -13px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .home-brand-canvas::after {
+    display: none;
+  }
+
+  .home-ledger {
+    margin-top: 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .home-columns {
+    gap: 24px;
+    margin-top: 24px;
+  }
+
+  .home-recents,
+  .home-changelog {
+    padding: 0;
+  }
+
+  .home-section-heading {
+    padding: 0 1px 12px;
+  }
+
+  .project-folder-rail {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .project-folder-rail > header {
+    padding-inline: 1px;
+  }
+
+  .home-library-content {
+    border-top: 1px solid var(--line);
+  }
+
+  .home-recent-list {
+    gap: 0;
+    margin-top: 0;
+  }
+
+  .home-recent-item,
+  .home-recent-item:hover {
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .home-project-open {
+    padding-inline: 2px;
+  }
+
+  .home-sidebar {
+    gap: 0;
+  }
+
+  .home-changelog {
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+
+  .home-workspace-card,
+  .home-assistant-note {
+    padding: 15px 1px;
+    border-top: 1px solid var(--line);
+  }
+
+  .home-workflow {
+    gap: 12px;
+    padding: 18px 1px 0;
+    margin-top: 24px;
+    border-top: 1px solid var(--line);
+  }
+
+  .home-workflow > div {
+    gap: 0;
+  }
+
+  .home-workflow article {
+    padding: 11px 1px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+  }
+
   .connection-dialog {
     max-height: calc(100dvh - 32px);
   }

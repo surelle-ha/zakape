@@ -168,6 +168,80 @@ test('keeps an indismissable Home tab with recent work and release notes', async
   await expect(page.getByTestId('pixel-canvas')).toBeVisible()
 })
 
+test('flattens Home cards into a continuous phone layout', async ({ page }) => {
+  await page.getByRole('button', { name: 'New sprite', exact: true }).click()
+  await enterEditor(page, { name: 'Phone layout study' })
+  await page.getByRole('tab', { name: 'Home', exact: true }).click()
+
+  const hero = page.locator('.home-hero')
+  await expect(hero).toBeVisible()
+  expect(await hero.evaluate((element) => getComputedStyle(element).borderTopWidth)).toBe('1px')
+
+  await page.setViewportSize({ width: 390, height: 844 })
+
+  await expect(page.getByRole('heading', { name: 'Recent work' })).toBeVisible()
+  await expect(
+    page.locator('.home-recent-item').filter({ hasText: 'Phone layout study' }),
+  ).toBeVisible()
+
+  expect(
+    await hero.evaluate((element) => {
+      const style = getComputedStyle(element)
+      return {
+        backgroundColor: style.backgroundColor,
+        borderTopWidth: style.borderTopWidth,
+        boxShadow: style.boxShadow,
+      }
+    }),
+  ).toEqual({
+    backgroundColor: 'rgba(0, 0, 0, 0)',
+    borderTopWidth: '0px',
+    boxShadow: 'none',
+  })
+
+  expect(
+    await page
+      .locator('.home-recent-item')
+      .filter({ hasText: 'Phone layout study' })
+      .evaluate((element) => {
+        const style = getComputedStyle(element)
+        return {
+          backgroundColor: style.backgroundColor,
+          borderLeftWidth: style.borderLeftWidth,
+          borderRadius: style.borderRadius,
+          borderTopWidth: style.borderTopWidth,
+        }
+      }),
+  ).toEqual({
+    backgroundColor: 'rgba(0, 0, 0, 0)',
+    borderLeftWidth: '0px',
+    borderRadius: '0px',
+    borderTopWidth: '0px',
+  })
+
+  const workflowStep = page.locator('.home-workflow article').first()
+  expect(
+    await workflowStep.evaluate((element) => {
+      const style = getComputedStyle(element)
+      return {
+        backgroundColor: style.backgroundColor,
+        borderLeftWidth: style.borderLeftWidth,
+        borderTopWidth: style.borderTopWidth,
+      }
+    }),
+  ).toEqual({
+    backgroundColor: 'rgba(0, 0, 0, 0)',
+    borderLeftWidth: '0px',
+    borderTopWidth: '0px',
+  })
+
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({
+    path: resolve(snapshotDirectory, 'mobile-home-flat.png'),
+    fullPage: true,
+  })
+})
+
 test('exposes the Godot Bridge with a clear browser capability boundary', async ({ page }) => {
   await page.getByRole('button', { name: 'Godot Bridge', exact: true }).click()
   const bridge = page.getByRole('dialog', { name: 'Godot Bridge' })

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.2](https://github.com/surelle-ha/zakape/compare/v0.17.1...v0.17.2) (2026-09-06)
+
+
+### Bug Fixes
+
+* **studio:** repair updates and Godot resource browsing ([e05913c](https://github.com/surelle-ha/zakape/commit/e05913c97d161376d64c238f917c50e308796c65))
+
 ## [0.17.1](https://github.com/surelle-ha/zakape/compare/v0.17.0...v0.17.1) (2026-09-06)
 
 

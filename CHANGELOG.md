@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.3](https://github.com/surelle-ha/zakape/compare/v0.17.2...v0.17.3) (2026-09-06)
+
+
+### Bug Fixes
+
+* **android:** keep launcher icon inside adaptive masks ([bf31a0f](https://github.com/surelle-ha/zakape/commit/bf31a0fab1cb91daad345107bdc840f010b8da97))
+
 ## [0.17.2](https://github.com/surelle-ha/zakape/compare/v0.17.1...v0.17.2) (2026-09-06)
 
 

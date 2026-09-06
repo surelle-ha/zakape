@@ -5905,6 +5905,22 @@ kbd {
   box-shadow: 0 0 0 3px rgb(71 140 191 / 12%);
 }
 
+.godot-live-path strong {
+  max-width: 150px;
+  overflow: hidden;
+  color: #b8c8d3;
+  font-weight: 580;
+  text-overflow: ellipsis;
+}
+
+.godot-live-path code {
+  max-width: 240px;
+  overflow: hidden;
+  color: #9b87cf;
+  font: inherit;
+  text-overflow: ellipsis;
+}
+
 .godot-workspace-body {
   display: grid;
   min-width: 0;
@@ -5965,8 +5981,8 @@ kbd {
 }
 
 .godot-project-item.active {
-  border-color: #41627a;
-  background: rgb(71 140 191 / 9%);
+  border-color: #67558d;
+  background: rgb(139 92 246 / 9%);
 }
 
 .godot-project-select {
@@ -6050,6 +6066,8 @@ kbd {
   color: #92bdd8;
   background: rgb(71 140 191 / 6%);
   font-size: 8px;
+  line-height: 1.25;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -6084,12 +6102,106 @@ kbd {
   display: grid;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: 42px 31px auto 31px minmax(0, 1fr) 58px;
+  grid-template-rows: 50px 42px 31px 31px minmax(0, 1fr) 58px;
   background-color: #14191f;
   background-image:
     linear-gradient(rgb(80 100 119 / 3%) 1px, transparent 1px),
     linear-gradient(90deg, rgb(80 100 119 / 3%) 1px, transparent 1px);
   background-size: 24px 24px;
+}
+
+.godot-explorer.creating-folder {
+  grid-template-rows: 50px 42px 31px auto 31px minmax(0, 1fr) 58px;
+}
+
+.godot-explorer-context {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #303842;
+  background: #12171d;
+  box-shadow: inset 2px 0 #8068b5;
+}
+
+.godot-context-glyph {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  border: 1px solid #574a75;
+  border-radius: 4px;
+  color: #aa96db;
+  background: rgb(139 92 246 / 7%);
+}
+
+.godot-context-copy {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 8px;
+}
+
+.godot-context-copy small {
+  grid-column: 1 / -1;
+  color: #6c7780;
+  font:
+    6px/1 'Azeret Mono Variable',
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.godot-context-copy strong,
+.godot-context-copy code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.godot-context-copy strong {
+  color: #c8d1d8;
+  font-size: 9px;
+}
+
+.godot-context-copy code {
+  align-self: center;
+  color: #657580;
+  font:
+    6px/1 'Azeret Mono Variable',
+    monospace;
+}
+
+.godot-context-copy.empty {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.godot-context-copy.empty strong,
+.godot-context-copy.empty code {
+  grid-column: 1;
+}
+
+.godot-context-count {
+  display: grid;
+  min-width: 62px;
+  justify-items: end;
+  gap: 2px;
+  padding-left: 9px;
+  border-left: 1px solid #303842;
+}
+
+.godot-context-count strong {
+  color: #ac99d6;
+  font:
+    11px/1 'Azeret Mono Variable',
+    monospace;
+}
+
+.godot-context-count small {
+  color: #65727c;
+  font-size: 6px;
 }
 
 .godot-explorer-tools {
@@ -6228,9 +6340,9 @@ kbd {
 }
 
 .godot-kind-tabs button.active {
-  border-color: #42647a;
-  color: #acd7ef;
-  background: rgb(71 140 191 / 10%);
+  border-color: #67558d;
+  color: #c3b1ec;
+  background: rgb(139 92 246 / 10%);
 }
 
 .godot-resource-table {
@@ -6281,7 +6393,7 @@ kbd {
 }
 
 .godot-resource-row.selected {
-  box-shadow: inset 2px 0 #65a8d6;
+  box-shadow: inset 2px 0 #9b7fd1;
 }
 
 .godot-resource-row > span:first-child {

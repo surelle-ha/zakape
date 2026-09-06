@@ -20,9 +20,17 @@ interface GodotWriteResult {
   written: string[]
 }
 
+interface GodotProjectDiscovery {
+  projects: GodotProjectConnection[]
+  selectedProjectPath: string | null
+  selectedDirectory: string
+}
+
 const connectionPreference = 'godot-project-connections'
 const activePreference = 'godot-active-project'
 const isTauriRuntime = () => import.meta.client && '__TAURI_INTERNALS__' in window
+let resourceRefreshId = 0
+let initializationPromise: Promise<void> | null = null
 
 const invokeDesktop = async <T>(command: string, args?: Record<string, unknown>) => {
   const { invoke } = await import('@tauri-apps/api/core')
@@ -52,7 +60,8 @@ export const useGodotWorkspace = () => {
     ])
   }
 
-  const refreshResources = async () => {
+  const refreshResources = async (announce = false) => {
+    const refreshId = ++resourceRefreshId
     const selected = activeProject.value
     resources.value = []
     resourcesTruncated.value = false
@@ -63,52 +72,77 @@ export const useGodotWorkspace = () => {
       const index = await invokeDesktop<GodotResourceIndex>('godot_list_resources', {
         projectPath: selected.rootPath,
       })
+      if (refreshId !== resourceRefreshId || activeProjectPath.value !== selected.rootPath) return
       resources.value = index.entries
       resourcesTruncated.value = index.truncated
+      if (announce) {
+        notice.value = `Indexed ${index.entries.length.toLocaleString()} res:// item${index.entries.length === 1 ? '' : 's'}.`
+      }
     } catch (caught) {
-      error.value = caught instanceof Error ? caught.message : String(caught)
+      if (refreshId === resourceRefreshId) {
+        error.value = caught instanceof Error ? caught.message : String(caught)
+      }
     } finally {
-      busy.value = ''
+      if (refreshId === resourceRefreshId) busy.value = ''
     }
   }
 
   const initialize = async () => {
-    if (initialized.value || !import.meta.client) return
+    if (!import.meta.client) return
+    if (initializationPromise) {
+      await initializationPromise
+      return
+    }
+    if (initialized.value) {
+      if (available.value) await refreshResources()
+      return
+    }
     initialized.value = true
     if (!isTauriRuntime()) return
+    initializationPromise = (async () => {
+      try {
+        const desktopAvailable = await invokeDesktop<boolean>('godot_integration_available')
+        if (!desktopAvailable) return
+        const [savedProjects, savedActive] = await Promise.all([
+          loadPreference<GodotProjectConnection[]>(connectionPreference),
+          loadPreference<string>(activePreference),
+        ])
+        const candidates = Array.isArray(savedProjects) ? savedProjects.slice(0, 16) : []
+        projects.value = await Promise.all(
+          candidates.map(async (candidate) => {
+            try {
+              const inspected = await invokeDesktop<GodotProjectConnection>(
+                'godot_inspect_project',
+                { projectPath: candidate.rootPath },
+              )
+              return { ...inspected, availability: 'ready' as const }
+            } catch {
+              return { ...candidate, availability: 'missing' as const }
+            }
+          }),
+        )
+        activeProjectPath.value =
+          projects.value.find((project) => project.rootPath === savedActive)?.rootPath ??
+          projects.value.find((project) => project.availability !== 'missing')?.rootPath ??
+          projects.value[0]?.rootPath ??
+          ''
+        available.value = true
+        await refreshResources()
+      } catch (caught) {
+        initialized.value = false
+        error.value = caught instanceof Error ? caught.message : String(caught)
+      }
+    })()
     try {
-      available.value = await invokeDesktop<boolean>('godot_integration_available')
-      if (!available.value) return
-      const [savedProjects, savedActive] = await Promise.all([
-        loadPreference<GodotProjectConnection[]>(connectionPreference),
-        loadPreference<string>(activePreference),
-      ])
-      const candidates = Array.isArray(savedProjects) ? savedProjects.slice(0, 16) : []
-      projects.value = await Promise.all(
-        candidates.map(async (candidate) => {
-          try {
-            const inspected = await invokeDesktop<GodotProjectConnection>('godot_inspect_project', {
-              projectPath: candidate.rootPath,
-            })
-            return { ...inspected, availability: 'ready' as const }
-          } catch {
-            return { ...candidate, availability: 'missing' as const }
-          }
-        }),
-      )
-      activeProjectPath.value =
-        projects.value.find((project) => project.rootPath === savedActive)?.rootPath ??
-        projects.value.find((project) => project.availability !== 'missing')?.rootPath ??
-        projects.value[0]?.rootPath ??
-        ''
-      await refreshResources()
-    } catch (caught) {
-      error.value = caught instanceof Error ? caught.message : String(caught)
+      await initializationPromise
+    } finally {
+      initializationPromise = null
     }
   }
 
-  const scanFolder = async () => {
-    if (!available.value) return
+  const scanFolder = async (): Promise<string | null> => {
+    if (initializationPromise) await initializationPromise
+    if (!available.value) return null
     error.value = ''
     notice.value = ''
     const { open } = await import('@tauri-apps/plugin-dialog')
@@ -117,12 +151,13 @@ export const useGodotWorkspace = () => {
       multiple: false,
       title: 'Choose a Godot project or projects folder',
     })
-    if (!selected || Array.isArray(selected)) return
+    if (!selected || Array.isArray(selected)) return null
     busy.value = 'scan'
     try {
-      const discovered = await invokeDesktop<GodotProjectConnection[]>('godot_discover_projects', {
+      const discovery = await invokeDesktop<GodotProjectDiscovery>('godot_discover_projects', {
         searchPath: selected,
       })
+      const discovered = discovery.projects
       if (!discovered.length) {
         throw new Error('No project.godot files were found within six folder levels.')
       }
@@ -131,12 +166,18 @@ export const useGodotWorkspace = () => {
         byPath.set(project.rootPath, { ...project, availability: 'ready' }),
       )
       projects.value = [...byPath.values()].slice(0, 16)
-      activeProjectPath.value = discovered[0]!.rootPath
-      notice.value = `Connected ${discovered.length} Godot project${discovered.length === 1 ? '' : 's'}.`
+      activeProjectPath.value =
+        discovered.find((project) => project.rootPath === discovery.selectedProjectPath)
+          ?.rootPath ?? discovered[0]!.rootPath
+      notice.value = discovery.selectedDirectory
+        ? `Connected ${discovered[0]!.name} and opened res://${discovery.selectedDirectory}.`
+        : `Connected ${discovered.length} Godot project${discovered.length === 1 ? '' : 's'}.`
       await saveConnections()
       await refreshResources()
+      return discovery.selectedDirectory
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : String(caught)
+      return null
     } finally {
       busy.value = ''
     }

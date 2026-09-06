@@ -25,7 +25,7 @@ The workflow needs **Read and write permissions** and **Allow GitHub Actions to 
 
 Installed desktop builds check the [latest update manifest](https://github.com/surelle-ha/zakape/releases/latest/download/latest.json) shortly after launch.
 
-The automatic check is quiet. An available update appears in the bottom status strip, while **Help > Check for updates** performs a manual check. The update dialog reports checking, download, installation, failure, current-version, and relaunch states. Windows may close after starting its installer; macOS and Linux prompt for a relaunch after installation.
+The automatic check is quiet. An available update appears in the bottom status strip, while every use of **Help > Check for updates** releases any previous check and requests the current signed manifest again. The update dialog reports checking, download, installation, failure, current-version, and relaunch states. Windows closes Zakape while the installer runs and reopens the updated executable when installation succeeds. On macOS and Linux, Zakape relaunches immediately after installation; if the operating system refuses that relaunch, the dialog keeps a manual **Relaunch now** action available.
 
 Android does not use the Tauri desktop updater. Google Play continues to manage Android updates and signing.
 

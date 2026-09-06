@@ -87,7 +87,10 @@ watch(dialogOpen, async (open) => {
           </template>
           <template v-else-if="status === 'downloading'">
             <Download class="update-state-icon available" :size="22" />
-            <p>Keep Zakape open while the verified package is downloaded and installed.</p>
+            <p>
+              Keep Zakape open while the verified package is downloaded. The installer will reopen
+              the updated app when it finishes.
+            </p>
             <div
               class="update-progress"
               role="progressbar"
@@ -102,7 +105,8 @@ watch(dialogOpen, async (open) => {
           </template>
           <template v-else-if="status === 'ready'">
             <Rocket class="update-state-icon available" :size="22" />
-            <p>The update is installed. Relaunch Zakape to start the new version.</p>
+            <p v-if="errorMessage">{{ errorMessage }}</p>
+            <p v-else>The update is installed. Zakape is reopening with the new version.</p>
           </template>
           <template v-else-if="status === 'current'">
             <CheckCircle2 class="update-state-icon current" :size="22" />
@@ -130,7 +134,7 @@ watch(dialogOpen, async (open) => {
             class="button-primary"
             @click="relaunchApp"
           >
-            <Rocket :size="13" /> Relaunch Zakape
+            <Rocket :size="13" /> Relaunch now
           </button>
           <button
             v-else-if="status === 'error'"

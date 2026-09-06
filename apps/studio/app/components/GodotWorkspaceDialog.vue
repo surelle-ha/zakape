@@ -11,6 +11,7 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  FolderTree,
   Gamepad2,
   Image,
   Layers3,
@@ -31,6 +32,7 @@ import {
   godotBreadcrumbs,
   godotPublishPaths,
   joinGodotPath,
+  parentGodotPath,
   safeGodotBaseName,
   validateGodotPublish,
   visibleGodotResources,
@@ -152,15 +154,24 @@ const projectVersionLabel = (project: (typeof projects.value)[number]) => {
   return 'Godot project'
 }
 
+const navigateToDirectory = (path: string) => {
+  currentDirectory.value = joinGodotPath(path)
+  query.value = ''
+  selectedResourcePath.value = ''
+  conflicts.value = []
+  replaceConfirmed.value = false
+}
+
+const connectFolder = async () => {
+  const selectedDirectory = await scanFolder()
+  if (selectedDirectory !== null) navigateToDirectory(selectedDirectory)
+}
+
 const openEntry = async (entry: GodotResourceEntry) => {
   error.value = ''
   notice.value = ''
   if (entry.isDirectory) {
-    currentDirectory.value = entry.path
-    query.value = ''
-    selectedResourcePath.value = ''
-    conflicts.value = []
-    replaceConfirmed.value = false
+    navigateToDirectory(entry.path)
     return
   }
   selectedResourcePath.value = entry.path
@@ -276,17 +287,29 @@ const handleDialogKeydown = (event: KeyboardEvent) => {
   }
 }
 
-watch(activeProjectPath, () => {
-  currentDirectory.value = ''
-  query.value = ''
-  selectedResourcePath.value = ''
-  conflicts.value = []
-  replaceConfirmed.value = false
-})
+watch(activeProjectPath, () => navigateToDirectory(''), { flush: 'sync' })
 
 watch([publishKind, baseName, includeSource, currentDirectory], () => {
   conflicts.value = []
   replaceConfirmed.value = false
+})
+
+watch(resources, (entries) => {
+  if (!currentDirectory.value || busy.value === 'resources') return
+  let availableDirectory = currentDirectory.value
+  while (
+    availableDirectory &&
+    !entries.some((entry) => entry.isDirectory && entry.path === availableDirectory)
+  ) {
+    availableDirectory = parentGodotPath(availableDirectory)
+  }
+  if (availableDirectory !== currentDirectory.value) {
+    currentDirectory.value = availableDirectory
+    selectedResourcePath.value = ''
+    notice.value = availableDirectory
+      ? `The previous folder moved. Opened res://${availableDirectory}.`
+      : 'The previous folder moved. Opened the res:// root.'
+  }
 })
 
 watch(
@@ -329,7 +352,11 @@ watch(
           </div>
           <span class="godot-live-path">
             <i aria-hidden="true" />
-            {{ activeProject ? `res://${currentDirectory}` : 'No project connected' }}
+            <template v-if="activeProject">
+              <strong>{{ activeProject.name }}</strong>
+              <code>res://{{ currentDirectory }}</code>
+            </template>
+            <template v-else>No project connected</template>
           </span>
           <button
             type="button"
@@ -357,7 +384,7 @@ watch(
         <div v-else class="godot-workspace-body">
           <aside class="godot-projects" aria-label="Connected Godot projects">
             <header>
-              <span>Projects</span><small>{{ projects.length }}/16</small>
+              <span>Connections</span><small>{{ projects.length }}/16</small>
             </header>
             <div v-if="projects.length" class="godot-project-list">
               <div
@@ -368,6 +395,7 @@ watch(
                 <button
                   type="button"
                   class="godot-project-select"
+                  :title="entry.rootPath"
                   @click="selectProject(entry.rootPath)"
                 >
                   <span class="godot-project-glyph"><Gamepad2 :size="15" /></span>
@@ -396,15 +424,36 @@ watch(
               type="button"
               class="godot-connect"
               :disabled="busy === 'scan' || projects.length >= 16"
-              @click="scanFolder"
+              @click="connectFolder"
             >
               <LoaderCircle v-if="busy === 'scan'" class="spin" :size="15" />
               <Plus v-else :size="15" />
-              {{ busy === 'scan' ? 'Scanning…' : 'Connect folder' }}
+              {{ busy === 'scan' ? 'Scanning…' : 'Open project or res:// folder' }}
             </button>
           </aside>
 
-          <section class="godot-explorer" aria-label="Godot resources">
+          <section
+            :class="['godot-explorer', { 'creating-folder': creatingFolder }]"
+            aria-label="Godot resources"
+          >
+            <header class="godot-explorer-context">
+              <span class="godot-context-glyph"><FolderTree :size="17" /></span>
+              <span v-if="activeProject" class="godot-context-copy">
+                <small>Connected resource root</small>
+                <strong>{{ activeProject.name }}</strong>
+                <code :title="activeProject.rootPath">{{ activeProject.rootPath }}</code>
+              </span>
+              <span v-else class="godot-context-copy empty">
+                <small>Resource browser</small>
+                <strong>Choose a project or any folder inside res://</strong>
+                <code>The owning project will be detected automatically.</code>
+              </span>
+              <span class="godot-context-count">
+                <strong>{{ resources.length.toLocaleString() }}</strong>
+                <small>items indexed</small>
+              </span>
+            </header>
+
             <header class="godot-explorer-tools">
               <label>
                 <Search :size="14" aria-hidden="true" />
@@ -421,7 +470,7 @@ watch(
                 type="button"
                 aria-label="Refresh Godot resources"
                 :disabled="!activeProject || busy === 'resources'"
-                @click="refreshResources"
+                @click="refreshResources(true)"
               >
                 <RefreshCw :class="{ spin: busy === 'resources' }" :size="15" />
               </button>
@@ -438,7 +487,7 @@ watch(
             <nav class="godot-breadcrumbs" aria-label="Resource path">
               <template v-for="(crumb, index) in breadcrumbs" :key="crumb.path">
                 <ChevronRight v-if="index" :size="12" aria-hidden="true" />
-                <button type="button" @click="currentDirectory = crumb.path">
+                <button type="button" @click="navigateToDirectory(crumb.path)">
                   {{ crumb.label }}
                 </button>
               </template>
@@ -484,7 +533,13 @@ watch(
                 <FolderOpen :size="20" /> Connect a Godot project to inspect its resources.
               </div>
               <div v-else-if="!visibleResources.length" class="godot-resource-empty">
-                <Search :size="20" /> No resources match this view.
+                <Search v-if="query" :size="20" />
+                <FolderOpen v-else :size="20" />
+                {{
+                  query
+                    ? 'No resources match this project-wide search.'
+                    : 'This res:// folder is empty.'
+                }}
               </div>
               <template v-else>
                 <button
@@ -492,6 +547,9 @@ watch(
                   :key="entry.path"
                   type="button"
                   :class="['godot-resource-row', { selected: entry.path === selectedResourcePath }]"
+                  :aria-label="
+                    entry.isDirectory ? `Open folder ${entry.name}` : `Select ${entry.name}`
+                  "
                   @click="openEntry(entry)"
                   @dblclick="entry.isDirectory ? openEntry(entry) : openSelectedResource()"
                 >
@@ -531,7 +589,7 @@ watch(
                 </button>
               </template>
               <span v-else class="godot-selection-hint">
-                Select a resource for details. Double-click a folder to browse it.
+                Open folders to browse res://. Select an importable asset to edit it in Zakape.
               </span>
               <small v-if="resourcesTruncated" class="godot-index-warning">
                 Showing the first 5,000 resources.

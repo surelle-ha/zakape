@@ -4,7 +4,7 @@ Zakape desktop can connect local Godot projects without moving them into the Zak
 
 ## Connect and browse projects
 
-Choose either a Godot project root or a parent folder that contains several projects. Zakape searches up to six folder levels for regular `project.godot` files and remembers up to 16 connections on this device. Godot defines the folder containing `project.godot` as the project root and exposes its contents through `res://`; the bridge uses the same boundary and forward-slash resource paths. See [Godot's file-path documentation](https://docs.godotengine.org/en/stable/tutorials/io/data_paths.html).
+Choose a Godot project root, any existing folder inside its `res://` tree, or a parent folder that contains several projects. When a resource folder is selected, Zakape finds the nearest owning `project.godot`, connects that project, and opens the selected folder in the resource browser. Otherwise, Zakape searches up to six folder levels for regular `project.godot` files and remembers up to 16 connections on this device. Godot defines the folder containing `project.godot` as the project root and exposes its contents through `res://`; the bridge uses the same boundary and forward-slash resource paths. See [Godot's file-path documentation](https://docs.godotengine.org/en/stable/tutorials/io/data_paths.html).
 
 The resource explorer provides:
 
@@ -13,7 +13,7 @@ The resource explorer provides:
 - resource type and file-size details
 - inline folder creation at the current location
 - opening PNG, Aseprite, and `.zakape` resources as Zakape documents
-- refresh after Godot or another tool changes the project
+- a fresh resource index whenever the bridge opens, plus an explicit refresh after Godot or another tool changes the project
 
 Godot's `.godot`, other hidden directories, dependency folders, and symbolic links are not indexed. Each project index is capped at 5,000 entries and 16 folder levels. A truncated index remains browsable and displays its limit.
 

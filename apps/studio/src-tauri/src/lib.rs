@@ -36,6 +36,7 @@ const MAX_ASSISTANT_VISION_BYTES: usize = 8 * 1024 * 1024;
 const MAX_PROJECT_BYTES: usize = 32 * 1024 * 1024;
 const MAX_IMPORTED_PIXELS: usize = 1_048_576;
 const MAX_GODOT_CONFIG_BYTES: u64 = 1024 * 1024;
+const MAX_GODOT_PROJECT_CONNECTIONS: usize = 16;
 const MAX_GODOT_RESOURCES: usize = 5_000;
 const MAX_GODOT_SCAN_DIRECTORIES: usize = 10_000;
 const MAX_GODOT_IMPORT_BYTES: u64 = 32 * 1024 * 1024;
@@ -202,6 +203,14 @@ struct GodotProject {
     config_version: Option<u32>,
     godot_version: Option<String>,
     compatibility: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GodotProjectDiscovery {
+    projects: Vec<GodotProject>,
+    selected_project_path: Option<String>,
+    selected_directory: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -505,11 +514,38 @@ fn godot_inspect_project(project_path: String) -> Result<GodotProject, String> {
 }
 
 #[tauri::command]
-fn godot_discover_projects(search_path: String) -> Result<Vec<GodotProject>, String> {
+fn godot_discover_projects(search_path: String) -> Result<GodotProjectDiscovery, String> {
     let search_root = fs::canonicalize(search_path)
         .map_err(|_| "Zakape could not open that search folder.".to_string())?;
     if !search_root.is_dir() {
         return Err("Choose a folder to scan for Godot projects.".to_string());
+    }
+
+    // A folder picker commonly starts inside a project's res:// tree. Resolve the nearest owning
+    // project before scanning downwards so choosing res://art/characters opens that exact folder.
+    for project_root in search_root.ancestors().take(64) {
+        if !project_root.join("project.godot").is_file() {
+            continue;
+        }
+        let project = match inspect_godot_project_path(&project_root.to_string_lossy()) {
+            Ok(project) => project,
+            Err(_) => continue,
+        };
+        let relative = search_root
+            .strip_prefix(project_root)
+            .map_err(|_| "Zakape could not resolve that res:// folder.".to_string())?;
+        let contains_ignored_component = relative.components().any(|component| match component {
+            Component::Normal(value) => ignored_godot_directory(&value.to_string_lossy()),
+            _ => true,
+        });
+        if contains_ignored_component {
+            return Err("Choose a visible folder inside the project's res:// root.".to_string());
+        }
+        return Ok(GodotProjectDiscovery {
+            selected_project_path: Some(project.root_path.clone()),
+            selected_directory: godot_relative_string(relative),
+            projects: vec![project],
+        });
     }
 
     let mut projects = Vec::new();
@@ -524,7 +560,7 @@ fn godot_discover_projects(search_path: String) -> Result<Vec<GodotProject>, Str
             if let Ok(project) = inspect_godot_project_path(&directory.to_string_lossy()) {
                 projects.push(project);
             }
-            if projects.len() >= 64 {
+            if projects.len() >= MAX_GODOT_PROJECT_CONNECTIONS {
                 break;
             }
             continue;
@@ -545,7 +581,11 @@ fn godot_discover_projects(search_path: String) -> Result<Vec<GodotProject>, Str
         }
     }
     projects.sort_by_key(|project| project.name.to_lowercase());
-    Ok(projects)
+    Ok(GodotProjectDiscovery {
+        selected_project_path: projects.first().map(|project| project.root_path.clone()),
+        selected_directory: String::new(),
+        projects,
+    })
 }
 
 fn godot_relative_string(path: &Path) -> String {
@@ -2357,8 +2397,8 @@ mod tests {
     use super::is_codex_executable_name;
     use super::{
         checked_godot_relative_path, checked_project_id, godot_config_version,
-        godot_feature_version, godot_write_assets, imported_name, ollama_endpoint,
-        parse_imported_png, parse_imported_sprite, quoted_project_setting,
+        godot_discover_projects, godot_feature_version, godot_write_assets, imported_name,
+        ollama_endpoint, parse_imported_png, parse_imported_sprite, quoted_project_setting,
         validate_assistant_messages, AssistantMessage, GodotAssetFile,
     };
     use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -2486,6 +2526,35 @@ config/features=PackedStringArray("4.6", "GL Compatibility")"#;
             Some("Pocket Quest")
         );
         assert_eq!(godot_feature_version(config).as_deref(), Some("4.6"));
+    }
+
+    #[test]
+    fn connects_the_owning_project_from_an_existing_res_folder() {
+        let token = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("zakape-godot-discovery-{token}"));
+        let selected = root.join("art").join("characters");
+        fs::create_dir_all(&selected).unwrap();
+        fs::write(
+            root.join("project.godot"),
+            "config_version=5\n[application]\nconfig/name=\"Pocket Quest\"\n",
+        )
+        .unwrap();
+
+        let discovery = godot_discover_projects(selected.to_string_lossy().into_owned()).unwrap();
+
+        assert_eq!(discovery.projects.len(), 1);
+        assert_eq!(discovery.projects[0].name, "Pocket Quest");
+        assert_eq!(discovery.selected_directory, "art/characters");
+        assert_eq!(
+            discovery.selected_project_path.as_deref(),
+            Some(discovery.projects[0].root_path.as_str())
+        );
+
+        assert!(root.starts_with(std::env::temp_dir()));
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

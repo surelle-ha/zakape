@@ -16,6 +16,17 @@ const UPDATE_RESUME_THRESHOLD = 2 * 60 * 1000
 const isDesktopRuntime = () =>
   '__TAURI_INTERNALS__' in window && !/Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent)
 
+const releasePendingUpdate = async () => {
+  const previous = pendingUpdate
+  pendingUpdate = null
+  if (!previous) return
+  try {
+    await previous.close()
+  } catch (error) {
+    console.warn('Zakape could not release the previous update check.', error)
+  }
+}
+
 export const useAppUpdater = () => {
   const config = useRuntimeConfig()
   const status = useState<AppUpdateStatus>('app-update-status', () => 'idle')
@@ -46,20 +57,25 @@ export const useAppUpdater = () => {
       if (manual) dialogOpen.value = true
       return
     }
-    if (status.value === 'checking' || status.value === 'downloading') return
+    if (status.value === 'checking' || status.value === 'downloading') {
+      if (manual) dialogOpen.value = true
+      return
+    }
 
     status.value = 'checking'
     errorMessage.value = ''
     progress.value = 0
+    availableVersion.value = ''
+    releaseNotes.value = ''
     if (manual) dialogOpen.value = true
     try {
+      // Each successful check that finds an update owns a native resource. Release it before
+      // checking again so Help > Check for updates always starts a fresh request.
+      await releasePendingUpdate()
       const { check } = await import('@tauri-apps/plugin-updater')
       const update = await check({ timeout: 20_000 })
-      if (pendingUpdate && pendingUpdate !== update) await pendingUpdate.close()
       pendingUpdate = update
       if (!update) {
-        availableVersion.value = ''
-        releaseNotes.value = ''
         status.value = manual ? 'current' : 'idle'
         return
       }
@@ -113,9 +129,17 @@ export const useAppUpdater = () => {
           }
           progress.value = 100
         },
-        { timeout: 120_000, restartAfterInstall: false },
+        { timeout: 120_000, restartAfterInstall: true },
       )
       status.value = 'ready'
+      try {
+        await relaunchApp()
+      } catch (error) {
+        errorMessage.value =
+          error instanceof Error
+            ? `The update is installed, but Zakape could not reopen automatically: ${error.message}`
+            : 'The update is installed, but Zakape could not reopen automatically.'
+      }
     } catch (error) {
       status.value = 'error'
       errorMessage.value =
@@ -160,6 +184,7 @@ export const useAppUpdater = () => {
     visibilityListener = null
     onlineListener = null
     initialized.value = false
+    void releasePendingUpdate()
   }
 
   return {

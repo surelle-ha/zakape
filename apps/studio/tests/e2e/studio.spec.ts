@@ -254,6 +254,134 @@ test('exposes the Godot Bridge with a clear browser capability boundary', async 
   await expect(bridge).toBeHidden()
 })
 
+test('opens a selected res folder and refreshes it on every Godot Bridge visit', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const resourceEntries = [
+      {
+        path: 'art',
+        name: 'art',
+        kind: 'folder',
+        isDirectory: true,
+        size: 0,
+        modifiedAt: null,
+        importable: false,
+      },
+      {
+        path: 'art/characters',
+        name: 'characters',
+        kind: 'folder',
+        isDirectory: true,
+        size: 0,
+        modifiedAt: null,
+        importable: false,
+      },
+      {
+        path: 'art/characters/hero.png',
+        name: 'hero.png',
+        kind: 'texture',
+        isDirectory: false,
+        size: 2_048,
+        modifiedAt: 1,
+        importable: true,
+      },
+      {
+        path: 'art/characters/player.gd',
+        name: 'player.gd',
+        kind: 'script',
+        isDirectory: false,
+        size: 860,
+        modifiedAt: 2,
+        importable: false,
+      },
+      {
+        path: 'scenes',
+        name: 'scenes',
+        kind: 'folder',
+        isDirectory: true,
+        size: 0,
+        modifiedAt: null,
+        importable: false,
+      },
+      {
+        path: 'scenes/main.tscn',
+        name: 'main.tscn',
+        kind: 'scene',
+        isDirectory: false,
+        size: 4_096,
+        modifiedAt: 3,
+        importable: false,
+      },
+    ]
+    const browserWindow = window as typeof window & { godotListCount?: number }
+    browserWindow.godotListCount = 0
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      configurable: true,
+      value: {
+        invoke: async (command: string) => {
+          if (command === 'godot_integration_available') return true
+          if (command === 'plugin:dialog|open') return 'C:\\game\\art\\characters'
+          if (command === 'godot_discover_projects') {
+            return {
+              projects: [
+                {
+                  rootPath: 'C:\\game',
+                  name: 'Pocket Quest',
+                  configVersion: 5,
+                  godotVersion: '4.6',
+                  compatibility: 'godot4',
+                },
+              ],
+              selectedProjectPath: 'C:\\game',
+              selectedDirectory: 'art/characters',
+            }
+          }
+          if (command === 'godot_list_resources') {
+            browserWindow.godotListCount = (browserWindow.godotListCount ?? 0) + 1
+            return { entries: resourceEntries, truncated: false }
+          }
+          throw new Error(`Unexpected mocked Tauri command: ${command}`)
+        },
+      },
+    })
+  })
+
+  await page.getByRole('button', { name: 'Godot Bridge', exact: true }).click()
+  const bridge = page.getByRole('dialog', { name: 'Godot Bridge' })
+  await bridge.getByRole('button', { name: 'Open project or res:// folder' }).click()
+
+  await expect(bridge).toContainText('Connected Pocket Quest and opened res://art/characters.')
+  await expect(bridge.getByText('C:\\game', { exact: true })).toBeVisible()
+  await expect(bridge.getByRole('button', { name: 'Select hero.png' })).toBeVisible()
+  await expect(bridge.getByRole('button', { name: 'Select player.gd' })).toBeVisible()
+  await expect(bridge).toContainText('6items indexed')
+  expect((await bridge.locator('.godot-resource-table').boundingBox())!.height).toBeGreaterThan(300)
+
+  await bridge.getByRole('searchbox', { name: 'Search Godot resources' }).fill('main')
+  await expect(bridge.getByRole('button', { name: 'Select main.tscn' })).toBeVisible()
+  await bridge.getByRole('button', { name: 'Refresh Godot resources' }).click()
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as typeof window & { godotListCount?: number }).godotListCount),
+    )
+    .toBe(2)
+  await expect(bridge).toContainText('Indexed 6 res:// items.')
+  await expect(bridge.getByRole('button', { name: 'Select main.tscn' })).toBeVisible()
+  await bridge.getByRole('searchbox', { name: 'Search Godot resources' }).fill('')
+  await expect(bridge.getByRole('button', { name: 'Select hero.png' })).toBeVisible()
+
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'godot-resource-browser.png') })
+  await bridge.getByRole('button', { name: 'Close Godot Bridge' }).click()
+  await page.getByRole('button', { name: 'Godot Bridge', exact: true }).click()
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as typeof window & { godotListCount?: number }).godotListCount),
+    )
+    .toBe(3)
+})
+
 test('creates a named custom-size sprite from the modal launcher', async ({ page }) => {
   await page.getByRole('button', { name: 'New sprite', exact: true }).first().click()
   const launcher = page.getByTestId('project-launcher')

@@ -69,6 +69,21 @@ Live Preview floats over the canvas, so it remains visible on phones without ope
 
 The standard animation term **onion skin** labels the previous-frame drawing guide throughout the interface and keyboard guide.
 
+## Tiled Mode
+
+Use **View → Tiled Mode** or **Shift+T** to edit a seamless repeating canvas. The default is
+3×3. **View → Tiled Mode settings…** offers 2×2, 3×3, and 5×5 presets or independent row and
+column values from 2 through 9; values above five show a performance warning.
+
+Every copy edits the same source artwork. Pencil, eraser, mirror, dither, line, rectangle,
+circle, fill, and picker wrap across tile edges while each gesture keeps one Undo entry. The
+violet-outlined source tile is the only copy where box/lasso selection and transforms operate.
+Grid, checkerboard, onion skin, and zoom repeat; Live View stays singular.
+
+The setting is a device preference shared across documents. It never dirties project data,
+changes thumbnails or portable files, or enlarges PNG, GIF, sprite-sheet, or Godot exports.
+Phone and tablet users open it from **Menu → View** and pan with the Hand tool.
+
 ## Custom window chrome
 
 Desktop builds use a frameless Tauri window. Zakape's own 36 px titlebar owns:

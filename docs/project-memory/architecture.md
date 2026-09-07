@@ -6,6 +6,7 @@
 - `apps/studio/src-tauri/src/lib.rs` is the native trust boundary for filesystem, Godot, Ollama, authentication, and operating-system behavior.
 - `apps/studio/app/assets/css/main.css` is the shared application design system and responsive source of truth.
 - `apps/studio/app/components/ApplicationMenu.vue` is the shared command model for desktop and touch File, Edit, View, and Help menus; presentation variants must not duplicate command behavior or global shortcuts.
+- Tiled canvas presentation uses one physical canvas and one source composition per scheduled frame; visual copies are blits, and wrapped gestures mutate one authoritative source through one undo checkpoint.
 - `apps/site/` is the static public website; it may reuse reviewed product screenshots but not private project data.
 - `.github/workflows/` owns CI, desktop/updater releases, Android packaging, macOS test builds, and website deployment.
 

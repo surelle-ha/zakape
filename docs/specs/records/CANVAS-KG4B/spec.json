@@ -3,10 +3,10 @@
   "id": "CANVAS-KG4B",
   "title": "Interactive tiled canvas mode",
   "area": "CANVAS",
-  "status": "planned",
+  "status": "completed",
   "summary": "Add a View-menu Tiled Mode that previews repeated copies of the active canvas and maps drawing on any copy back to the shared source artwork.",
   "createdAt": "2026-09-07T04:32:37.069Z",
-  "updatedAt": "2026-09-07T06:29:09.590Z",
+  "updatedAt": "2026-09-07T07:24:58.829Z",
   "clarification": {
     "questions": [
       {
@@ -62,6 +62,8 @@
     "apps/studio/tests/e2e/responsive.spec.ts-snapshots/phone-workbench.png",
     "apps/studio/tests/e2e/responsive.spec.ts-snapshots/tablet-workbench.png",
     "docs/ui-snapshots/studio-workbench.png",
+    "docs/ui-snapshots/tiled-mode-workspace.png",
+    "docs/ui-snapshots/tiled-mode-settings.png",
     "docs/project-workspace.md",
     "docs/qa.md"
   ],
@@ -83,6 +85,8 @@
     "Instrument a representative 120×120 default tiled stroke to verify one scheduled source composition per frame, bounded blits, no pointer-time canvas resize, and no per-tile editor mutation, project clone, or pixel traversal.",
     "Run studio lint, typecheck, unit tests, static build, full Playwright suite, spec validation, Prettier, and git diff checks."
   ],
-  "validationEvidence": [],
+  "validationEvidence": [
+    "Studio lint and typecheck passed; 48 Vitest tests passed; static Nuxt build passed; full Playwright suite passed 37/37; focused desktop tiled workflow, touch menu/dialog, and 120x120 mobile 3x3 performance tests passed; tiled workspace and settings snapshots were inspected at full size."
+  ],
   "overrides": []
 }

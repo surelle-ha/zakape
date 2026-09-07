@@ -1,5 +1,20 @@
 # Quality assurance
 
+## Tiled canvas checks
+
+- Confirm desktop and touch View menus expose Tiled Mode and settings, remain disabled on Home,
+  and stay synchronized with Shift+T.
+- Exercise every wrapped drawing tool across each edge and a corner; one Undo must remove the
+  gesture and every copy must refresh together.
+- Confirm selections create, move, resize, and rotate only in the outlined source tile,
+  including an even grid such as 2×2.
+- Reload after changing dimensions, then verify persistence without project dirtiness or changed
+  export dimensions.
+- Review desktop, 412×839 phone, 820×1180 tablet, and phone landscape for dialog containment,
+  custom scrollbars, fit, pointer-centered zoom, pinch zoom, and Hand panning.
+- On a 120×120 project at 3×3, verify one scheduled redraw and source composition per animation
+  frame, with no editor mutation or pixel clone per visual tile.
+
 ## Automated gates
 
 - Nuxt/Vue type checks for the studio and website.

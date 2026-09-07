@@ -338,6 +338,26 @@ export const useEditor = () => {
     }
   }
 
+  const paintPixelSamples = (samples: PixelSample[]) => {
+    const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
+    if (!pixels || !activeStroke) return
+    const unique = new Map<number, Pixel>()
+    samples.forEach((sample) => {
+      if (
+        sample.x < 0 ||
+        sample.y < 0 ||
+        sample.x >= project.value.width ||
+        sample.y >= project.value.height
+      )
+        return
+      unique.set(
+        sample.y * project.value.width + sample.x,
+        coercePixelToColorMode(project.value, sample.color),
+      )
+    })
+    unique.forEach((pixel, index) => writeStrokePixel(pixels, index, pixel))
+  }
+
   const commitPixelMutation = (action: string): PixelHistoryEntry | null => {
     const completedStroke = activeStroke
     activeStroke = null
@@ -494,6 +514,16 @@ export const useEditor = () => {
       paintPixel(point.x, point.y, color),
     )
     commitPixelMutation('Drew circle')
+  }
+
+  const commitPixelSamples = (
+    samples: PixelSample[],
+    startAction: string,
+    completedAction: string,
+  ) => {
+    beginPixelMutation(startAction)
+    paintPixelSamples(samples)
+    return Boolean(commitPixelMutation(completedAction))
   }
 
   const setSelection = (kind: PixelSelection['kind'], points: PixelPoint[]) => {
@@ -855,6 +885,7 @@ export const useEditor = () => {
     beginStroke,
     paintPixel,
     paintDitherPixel,
+    paintPixelSamples,
     endStroke,
     cancelStroke,
     pickColor,
@@ -862,6 +893,7 @@ export const useEditor = () => {
     drawLine,
     drawRectangle,
     drawCircle,
+    commitPixelSamples,
     setSelection,
     clearSelection,
     moveSelection,

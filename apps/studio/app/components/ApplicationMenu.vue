@@ -9,6 +9,8 @@ import {
   Gamepad2,
   Grid2X2,
   Grid3X3,
+  PanelsTopLeft,
+  Settings2,
   Info,
   Keyboard,
   Layers2,
@@ -48,6 +50,11 @@ const { checkForUpdates, currentVersion, status: updateStatus } = useAppUpdater(
 const { dialogOpen: accountDialogOpen } = useGoogleAccount()
 const win = useAppWindow()
 const livePreviewOpen = useState<boolean>('live-preview-open', () => true)
+const {
+  enabled: tiledMode,
+  dialogOpen: tiledModeDialogOpen,
+  toggle: toggleTiledMode,
+} = useTiledMode()
 const root = ref<HTMLElement | null>(null)
 const openMenu = ref<GroupId | null>(null)
 const touchOpen = ref(false)
@@ -154,6 +161,22 @@ const groups = computed<{ id: GroupId; label: string; commands: Command[] }[]>((
         checked: () => showTransparency.value,
         disabled: editorUnavailable,
         run: () => toggle(showTransparency),
+      },
+      {
+        id: 'tiled-mode',
+        label: 'Tiled Mode',
+        icon: PanelsTopLeft,
+        shortcut: 'Shift T',
+        checked: () => tiledMode.value,
+        disabled: editorUnavailable,
+        run: toggleTiledMode,
+      },
+      {
+        id: 'tiled-mode-settings',
+        label: 'Tiled Mode settings…',
+        icon: Settings2,
+        disabled: editorUnavailable,
+        run: () => (tiledModeDialogOpen.value = true),
       },
       {
         id: 'maximize',

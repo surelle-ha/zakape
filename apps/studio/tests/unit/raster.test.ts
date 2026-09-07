@@ -7,9 +7,51 @@ import {
   rasterRectangle,
   resizePixelSamples,
   rotatePixelSamples,
+  mapTiledPoint,
+  positiveModulo,
+  tiledSourceTile,
+  wrapRasterPoints,
 } from '~/utils/raster'
 
 describe('raster previews', () => {
+  it('maps repeated canvas coordinates through positive modulo', () => {
+    expect(positiveModulo(-1, 8)).toBe(7)
+    expect(positiveModulo(9, 8)).toBe(1)
+    expect(mapTiledPoint({ x: 17, y: 23 }, 8, 10, 3, 3)).toEqual({
+      x: 17,
+      y: 23,
+      sourceX: 1,
+      sourceY: 3,
+      column: 2,
+      row: 2,
+      inSourceTile: false,
+    })
+  })
+
+  it('selects the upper-left central tile for even grids', () => {
+    expect(tiledSourceTile(3, 3)).toEqual({ column: 1, row: 1 })
+    expect(tiledSourceTile(2, 2)).toEqual({ column: 0, row: 0 })
+    expect(tiledSourceTile(4, 6)).toEqual({ column: 1, row: 2 })
+  })
+
+  it('wraps brush footprints over edges and deduplicates source pixels', () => {
+    expect(wrapRasterPoints([{ x: 0, y: 0 }], 4, 4, 2)).toEqual([
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+      { x: 1, y: 1 },
+    ])
+    expect(
+      wrapRasterPoints(
+        [
+          { x: -1, y: 3 },
+          { x: 3, y: 3 },
+        ],
+        4,
+        4,
+      ),
+    ).toEqual([{ x: 3, y: 3 }])
+  })
   it('creates a continuous line between pointer positions', () => {
     expect(rasterLine({ x: 1, y: 1 }, { x: 4, y: 3 })).toEqual([
       { x: 1, y: 1 },

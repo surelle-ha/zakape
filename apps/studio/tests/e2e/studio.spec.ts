@@ -99,8 +99,14 @@ test('centralizes canvas display controls in View without changing document dirt
 }) => {
   await page.getByRole('button', { name: 'View', exact: true }).click()
   const homeViews = page.getByRole('menuitemcheckbox')
-  await expect(homeViews).toHaveCount(4)
-  for (const label of ['Onion skin', 'Live view', 'Pixel grid', 'Transparency checkerboard']) {
+  await expect(homeViews).toHaveCount(5)
+  for (const label of [
+    'Onion skin',
+    'Live view',
+    'Pixel grid',
+    'Transparency checkerboard',
+    'Tiled Mode',
+  ]) {
     await expect(page.getByRole('menuitemcheckbox', { name: new RegExp(label) })).toBeDisabled()
   }
 
@@ -108,8 +114,14 @@ test('centralizes canvas display controls in View without changing document dirt
   const saveState = page.locator('.save-state')
   const initialSaveState = await saveState.textContent()
   await page.getByRole('button', { name: 'View', exact: true }).click()
-  await expect(page.getByRole('menuitemcheckbox')).toHaveCount(4)
-  for (const label of ['Onion skin', 'Live view', 'Pixel grid', 'Transparency checkerboard']) {
+  await expect(page.getByRole('menuitemcheckbox')).toHaveCount(5)
+  for (const label of [
+    'Onion skin',
+    'Live view',
+    'Pixel grid',
+    'Transparency checkerboard',
+    'Tiled Mode',
+  ]) {
     await expect(page.getByRole('menuitemcheckbox', { name: new RegExp(label) })).toBeEnabled()
   }
   await expect(
@@ -139,6 +151,40 @@ test('centralizes canvas display controls in View without changing document dirt
     page.getByRole('menuitemcheckbox', { name: /Transparency checkerboard/ }),
   ).toHaveAttribute('aria-checked', 'false')
   await expect(saveState).toHaveText(initialSaveState ?? '')
+})
+
+test('edits one wrapped source through a configurable tiled canvas', async ({ page }) => {
+  await enterEditor(page, { name: 'Seam study', width: 8, height: 8 })
+  const canvas = page.getByTestId('pixel-canvas')
+  const normal = (await canvas.boundingBox())!
+
+  await page.keyboard.press('Shift+t')
+  await expect(canvas).toHaveAttribute('data-tiled-mode', 'true')
+  const tiled = (await canvas.boundingBox())!
+  expect(tiled.width).toBe(normal.width * 3)
+  expect(tiled.height).toBe(normal.height * 3)
+  await page.screenshot({ path: resolve(snapshotDirectory, 'tiled-mode-workspace.png') })
+
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  await page.getByRole('menuitem', { name: /Tiled Mode settings/ }).click()
+  const dialog = page.getByRole('dialog', { name: 'Tiled Mode' })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'tiled-mode-settings.png') })
+  await dialog.getByRole('button', { name: '2×2' }).click()
+  await dialog.getByRole('button', { name: 'Apply layout' }).click()
+  const resized = (await canvas.boundingBox())!
+  expect(resized.width).toBe(normal.width * 2)
+  expect(resized.height).toBe(normal.height * 2)
+
+  await canvas.click({ position: { x: normal.width + normal.width / 2, y: normal.height / 2 } })
+  const repeatedPixels = await canvas.evaluate((element: HTMLCanvasElement) => {
+    const context = element.getContext('2d')!
+    const size = element.width / 2
+    const first = context.getImageData(size / 2, size / 2, 1, 1).data
+    const second = context.getImageData(size + size / 2, size / 2, 1, 1).data
+    return [...first].join(',') === [...second].join(',')
+  })
+  expect(repeatedPixels).toBe(true)
+  await page.keyboard.press('Control+z')
 })
 
 test('shows local account status and exposes desktop update controls', async ({ page }) => {

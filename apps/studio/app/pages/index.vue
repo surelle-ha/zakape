@@ -19,6 +19,7 @@ import type { CanvasBackground, ColorMode, SpriteProject, ToolId } from '~/types
 import { cloneProject, createBlankProject } from '~/utils/project'
 import { importProjectFile } from '~/utils/import'
 import { toolDefinitions } from '~/utils/commands'
+import { positiveModulo, tiledSourceTile } from '~/utils/raster'
 
 const {
   documents,
@@ -102,6 +103,13 @@ const closeBusy = ref(false)
 const closeError = ref('')
 const playing = useState<boolean>('preview-playing', () => true)
 const livePreviewOpen = useState<boolean>('live-preview-open', () => true)
+const {
+  effectiveColumns: tiledColumns,
+  effectiveRows: tiledRows,
+  dialogOpen: tiledModeDialogOpen,
+  hydrate: hydrateTiledMode,
+  toggle: toggleTiledMode,
+} = useTiledMode()
 const closingDocument = computed(() => {
   const request = closeRequest.value
   if (request?.kind !== 'project') return null
@@ -137,7 +145,10 @@ const fitCanvas = async () => {
   const availableWidth = Math.max(1, host.clientWidth - horizontalPadding)
   const availableHeight = Math.max(1, host.clientHeight - verticalPadding)
   const fittedZoom = Math.floor(
-    Math.min(availableWidth / project.value.width, availableHeight / project.value.height),
+    Math.min(
+      availableWidth / (project.value.width * tiledColumns.value),
+      availableHeight / (project.value.height * tiledRows.value),
+    ),
   )
   zoom.value = Math.max(4, Math.min(24, fittedZoom))
 }
@@ -451,6 +462,11 @@ const keydown = (event: KeyboardEvent) => {
     playing.value = !playing.value
     return
   }
+  if (key === 't' && event.shiftKey && screen.value === 'editor') {
+    event.preventDefault()
+    void toggleTiledMode()
+    return
+  }
   if (key === 'o') {
     event.preventDefault()
     onionSkin.value = !onionSkin.value
@@ -538,11 +554,14 @@ const onCanvasWheel = async (event: WheelEvent) => {
   if (nextZoom === oldZoom) return
   const focusPixelX = Math.max(
     0,
-    Math.min(project.value.width, (event.clientX - canvasBounds.left) / oldZoom),
+    Math.min(
+      project.value.width * tiledColumns.value,
+      (event.clientX - canvasBounds.left) / oldZoom,
+    ),
   )
   const focusPixelY = Math.max(
     0,
-    Math.min(project.value.height, (event.clientY - canvasBounds.top) / oldZoom),
+    Math.min(project.value.height * tiledRows.value, (event.clientY - canvasBounds.top) / oldZoom),
   )
   zoom.value = nextZoom
   await nextTick()
@@ -577,9 +596,39 @@ watch(closeRequest, () => {
   closeError.value = ''
 })
 
+watch([tiledColumns, tiledRows], async ([nextColumns, nextRows]) => {
+  const host = canvasScroll.value
+  const canvasElement = host?.querySelector<HTMLCanvasElement>('.pixel-canvas')
+  if (!host || !canvasElement || screen.value !== 'editor') return
+  const hostBounds = host.getBoundingClientRect()
+  const oldCanvasBounds = canvasElement.getBoundingClientRect()
+  const focusClientX = hostBounds.left + hostBounds.width / 2
+  const focusClientY = hostBounds.top + hostBounds.height / 2
+  const sourceX = positiveModulo(
+    (focusClientX - oldCanvasBounds.left) / zoom.value,
+    project.value.width,
+  )
+  const sourceY = positiveModulo(
+    (focusClientY - oldCanvasBounds.top) / zoom.value,
+    project.value.height,
+  )
+  await nextTick()
+  const nextCanvasBounds = canvasElement.getBoundingClientRect()
+  const sourceTile = tiledSourceTile(nextColumns, nextRows)
+  host.scrollLeft +=
+    nextCanvasBounds.left +
+    (sourceTile.column * project.value.width + sourceX) * zoom.value -
+    focusClientX
+  host.scrollTop +=
+    nextCanvasBounds.top +
+    (sourceTile.row * project.value.height + sourceY) * zoom.value -
+    focusClientY
+})
+
 onMounted(async () => {
   unlistenWindowClose = await appWindow.onCloseRequested(requestApplicationClose)
   await refreshProjects()
+  await hydrateTiledMode()
   initialized.value = true
   window.addEventListener('keydown', keydown, true)
   window.addEventListener('keyup', keyup)
@@ -598,7 +647,13 @@ onBeforeUnmount(() => {
     <main
       class="studio-shell"
       :class="{ 'home-active': screen === 'home', 'timeline-collapsed': !timelineOpen }"
-      :inert="launcherOpen || godotOpen || accountDialogOpen || Boolean(closeRequest)"
+      :inert="
+        launcherOpen ||
+        godotOpen ||
+        accountDialogOpen ||
+        tiledModeDialogOpen ||
+        Boolean(closeRequest)
+      "
       data-testid="app-shell"
       @click="exportOpen = false"
       @contextmenu.prevent
@@ -888,6 +943,7 @@ onBeforeUnmount(() => {
         @toggle="timelineOpen = !timelineOpen"
       />
     </main>
+    <TiledModeDialog />
 
     <ProjectLauncher
       v-if="launcherOpen"

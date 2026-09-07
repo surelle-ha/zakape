@@ -130,3 +130,19 @@ export const drawLayerFrame = (
   drawPixelBuffer(context, pixels, project.width, project.height, scale)
   context.restore()
 }
+
+export const drawRepeatedSurface = (
+  context: CanvasRenderingContext2D,
+  surface: CanvasImageSource,
+  tileWidth: number,
+  tileHeight: number,
+  columns: number,
+  rows: number,
+) => {
+  context.imageSmoothingEnabled = false
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      context.drawImage(surface, column * tileWidth, row * tileHeight, tileWidth, tileHeight)
+    }
+  }
+}

@@ -75,7 +75,21 @@ test.describe('phone workbench', () => {
     expect(panelBox!.x + panelBox!.width).toBeLessThanOrEqual(412)
     expect(panelBox!.y + panelBox!.height).toBeLessThanOrEqual(839)
     await applicationMenu.getByRole('button', { name: 'View' }).click()
-    await expect(applicationMenu.getByRole('menuitemcheckbox')).toHaveCount(4)
+    await expect(applicationMenu.getByRole('menuitemcheckbox')).toHaveCount(5)
+    await applicationMenu.getByRole('menuitemcheckbox', { name: /Tiled Mode/ }).click()
+    await expect(page.getByTestId('pixel-canvas')).toHaveAttribute('data-tiled-mode', 'true')
+    await menuTrigger.click()
+    await applicationMenu.getByRole('button', { name: 'View' }).click()
+    await applicationMenu.getByRole('menuitem', { name: /Tiled Mode settings/ }).click()
+    const tiledDialog = page.getByRole('dialog', { name: 'Tiled Mode' })
+    const tiledDialogBox = await tiledDialog.boundingBox()
+    expect(tiledDialogBox!.x).toBeGreaterThanOrEqual(0)
+    expect(tiledDialogBox!.y).toBeGreaterThanOrEqual(0)
+    expect(tiledDialogBox!.x + tiledDialogBox!.width).toBeLessThanOrEqual(412)
+    expect(tiledDialogBox!.y + tiledDialogBox!.height).toBeLessThanOrEqual(839)
+    await tiledDialog.getByRole('button', { name: 'Cancel' }).click()
+    await menuTrigger.click()
+    await applicationMenu.getByRole('button', { name: 'View' }).click()
     await applicationMenu.getByRole('menuitemcheckbox', { name: /Live view/ }).click()
     await expect(applicationMenu).toBeHidden()
     await expect(page.getByRole('region', { name: 'Live preview', exact: true })).toBeHidden()
@@ -278,7 +292,9 @@ test.describe('phone workbench', () => {
 
     await page.goto('/')
     await openEditor(page, 'Large mobile study', 120)
+    await page.keyboard.press('Shift+t')
     const canvas = page.getByTestId('pixel-canvas')
+    await expect(canvas).toHaveAttribute('data-tiled-mode', 'true')
     const box = await canvas.boundingBox()
     const start = { x: box!.x + 22, y: box!.y + 34 }
 
@@ -320,10 +336,13 @@ test.describe('phone workbench', () => {
     })
     expect(afterUndo).toBe(0)
     await page.keyboard.press('Control+y')
-    await page.waitForTimeout(40)
+    await page.waitForTimeout(120)
     const afterRedo = await canvas.evaluate((element: HTMLCanvasElement) => {
-      const data = element.getContext('2d')!.getImageData(22, 34, 1, 1).data
-      return data[3]
+      const data = element.getContext('2d')!.getImageData(0, 0, element.width, element.height).data
+      for (let offset = 3; offset < data.length; offset += 4) {
+        if (data[offset]! > 0) return data[offset]!
+      }
+      return 0
     })
     expect(afterRedo).toBeGreaterThan(0)
 

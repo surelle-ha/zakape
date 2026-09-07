@@ -1,5 +1,63 @@
 import type { PixelPoint, PixelSample } from '~/types/editor'
 
+export interface TiledPoint extends PixelPoint {
+  sourceX: number
+  sourceY: number
+  column: number
+  row: number
+  inSourceTile: boolean
+}
+
+export const positiveModulo = (value: number, modulus: number) =>
+  modulus > 0 ? ((value % modulus) + modulus) % modulus : 0
+
+export const tiledSourceTile = (columns: number, rows: number) => ({
+  column: Math.floor((Math.max(1, columns) - 1) / 2),
+  row: Math.floor((Math.max(1, rows) - 1) / 2),
+})
+
+export const mapTiledPoint = (
+  point: PixelPoint,
+  sourceWidth: number,
+  sourceHeight: number,
+  columns: number,
+  rows: number,
+): TiledPoint => {
+  const sourceTile = tiledSourceTile(columns, rows)
+  const column = Math.floor(point.x / sourceWidth)
+  const row = Math.floor(point.y / sourceHeight)
+  return {
+    ...point,
+    sourceX: positiveModulo(point.x, sourceWidth),
+    sourceY: positiveModulo(point.y, sourceHeight),
+    column,
+    row,
+    inSourceTile: column === sourceTile.column && row === sourceTile.row,
+  }
+}
+
+export const wrapRasterPoints = (
+  points: PixelPoint[],
+  width: number,
+  height: number,
+  brushSize = 1,
+): PixelPoint[] => {
+  const wrapped = new Map<string, PixelPoint>()
+  const radius = Math.floor((brushSize - 1) / 2)
+  points.forEach((point) => {
+    for (let offsetY = -radius; offsetY < brushSize - radius; offsetY += 1) {
+      for (let offsetX = -radius; offsetX < brushSize - radius; offsetX += 1) {
+        const next = {
+          x: positiveModulo(point.x + offsetX, width),
+          y: positiveModulo(point.y + offsetY, height),
+        }
+        wrapped.set(`${next.x}:${next.y}`, next)
+      }
+    }
+  })
+  return [...wrapped.values()]
+}
+
 export const rasterLine = (from: PixelPoint, to: PixelPoint): PixelPoint[] => {
   const points: PixelPoint[] = []
   let x = from.x

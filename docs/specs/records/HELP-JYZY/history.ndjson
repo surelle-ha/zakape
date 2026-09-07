@@ -1,3 +1,5 @@
 {"at":"2026-09-07T07:54:44.416Z","specId":"HELP-JYZY","event":"created","from":null,"to":"clarifying","note":"Expand Help with privacy-safe system diagnostics, direct issue and feature reporting, development support, and a single menu-only keyboard shortcut entry.","commit":"9d9deabc9a7e"}
 {"at":"2026-09-07T07:55:10.619Z","specId":"HELP-JYZY","event":"dependency_added","from":"clarifying","to":"clarifying","note":"VIEW-R7CR (advisory): The completed shared desktop/touch ApplicationMenu architecture is the required Help command surface.","commit":"9d9deabc9a7e"}
 {"at":"2026-09-07T07:57:37.347Z","specId":"HELP-JYZY","event":"specification_finalized","from":"clarifying","to":"specified","note":null,"commit":"9d9deabc9a7e"}
+{"at":"2026-09-07T08:03:23.558Z","specId":"HELP-JYZY","event":"planning_started","from":"specified","to":"planning","note":null,"commit":"79c096af3a87"}
+{"at":"2026-09-07T08:22:48.373Z","specId":"HELP-JYZY","event":"plan_finalized","from":"planning","to":"planned","note":null,"commit":"79c096af3a87"}

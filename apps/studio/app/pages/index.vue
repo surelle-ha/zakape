@@ -3,12 +3,8 @@ import {
   Check,
   ChevronDown,
   Download,
-  Eye,
   FileUp,
-  Grid2X2,
-  Grid3X3,
   Keyboard,
-  Layers2,
   Layers3,
   Maximize2,
   Minus,
@@ -837,63 +833,6 @@ onBeforeUnmount(() => {
                 <Plus :size="14" />
               </button>
               <span>{{ Math.round((zoom * 100) / 14) }}%</span>
-              <span class="zoom-divider" />
-              <button
-                v-tooltip="{
-                  text: 'Onion skin',
-                  detail: 'Show the previous frame as a muted drawing guide.',
-                  shortcut: 'O',
-                }"
-                type="button"
-                :class="{ active: onionSkin }"
-                :aria-pressed="onionSkin"
-                aria-label="Toggle onion skin"
-                @click="onionSkin = !onionSkin"
-              >
-                <Layers2 :size="14" />
-              </button>
-              <button
-                v-tooltip="{
-                  text: 'Live view',
-                  detail: 'Show or hide the animation preview beside the canvas.',
-                  shortcut: 'V',
-                }"
-                type="button"
-                :class="{ active: livePreviewOpen }"
-                :aria-pressed="livePreviewOpen"
-                aria-label="Toggle live view"
-                @click="livePreviewOpen = !livePreviewOpen"
-              >
-                <Eye :size="14" />
-              </button>
-              <button
-                v-tooltip="{
-                  text: 'Pixel grid',
-                  detail: 'Show or hide individual pixel boundaries.',
-                  shortcut: 'G',
-                }"
-                type="button"
-                :class="{ active: showGrid }"
-                :aria-pressed="showGrid"
-                aria-label="Toggle pixel grid"
-                @click="showGrid = !showGrid"
-              >
-                <Grid3X3 :size="14" />
-              </button>
-              <button
-                v-tooltip="{
-                  text: 'Transparency checkerboard',
-                  detail: 'Show or hide the transparent canvas background.',
-                  shortcut: 'Shift+G',
-                }"
-                type="button"
-                :class="{ active: showTransparency }"
-                :aria-pressed="showTransparency"
-                aria-label="Toggle transparency checkerboard"
-                @click="showTransparency = !showTransparency"
-              >
-                <Grid2X2 :size="14" />
-              </button>
             </div>
           </header>
           <div

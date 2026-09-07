@@ -3,10 +3,10 @@
   "id": "VIEW-R7CR",
   "title": "Centralize canvas views in the View menu",
   "area": "VIEW",
-  "status": "planned",
+  "status": "completed",
   "summary": "Centralize canvas display commands in the desktop View menu and a phone-and-tablet Menu tab while removing redundant toggles from beside the zoom controls.",
   "createdAt": "2026-09-07T02:48:16.494Z",
-  "updatedAt": "2026-09-07T03:07:39.351Z",
+  "updatedAt": "2026-09-07T03:32:15.362Z",
   "clarification": {
     "questions": [
       {
@@ -73,6 +73,8 @@
     "Run studio lint, type checking, unit tests, focused Playwright tests, production build, spec validation, formatting checks on touched files, and git diff checks.",
     "Manually verify that view changes do not increment editor dirty state and that unsupported mobile actions preserve their existing safe behavior."
   ],
-  "validationEvidence": [],
+  "validationEvidence": [
+    "Implemented one shared typed desktop/touch application-menu command model; added all four View commands with Home disabling and shortcut synchronization; removed canvas-toolbar duplicates; added touch Menu before Home with safe-area bounds and dismissal behavior. Studio lint, Nuxt typecheck, 44 unit tests, static build, focused desktop/phone interaction tests, and the full 36-test Playwright suite passed. Reviewed desktop, 412x839 phone, and 820x1180 tablet snapshots; updated the intended desktop workbench baseline and synchronized workspace/QA documentation."
+  ],
   "overrides": []
 }

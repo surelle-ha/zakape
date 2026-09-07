@@ -62,12 +62,52 @@ test.describe('phone workbench', () => {
     await expect(page.getByTestId('project-launcher')).toBeHidden()
     await openEditor(page, 'Pocket courier')
 
+    const menuTrigger = page.getByRole('button', { name: 'Application menu' })
+    const menuBox = await menuTrigger.boundingBox()
+    const homeBox = await page.getByRole('tab', { name: 'Home', exact: true }).boundingBox()
+    expect(menuBox!.x).toBeLessThan(homeBox!.x)
+    await menuTrigger.click()
+    const applicationMenu = page.getByRole('menu', { name: 'Application menu' })
+    await expect(applicationMenu).toBeVisible()
+    const panelBox = await applicationMenu.boundingBox()
+    expect(panelBox!.x).toBeGreaterThanOrEqual(0)
+    expect(panelBox!.y).toBeGreaterThanOrEqual(0)
+    expect(panelBox!.x + panelBox!.width).toBeLessThanOrEqual(412)
+    expect(panelBox!.y + panelBox!.height).toBeLessThanOrEqual(839)
+    await applicationMenu.getByRole('button', { name: 'View' }).click()
+    await expect(applicationMenu.getByRole('menuitemcheckbox')).toHaveCount(4)
+    await applicationMenu.getByRole('menuitemcheckbox', { name: /Live view/ }).click()
+    await expect(applicationMenu).toBeHidden()
+    await expect(page.getByRole('region', { name: 'Live preview', exact: true })).toBeHidden()
+    await menuTrigger.click()
+    await applicationMenu.getByRole('button', { name: 'View' }).click()
+    await applicationMenu.getByRole('menuitemcheckbox', { name: /Live view/ }).click()
+    await expect(page.getByRole('region', { name: 'Live preview', exact: true })).toBeVisible()
+    await menuTrigger.click()
+    await applicationMenu.getByRole('button', { name: 'File' }).click()
+    await expect(applicationMenu.getByRole('button', { name: 'File' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    await applicationMenu.getByRole('button', { name: 'Help' }).click()
+    await expect(applicationMenu.getByRole('button', { name: 'File' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    await page.keyboard.press('Escape')
+    await expect(applicationMenu).toBeHidden()
+
     const tabsBox = await page.locator('.document-tabs').boundingBox()
     const timelineBox = await page.getByRole('region', { name: 'Animation timeline' }).boundingBox()
     expect(tabsBox!.y).toBeGreaterThan(timelineBox!.y)
     await expect(page.getByRole('button', { name: 'Keyboard shortcuts' })).toBeHidden()
     await expect(page.locator('.tool-button').first().locator('span')).toBeHidden()
     await expect(page.getByRole('region', { name: 'Live preview', exact: true })).toBeVisible()
+    await expect(
+      page.getByRole('button', {
+        name: /Toggle (onion skin|live view|pixel grid|transparency checkerboard)/i,
+      }),
+    ).toHaveCount(0)
 
     const canvas = page.getByTestId('pixel-canvas')
     const canvasSignature = () =>

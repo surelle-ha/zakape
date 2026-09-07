@@ -81,7 +81,9 @@ The Playwright baselines live beside the end-to-end tests so CI can detect unint
 - Document tabs remain above the project title/export bar on desktop and below the timeline on phone/tablet; project/application close controls always open the save-before-close confirmation dialog.
 - Phone layouts omit the footer, keyboard-only labels, and shortcut dialog; Live Preview remains visible outside the independently hideable Layers drawer.
 - Charcoal surfaces remain visually neutral; violet is limited to focus, selection, borders, and active controls. The matching Layers and Assistant drawers plus Timeline glass retain adequate contrast while separating themselves from the canvas.
-- The timeline collapse control restores the frame strip without losing selection, frame delay edits live in the selected frame's context menu, the Live View toolbar toggle controls preview visibility, and the footer update monitor rechecks periodically and after the app regains focus or network access.
+- The timeline collapse control restores the frame strip without losing selection, frame delay edits live in the selected frame's context menu, and the desktop/touch View menus control Onion skin, Live view, Pixel grid, and Transparency checkerboard while the zoom toolbar contains no duplicate view controls.
+- On phone and tablet, Menu precedes Home, expands one File/Edit/View/Help category at a time, remains inside the viewport and safe area, and closes after an action, outside tap, Escape, or document navigation.
+- The footer update monitor rechecks periodically and after the app regains focus or network access.
 - Desktop autosaves create only validated `.zakape` files inside the operating system's `Documents/zakape` directory.
 - Reopening the desktop executable focuses the existing main window instead of creating another editor process.
 - The generated Android icon shows the supplied Zakape mark at every density, and the ARM64 APK reports the expected package ID, version, SDK range, ABI, and signature.

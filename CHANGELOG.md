@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/surelle-ha/zakape/compare/v0.21.0...v0.22.0) (2026-09-07)
+
+
+### Features
+
+* **studio:** polish frames workspace, mobile zoom, and sync preview ([#38](https://github.com/surelle-ha/zakape/issues/38)) ([96066cc](https://github.com/surelle-ha/zakape/commit/96066cce64cddccafd37eeacfebd53671dc23585))
+
 ## [0.21.0](https://github.com/surelle-ha/zakape/compare/v0.20.0...v0.21.0) (2026-09-07)
 
 

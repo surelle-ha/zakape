@@ -19,15 +19,17 @@ Use [commands.md](references/commands.md) for command semantics and state transi
 
 ## Specify and clarify together
 
-When creating a substantial spec, create a `clarifying` record and then challenge the request in focused, non-redundant rounds. Read [challenge-guide.md](references/challenge-guide.md) before questioning.
+When creating a substantial spec, create a `clarifying` record and then run a Grill Me-style interview. Read [challenge-guide.md](references/challenge-guide.md) before questioning.
 
-- Verify the problem and evidence rather than accepting the proposed solution as the only design.
-- Surface product boundaries, platform behavior, failure and recovery paths, migrations, privacy/security, performance, compatibility, accessibility, acceptance criteria, and explicit non-goals when relevant.
-- Automatically compare existing specs, source, documentation, and history for likely critical or advisory dependencies.
-- Record answered questions and resulting decisions in both `spec.md` and `spec.json`.
+- Map the request as a design tree whose branches cover the problem, outcomes, journeys, boundaries, risks, and delivery decisions.
+- Resolve repository facts yourself by inspecting specs, source, documentation, tests, and history. Only put genuine product or engineering decisions to the user.
+- Ask one decision question at a time, include the recommended answer and why it matters, then wait for the user's answer before advancing the frontier.
+- Recompute the tree after every answer. Do not ask a question whose prerequisites remain unsettled.
+- Record every answered question and resulting decision in both `spec.md` and `spec.json`.
 - Keep material unknowns in `clarification.openQuestions`. Do not run `specify ID --finalize` until they are resolved and every required section is concrete.
+- When the tree has no open branches, ask the user to confirm explicitly that it reflects the shared understanding. Do not finalize, plan, or implement before that confirmation.
 
-Do not ask questions already answered by the repository. Group related questions and explain why a choice matters. Challenge risky assumptions with evidence.
+Do not ask questions already answered by the repository. Explain why each decision matters and challenge risky assumptions with evidence.
 
 ## Plan and generate tasks together
 

@@ -19,7 +19,7 @@
         "title": "Zakape Studio",
         "width": 1440,
         "height": 900,
-        "minWidth": 1024,
+        "minWidth": 360,
         "minHeight": 720,
         "resizable": true,
         "decorations": false,

@@ -15,9 +15,17 @@ Clarification is an investigation, not a questionnaire ritual. Inspect the repos
 - **Delivery:** Identify release gating, feature flags, updater/store constraints, rollback, observability, and documentation.
 - **Acceptance and non-goals:** Convert subjective language into observable criteria and explicitly exclude tempting adjacent work.
 
+## Design tree and frontier
+
+Start by mapping the request as a decision tree. Each unresolved decision is a branch, and its dependent decisions stay behind it until that prerequisite is settled. The frontier is the set of decisions that can be resolved now without guessing about an earlier branch.
+
+After each answer, record the resulting decision, update the tree, and recompute the frontier. When the frontier and all dependent branches are empty, ask the user explicitly whether the design tree reflects the shared understanding. A negative or qualified answer reopens the affected branch.
+
+Do not finalize the specification, begin planning, or implement the request until the user confirms the shared understanding.
+
 ## Question quality
 
-Prefer a few grouped questions with consequences over a long generic checklist. Offer a recommended default when repository evidence supports one. Record:
+Ask exactly one frontier decision per turn and wait for its answer. Include the consequence of the decision and a recommended default when repository evidence supports one. Never ask the user for a fact that can be resolved from the repository or available tools. Record:
 
 1. the challenged question;
 2. the user's answer or verified repository fact;

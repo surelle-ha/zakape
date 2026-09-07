@@ -30,7 +30,7 @@ const steps: Array<{
   },
   {
     eyebrow: '03 · Animate',
-    title: 'Frames live in the timeline',
+    title: 'Frames stay in one focused strip',
     copy: 'Use each frame menu to insert, copy, delete, or rearrange frames. Onion skin keeps the previous pose visible while you draw.',
     note: 'Insert adds a blank frame. Ctrl+D copies the active frame.',
     icon: ArrowRight,

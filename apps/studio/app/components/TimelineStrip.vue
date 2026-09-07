@@ -6,7 +6,7 @@ import {
   Clock3,
   Copy,
   Ellipsis,
-  Layers3,
+  Film,
   Plus,
   Trash2,
 } from '@lucide/vue'
@@ -237,23 +237,18 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section
-    class="timeline"
-    :class="{ collapsed }"
-    aria-label="Animation timeline"
-    @contextmenu.prevent
-  >
+  <section class="timeline" :class="{ collapsed }" aria-label="Frames" @contextmenu.prevent>
     <header class="timeline-header">
       <div class="timeline-title">
-        <div class="section-kicker"><Layers3 :size="14" /> Timeline</div>
+        <div class="section-kicker"><Film :size="14" /> Frames</div>
         <button
           v-tooltip="{
-            text: collapsed ? 'Show timeline' : 'Hide timeline',
+            text: collapsed ? 'Show frames' : 'Hide frames',
             detail: 'Collapse or restore the animation frame strip.',
           }"
           type="button"
           class="timeline-collapse"
-          :aria-label="collapsed ? 'Show timeline' : 'Hide timeline'"
+          :aria-label="collapsed ? 'Show frames' : 'Hide frames'"
           :aria-expanded="!collapsed"
           @click="emit('toggle')"
         >

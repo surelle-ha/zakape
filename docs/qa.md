@@ -71,6 +71,7 @@ The Playwright baselines live beside the end-to-end tests so CI can detect unint
 - Canvas pixels remain crisp at every supported zoom.
 - The entry page appears after the splash only until Guest or Google access is chosen; the project launcher remains hidden after startup on desktop and touch builds.
 - Home contains no floating profile card; the footer account name opens the profile and artwork drawer on desktop.
+- The profile drawer exposes artwork sync as a disabled **Coming soon** action and does not make a network request.
 - Sprite suites support root folders, nested variant folders, filtering, assignment, and direct new-project destinations in both Home and the launcher.
 - Palette presets reproduce their documented hex values, custom colors use the in-app mixer, and the canvas palette blocks select the primary color.
 - Controls expose visible labels, tooltips, or accessible names.
@@ -98,7 +99,7 @@ The Playwright baselines live beside the end-to-end tests so CI can detect unint
 - The frameless desktop window remains draggable and exposes minimize, maximize/restore, and close controls from the right side of the titlebar.
 - Document tabs remain above the project title/export bar on desktop and below the timeline on phone/tablet; project/application close controls always open the save-before-close confirmation dialog.
 - Phone layouts omit the footer, keyboard-only labels, and shortcut dialog; Live Preview remains visible outside the independently hideable Layers drawer.
-- Charcoal surfaces remain visually neutral; violet is limited to focus, selection, borders, and active controls. The matching Layers and Assistant drawers plus Timeline glass retain adequate contrast while separating themselves from the canvas.
+- Charcoal surfaces remain visually neutral; violet is limited to focus, selection, borders, and active controls. The matching Layers and Assistant drawers plus Frames glass retain adequate contrast while separating themselves from the canvas.
 - The timeline collapse control restores the frame strip without losing selection, frame delay edits live in the selected frame's context menu, and the desktop/touch View menus control Onion skin, Live view, Pixel grid, and Transparency checkerboard while the zoom toolbar contains no duplicate view controls.
 - On phone and tablet, Menu precedes Home, expands one File/Edit/View/Help category at a time, remains inside the viewport and safe area, and closes after an action, outside tap, Escape, or document navigation.
 - The footer update monitor rechecks periodically and after the app regains focus or network access.

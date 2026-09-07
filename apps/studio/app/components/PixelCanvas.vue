@@ -19,6 +19,7 @@ import {
   tiledSourceTile,
   wrapRasterPoints,
 } from '~/utils/raster'
+import { pinchCanvasZoom } from '~/utils/zoom'
 
 const {
   project,
@@ -810,10 +811,7 @@ const beginPinch = () => {
 
 const updatePinch = async () => {
   if (!pinchGesture || activeTouches.size < 2) return
-  const nextZoom = Math.max(
-    4,
-    Math.min(24, Math.round(pinchGesture.zoom * (touchDistance() / pinchGesture.distance))),
-  )
+  const nextZoom = pinchCanvasZoom(pinchGesture.zoom, touchDistance() / pinchGesture.distance)
   if (nextZoom === zoom.value) return
   zoom.value = nextZoom
   await nextTick()

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/surelle-ha/zakape/compare/v0.20.0...v0.21.0) (2026-09-07)
+
+
+### Features
+
+* **studio:** add help support commands ([20837ae](https://github.com/surelle-ha/zakape/commit/20837ae4ca4e8b35e72ce0dc76ded72d1304c695))
+
 ## [0.20.0](https://github.com/surelle-ha/zakape/compare/v0.19.0...v0.20.0) (2026-09-07)
 
 

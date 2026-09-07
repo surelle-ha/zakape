@@ -45,7 +45,7 @@
     "eslint": "^10.9.1",
     "happy-dom": "^20.14.0",
     "tailwindcss": "^4.1.14",
-    "typescript": "^7.0.2",
+    "typescript": "^5.9.2",
     "vitest": "^5.0.0",
     "vue-tsc": "^3.3.11"
   }

@@ -201,6 +201,11 @@ test('shows local account status and exposes desktop update controls', async ({ 
   await expect(accountDialog).toContainText('Guest artist')
   await expect(accountDialog).toContainText('Artwork stats')
   await expect(accountDialog).toContainText('Documents/zakape')
+  const syncArtwork = accountDialog.getByRole('button', {
+    name: 'Sync artwork to Zakape server, coming soon',
+  })
+  await expect(syncArtwork).toBeDisabled()
+  await expect(syncArtwork).toContainText('Coming soon')
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'profile-artwork-drawer.png') })
   await accountDialog.getByRole('button', { name: 'Close profile drawer' }).click()
@@ -788,7 +793,7 @@ test('shows line, rectangle, and circle previews before committing', async ({ pa
 test('paints with mouse-selected colors, mirror axes, and dithering', async ({ page }) => {
   await enterEditor(page)
   const canvas = page.getByTestId('pixel-canvas')
-  const zoom = Number(await page.getByLabel('Canvas zoom').inputValue())
+  const zoom = Number(await page.getByLabel('Canvas zoom').getAttribute('data-zoom'))
   const clickPixel = async (x: number, y: number, button: 'left' | 'right' = 'left') => {
     await canvas.click({
       button,
@@ -831,8 +836,8 @@ test('paints with mouse-selected colors, mirror axes, and dithering', async ({ p
 
   await page.getByTestId('tool-mirror').click()
   await clickPixel(5, 7)
-  expect((await readPixel(5, 7)).slice(0, 3)).toEqual([255, 0, 0])
-  expect((await readPixel(26, 7)).slice(0, 3)).toEqual([255, 0, 0])
+  await expect.poll(async () => (await readPixel(5, 7)).slice(0, 3)).toEqual([255, 0, 0])
+  await expect.poll(async () => (await readPixel(26, 7)).slice(0, 3)).toEqual([255, 0, 0])
 
   await page.keyboard.down('Control')
   await clickPixel(8, 6)
@@ -849,8 +854,8 @@ test('paints with mouse-selected colors, mirror axes, and dithering', async ({ p
   await expect(page.getByRole('button', { name: '1 pixel brush' })).toHaveText('')
   await page.getByRole('button', { name: '4 pixel brush' }).click()
   await clickPixel(15, 15)
-  expect((await readPixel(14, 14)).slice(0, 3)).toEqual([255, 0, 0])
-  expect((await readPixel(15, 14)).slice(0, 3)).toEqual([0, 255, 0])
+  await expect.poll(async () => (await readPixel(14, 14)).slice(0, 3)).toEqual([255, 0, 0])
+  await expect.poll(async () => (await readPixel(15, 14)).slice(0, 3)).toEqual([0, 255, 0])
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'mirror-dither-tools.png') })
 })
@@ -858,7 +863,7 @@ test('paints with mouse-selected colors, mirror axes, and dithering', async ({ p
 test('moves, resizes, and rotates rectangular or lasso selections', async ({ page }) => {
   await enterEditor(page)
   const canvas = page.getByTestId('pixel-canvas')
-  const zoom = Number(await page.getByLabel('Canvas zoom').inputValue())
+  const zoom = Number(await page.getByLabel('Canvas zoom').getAttribute('data-zoom'))
   const point = (x: number, y: number) => ({ x: (x + 0.5) * zoom, y: (y + 0.5) * zoom })
 
   await canvas.click({ position: point(3, 3) })
@@ -950,7 +955,7 @@ test('owns frame creation, copying, deletion, and onion skin in each frame menu'
 
 test('toggles Live View and edits frame delay from the frame context menu', async ({ page }) => {
   await enterEditor(page)
-  const timeline = page.getByRole('region', { name: 'Animation timeline' })
+  const timeline = page.getByRole('region', { name: 'Frames' })
   await expect(
     timeline.getByRole('button', { name: /Scroll frames|Play animation|Pause animation/ }),
   ).toHaveCount(0)
@@ -975,10 +980,10 @@ test('toggles Live View and edits frame delay from the frame context menu', asyn
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'live-view-frame-timing.png') })
   await page.keyboard.press('Escape')
-  await timeline.getByRole('button', { name: 'Hide timeline' }).click()
+  await timeline.getByRole('button', { name: 'Hide frames' }).click()
   await expect(timeline).toHaveClass(/collapsed/)
   await expect(page.getByTestId('app-shell')).toHaveClass(/timeline-collapsed/)
-  await timeline.getByRole('button', { name: 'Show timeline' }).click()
+  await timeline.getByRole('button', { name: 'Show frames' }).click()
   await expect(timeline).not.toHaveClass(/collapsed/)
 })
 
@@ -1040,7 +1045,10 @@ test('zooms toward the pointer, scales the work grid, and pans with the hand too
     page.getByRole('menuitemcheckbox', { name: /Transparency checkerboard/ }),
   ).toHaveAttribute('aria-checked', 'false')
   await expect(scrollHost).toHaveCSS('background-size', '14px 14px, 14px 14px')
-  await zoomInput.fill('20')
+  for (let step = 0; step < 6; step += 1) {
+    await page.getByRole('button', { name: 'Zoom in' }).click()
+  }
+  await expect(zoomInput).toHaveAttribute('data-zoom', '20')
   await expect(scrollHost).toHaveCSS('background-size', '20px 20px, 20px 20px')
   await scrollHost.evaluate((element) => {
     element.scrollLeft = 160
@@ -1058,7 +1066,7 @@ test('zooms toward the pointer, scales the work grid, and pans with the hand too
   }
   await page.mouse.move(pointer.x, pointer.y)
   await page.mouse.wheel(0, -120)
-  await expect(zoomInput).toHaveValue('21')
+  await expect(zoomInput).toHaveAttribute('data-zoom', '21')
   await expect(scrollHost).toHaveCSS('background-size', '21px 21px, 21px 21px')
   const canvasBoxAfter = (await page.getByTestId('pixel-canvas').boundingBox())!
   const focusedPixelAfter = {
@@ -1068,11 +1076,14 @@ test('zooms toward the pointer, scales the work grid, and pans with the hand too
   expect(focusedPixelAfter.x).toBeCloseTo(focusedPixelBefore.x, 0)
   expect(focusedPixelAfter.y).toBeCloseTo(focusedPixelBefore.y, 0)
 
-  await zoomInput.fill('24')
+  for (let step = 0; step < 3; step += 1) {
+    await page.getByRole('button', { name: 'Zoom in' }).click()
+  }
+  await expect(zoomInput).toHaveAttribute('data-zoom', '24')
   await page.getByTestId('tool-hand').click()
   await scrollHost.evaluate((element) => {
-    element.scrollLeft = 260
-    element.scrollTop = 260
+    element.scrollLeft = 160
+    element.scrollTop = 160
   })
   const before = await scrollHost.evaluate((element) => ({
     left: element.scrollLeft,
@@ -1092,6 +1103,14 @@ test('zooms toward the pointer, scales the work grid, and pans with the hand too
   await expect(scrollHost).toHaveClass(/is-scrolling/)
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'canvas-pan-scrollbars.png') })
+
+  await page.getByRole('button', { name: 'Zoom in' }).click()
+  await expect(zoomInput).toHaveAttribute('data-zoom', '25')
+  for (const expectedZoom of ['17', '9', '1']) {
+    await zoomInput.fill('-8')
+    await expect(zoomInput).toHaveValue('0')
+    await expect(zoomInput).toHaveAttribute('data-zoom', expectedZoom)
+  }
 })
 
 test('uses secondary-color right-click painting without leaking browser menus', async ({

@@ -121,7 +121,7 @@ test.describe('phone workbench', () => {
     await expect(applicationMenu).toBeHidden()
 
     const tabsBox = await page.locator('.document-tabs').boundingBox()
-    const timelineBox = await page.getByRole('region', { name: 'Animation timeline' }).boundingBox()
+    const timelineBox = await page.getByRole('region', { name: 'Frames' }).boundingBox()
     expect(tabsBox!.y).toBeGreaterThan(timelineBox!.y)
     await expect(page.getByRole('button', { name: 'Keyboard shortcuts' })).toBeHidden()
     await expect(page.locator('.tool-button').first().locator('span')).toBeHidden()
@@ -150,10 +150,10 @@ test.describe('phone workbench', () => {
       canvasBox!.x + canvasBox!.width / 2,
       canvasBox!.y + canvasBox!.height / 2,
     )
-    expect(await canvasSignature()).not.toBe(before)
+    await expect.poll(canvasSignature).not.toBe(before)
 
     const zoomControl = page.getByLabel('Canvas zoom')
-    const initialZoom = Number(await zoomControl.inputValue())
+    const initialZoom = Number(await zoomControl.getAttribute('data-zoom'))
     const centerX = Math.max(90, Math.min(322, canvasBox!.x + canvasBox!.width / 2))
     const centerY = Math.max(150, Math.min(650, canvasBox!.y + canvasBox!.height / 2))
     const cdp = await page.context().newCDPSession(page)
@@ -173,10 +173,10 @@ test.describe('phone workbench', () => {
     })
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
     await expect
-      .poll(async () => Number(await zoomControl.inputValue()))
+      .poll(async () => Number(await zoomControl.getAttribute('data-zoom')))
       .toBeGreaterThan(initialZoom)
 
-    const zoomedIn = Number(await zoomControl.inputValue())
+    const zoomedIn = Number(await zoomControl.getAttribute('data-zoom'))
     await cdp.send('Input.dispatchTouchEvent', {
       type: 'touchStart',
       touchPoints: [
@@ -192,7 +192,11 @@ test.describe('phone workbench', () => {
       ],
     })
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
-    await expect.poll(async () => Number(await zoomControl.inputValue())).toBeLessThan(zoomedIn)
+    await expect
+      .poll(async () => Number(await zoomControl.getAttribute('data-zoom')))
+      .toBeLessThan(zoomedIn)
+
+    await expect(zoomControl).toHaveValue('0')
 
     const railBox = await page.getByRole('navigation', { name: 'Drawing tools' }).boundingBox()
     const canvasWorkspaceBox = await page
@@ -410,7 +414,7 @@ test.describe('tablet workbench', () => {
     await expect(page.getByRole('region', { name: 'Live preview', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Keyboard shortcuts' })).toBeHidden()
     const tabsBox = await page.locator('.document-tabs').boundingBox()
-    const timelineBox = await page.getByRole('region', { name: 'Animation timeline' }).boundingBox()
+    const timelineBox = await page.getByRole('region', { name: 'Frames' }).boundingBox()
     expect(tabsBox!.y).toBeGreaterThan(timelineBox!.y)
 
     await page.getByRole('button', { name: 'Toggle layers panel' }).click()

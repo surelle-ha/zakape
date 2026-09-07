@@ -19,6 +19,7 @@ import { cloneProject, createBlankProject } from '~/utils/project'
 import { importProjectFile } from '~/utils/import'
 import { toolDefinitions } from '~/utils/commands'
 import { positiveModulo, tiledSourceTile } from '~/utils/raster'
+import { adjustCanvasZoom, MIN_CANVAS_ZOOM } from '~/utils/zoom'
 
 const {
   documents,
@@ -102,6 +103,8 @@ const closeBusy = ref(false)
 const closeError = ref('')
 const playing = useState<boolean>('preview-playing', () => true)
 const livePreviewOpen = useState<boolean>('live-preview-open', () => true)
+const zoomScrub = ref(0)
+const zoomScrubOrigin = ref(zoom.value)
 const {
   effectiveColumns: tiledColumns,
   effectiveRows: tiledRows,
@@ -120,6 +123,7 @@ const openProjectCount = computed(
 let autosaveTimer: number | null = null
 let temporaryTool: ToolId | null = null
 let unlistenWindowClose: (() => void) | null = null
+let zoomScrubbing = false
 const toolHint = computed(() => {
   if (activeTool.value === 'mirror') return 'Vertical mirror · Ctrl horizontal · Shift both axes'
   if (activeTool.value === 'dither') return 'Alternates primary and secondary colors'
@@ -149,7 +153,28 @@ const fitCanvas = async () => {
       availableHeight / (project.value.height * tiledRows.value),
     ),
   )
-  zoom.value = Math.max(4, Math.min(24, fittedZoom))
+  zoom.value = Math.max(MIN_CANVAS_ZOOM, fittedZoom)
+}
+
+const changeZoom = (steps: number) => {
+  zoom.value = adjustCanvasZoom(zoom.value, steps)
+}
+
+const beginZoomScrub = () => {
+  if (zoomScrubbing) return
+  zoomScrubOrigin.value = zoom.value
+  zoomScrubbing = true
+}
+
+const updateZoomScrub = () => {
+  if (!zoomScrubbing) beginZoomScrub()
+  zoom.value = adjustCanvasZoom(zoomScrubOrigin.value, zoomScrub.value)
+}
+
+const resetZoomScrub = () => {
+  zoomScrub.value = 0
+  zoomScrubOrigin.value = zoom.value
+  zoomScrubbing = false
 }
 
 const fitCompactCanvas = async () => {
@@ -412,12 +437,12 @@ const keydown = (event: KeyboardEvent) => {
   if (commandKey && ['n', 'o', 's'].includes(key)) return
   if (commandKey && (key === '=' || key === '+')) {
     event.preventDefault()
-    zoom.value = Math.min(24, zoom.value + 1)
+    changeZoom(1)
     return
   }
   if (commandKey && key === '-') {
     event.preventDefault()
-    zoom.value = Math.max(4, zoom.value - 1)
+    changeZoom(-1)
     return
   }
   if (commandKey && key === '0') {
@@ -534,11 +559,11 @@ const keydown = (event: KeyboardEvent) => {
   }
   if (key === '=' || key === '+') {
     event.preventDefault()
-    zoom.value = Math.min(24, zoom.value + 1)
+    changeZoom(1)
   }
   if (key === '-') {
     event.preventDefault()
-    zoom.value = Math.max(4, zoom.value - 1)
+    changeZoom(-1)
   }
 }
 
@@ -549,7 +574,7 @@ const onCanvasWheel = async (event: WheelEvent) => {
   if (!canvasElement) return
   const canvasBounds = canvasElement.getBoundingClientRect()
   const oldZoom = zoom.value
-  const nextZoom = Math.max(4, Math.min(24, oldZoom + (event.deltaY < 0 ? 1 : -1)))
+  const nextZoom = adjustCanvasZoom(oldZoom, event.deltaY < 0 ? 1 : -1)
   if (nextZoom === oldZoom) return
   const focusPixelX = Math.max(
     0,
@@ -866,11 +891,27 @@ onBeforeUnmount(() => {
               >
                 <Maximize2 :size="14" />
               </button>
-              <button type="button" aria-label="Zoom out" @click="zoom = Math.max(4, zoom - 1)">
+              <button type="button" aria-label="Zoom out" @click="changeZoom(-1)">
                 <Minus :size="14" />
               </button>
-              <input v-model.number="zoom" type="range" min="4" max="24" aria-label="Canvas zoom" />
-              <button type="button" aria-label="Zoom in" @click="zoom = Math.min(24, zoom + 1)">
+              <input
+                v-model.number="zoomScrub"
+                type="range"
+                min="-8"
+                max="8"
+                step="1"
+                aria-label="Canvas zoom"
+                :aria-valuetext="`${Math.round((zoom * 100) / 14)}%`"
+                :data-zoom="zoom"
+                @pointerdown="beginZoomScrub"
+                @pointerup="resetZoomScrub"
+                @keydown="beginZoomScrub"
+                @keyup="resetZoomScrub"
+                @input="updateZoomScrub"
+                @change="resetZoomScrub"
+                @pointercancel="resetZoomScrub"
+              />
+              <button type="button" aria-label="Zoom in" @click="changeZoom(1)">
                 <Plus :size="14" />
               </button>
               <span>{{ Math.round((zoom * 100) / 14) }}%</span>

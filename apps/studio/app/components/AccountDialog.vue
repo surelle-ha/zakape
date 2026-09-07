@@ -2,6 +2,7 @@
 import {
   Brush,
   CalendarClock,
+  CloudUpload,
   Film,
   FolderOpen,
   Layers3,
@@ -156,6 +157,16 @@ watch(
           <p v-if="errorMessage" class="account-message error" role="alert">{{ errorMessage }}</p>
 
           <footer class="profile-actions">
+            <button
+              type="button"
+              class="account-sync-action"
+              aria-label="Sync artwork to Zakape server, coming soon"
+              disabled
+            >
+              <CloudUpload :size="15" />
+              <span>Sync artwork</span>
+              <small>Coming soon</small>
+            </button>
             <button
               v-if="!account && configuration?.available"
               type="button"

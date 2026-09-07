@@ -791,17 +791,17 @@ button:disabled {
   justify-content: center;
   gap: 6px;
   padding: 0 11px;
-  border: 1px solid #bd6044;
+  border: 1px solid #c084fc;
   border-radius: 4px;
-  color: #fff8f4;
-  background: #a84e35;
+  color: #fff8ff;
+  background: #7e22ce;
   font-size: 9px;
   font-weight: 650;
   cursor: pointer;
 }
 .button-danger:hover:not(:disabled) {
-  border-color: #dc7656;
-  background: #bb583c;
+  border-color: #e9d5ff;
+  background: #9333ea;
 }
 
 .app-bar {
@@ -3007,15 +3007,15 @@ button:disabled {
 }
 .canvas-mat {
   flex: 0 0 auto;
-  padding: 18px;
-  border: 1px solid #323932;
-  background: #191522;
-  box-shadow:
-    0 18px 50px rgb(0 0 0 / 42%),
-    0 0 0 6px rgb(0 0 0 / 13%);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 .pixel-canvas {
   display: block;
+  outline: 1px solid rgb(196 181 253 / 34%);
+  outline-offset: -1px;
   background-color: #171a20;
   background-image: none;
   image-rendering: pixelated;
@@ -5981,6 +5981,7 @@ kbd {
 
 /* Godot Bridge */
 .godot-backdrop {
+  inset: 36px 0 18px;
   z-index: 760;
   padding: 16px;
   background: rgb(5 7 10 / 82%);
@@ -5990,7 +5991,7 @@ kbd {
 .godot-workspace {
   display: grid;
   width: min(1180px, calc(100vw - 32px));
-  height: min(720px, calc(100dvh - 64px));
+  height: min(720px, calc(100dvh - 86px));
   min-height: 580px;
   grid-template-rows: 58px minmax(0, 1fr) 28px;
   overflow: hidden;
@@ -7009,6 +7010,7 @@ kbd {
 
 @media (max-width: 1023px) {
   .godot-backdrop {
+    inset: 0;
     padding-top: max(16px, env(safe-area-inset-top));
     padding-right: max(16px, env(safe-area-inset-right));
     padding-bottom: max(16px, env(safe-area-inset-bottom));
@@ -7607,6 +7609,28 @@ kbd {
   border-radius: 4px;
   font-size: 9px;
   cursor: pointer;
+}
+
+.profile-actions .account-sync-action {
+  margin-right: auto;
+  border: 1px solid #46505d;
+  color: #aeb6c1;
+  background: #171b21;
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.account-sync-action small {
+  padding: 3px 4px;
+  border: 1px solid #514564;
+  border-radius: 3px;
+  color: #baa8dc;
+  background: #211a2c;
+  font:
+    6px/1 'Azeret Mono Variable',
+    monospace;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .profile-actions > small {
@@ -9028,8 +9052,10 @@ kbd {
 }
 
 .canvas-mat {
-  border-color: #353b45;
-  background: #15181d;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .home-workspace {

@@ -53,19 +53,19 @@ Every opened project gets a document tab above the project title and export bar 
 
 The first project opened on a device presents a four-step editor tour. It explains tools and their shortcuts, independent layers, timeline operations, and the optional assistant drawer. The completed state is stored as a non-secret local preference. Use Help to show the guided tour again, open the complete desktop keyboard command map, copy a privacy-safe system-information block, report a bug, suggest a feature, or support development. Keyboard shortcuts remain a desktop-only Help item and keep the `?` shortcut.
 
-The application close control and the operating system's native close request use the same guarded flow. Zakape lists how many projects will be saved and only exits after explicit confirmation. Canceling returns focus to the control that opened the dialog.
+The application close control and the operating system's native close request use the same guarded flow. Zakape lists how many projects will be saved and only exits after explicit confirmation. Canceling returns focus to the control that opened the dialog. The Studio Profile drawer previews artwork sync to the Zakape server as a disabled **Coming soon** action; projects remain local and no upload is attempted.
 
 ## Timeline order
 
 Drag any frame directly into a new playback sequence. On touch screens, press and hold a frame for 400 ms, then drag it. A violet insertion line shows whether the frame will land before or after its target. The frame menu also exposes **Move frame left** and **Move frame right**; use **Ctrl+Left Arrow** or **Ctrl+Right Arrow** to move the active frame directly. Reordering keeps each frame's cel data and duration attached to its frame ID and creates one undo checkpoint.
 
-Use the arrow beside **Timeline** to collapse the frame strip when the canvas needs more room. Open a frame's action menu to set its delay from 40 to 10,000 milliseconds. Timing stays attached to the frame when it is rearranged, copied, saved, or exported.
+Use the arrow beside **Frames** to collapse the frame strip when the canvas needs more room. Open a frame's action menu to set its delay from 40 to 10,000 milliseconds. Timing stays attached to the frame when it is rearranged, copied, saved, or exported.
 
 ## Canvas palette, preview, and layers
 
 The compact strip below the canvas shows the active project's color blocks instead of implementation-oriented cel status. Choosing a block makes it the primary drawing color. The color-mode and sRGB readout stays at the opposite edge on larger screens.
 
-Live Preview floats over the canvas, so it remains visible on phones without opening another panel. **View** is the single home for Onion skin, Live view, Pixel grid, and Transparency checkerboard on desktop and touch layouts; these commands are disabled while Home is active and retain their state when returning to a document. The canvas toolbar is reserved for fitting and zooming. The preview itself contains only playback and canvas information; per-frame delay belongs to each frame's context menu. Layers and the optional Assistant live in matching hideable drawers on desktop, tablet, and phone. The desktop drawer leaves the rest of the editor interactive; touch layouts use a dismissible scrim. These surfaces and the Timeline use neutral charcoal glass with a restrained violet edge, leaving the accent for active controls and selection.
+Live Preview floats over the canvas, so it remains visible on phones without opening another panel. **View** is the single home for Onion skin, Live view, Pixel grid, and Transparency checkerboard on desktop and touch layouts; these commands are disabled while Home is active and retain their state when returning to a document. The canvas toolbar is reserved for fitting and zooming. The preview itself contains only playback and canvas information; per-frame delay belongs to each frame's context menu. Layers and the optional Assistant live in matching hideable drawers on desktop, tablet, and phone. The desktop drawer leaves the rest of the editor interactive; touch layouts use a dismissible scrim. These surfaces and the Frames panel use neutral charcoal glass with a restrained violet edge, leaving the accent for active controls and selection.
 
 The standard animation term **onion skin** labels the previous-frame drawing guide throughout the interface and keyboard guide.
 

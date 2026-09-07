@@ -39,6 +39,9 @@ jobs:
           APPLE_SIGNING_IDENTITY: '-'
           ZAKAPE_GOOGLE_DESKTOP_CLIENT_ID: ${{ vars.ZAKAPE_GOOGLE_DESKTOP_CLIENT_ID }}
           ZAKAPE_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.ZAKAPE_GOOGLE_DESKTOP_CLIENT_SECRET }}
+          ZAKAPE_BUILD_SHA: ${{ github.sha }}
+          ZAKAPE_RELEASE_CHANNEL: testing
+          ZAKAPE_BUILD_TYPE: unnotarized
         run: >-
           pnpm --filter @zakape/studio tauri build
           --features google-auth

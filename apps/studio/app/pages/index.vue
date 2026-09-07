@@ -4,7 +4,6 @@ import {
   ChevronDown,
   Download,
   FileUp,
-  Keyboard,
   Layers3,
   Maximize2,
   Minus,
@@ -777,19 +776,6 @@ onBeforeUnmount(() => {
           >
             <Check v-if="persistenceState === 'saved'" :size="16" />
             <Save v-else :size="16" />
-          </button>
-          <button
-            v-tooltip="{
-              text: 'Keyboard shortcuts',
-              detail: 'View every drawing and editor command.',
-              shortcut: '?',
-            }"
-            type="button"
-            class="icon-button phone-optional keyboard-shortcut-launch"
-            aria-label="Keyboard shortcuts"
-            @click="showShortcutGuide"
-          >
-            <Keyboard :size="16" />
           </button>
           <button
             v-tooltip="{

@@ -18,6 +18,12 @@ Core drawing, animation, project storage, and export features work offline. Andr
 
 Desktop builds may contact the public GitHub release endpoint to check for signed application updates. The Android build does not include the desktop updater. The Zakape website is static and does not include analytics or advertising code.
 
+## Help diagnostics and support links
+
+**Help → Copy System Info** runs only when you choose it. It creates a plain-text summary with the Zakape version, build identifier, release type, operating-system family/version, architecture, locale, and a generic rendering-engine label, then writes it to your clipboard. It is not stored, logged, uploaded, or attached to an issue automatically. The summary never includes your name, hostname, device ID, IP address, paths, projects, account, model settings, prompts, tokens, or credentials.
+
+**Report a Bug**, **Suggest a Feature**, and **Support Zakape Development** open the maintained GitHub issue forms or Ko-fi in your system browser. Zakape does not pre-fill or submit an issue, and a failed browser launch does not interrupt artwork or project state.
+
 ## Contact
 
 Privacy questions can be opened in the public [Zakape issue tracker](https://github.com/surelle-ha/zakape/issues). Do not include private project content, credentials, or personal information in a public issue.

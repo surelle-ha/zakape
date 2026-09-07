@@ -35,6 +35,9 @@ sha2 = { version = "0.11", optional = true }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
+tauri-plugin-clipboard-manager = "2.3.3"
+tauri-plugin-opener = "2.5.5"
+tauri-plugin-os = "2.3.2"
 
 [profile.dev.package.ah-asefile]
 opt-level = 2

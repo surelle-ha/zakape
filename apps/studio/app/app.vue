@@ -38,6 +38,7 @@ onBeforeUnmount(() => {
     </div>
     <AppStatusBar v-if="accountReady && !authenticationRequired" />
     <AppUpdateDialog />
+    <ActionNotice />
     <AppSplash :visible="splashVisible" />
   </div>
 </template>

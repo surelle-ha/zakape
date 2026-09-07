@@ -80,6 +80,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:android:debug
+        env:
+          ZAKAPE_BUILD_SHA: ${{ github.sha }}
+          ZAKAPE_RELEASE_CHANNEL: development
+          ZAKAPE_BUILD_TYPE: debug
       - name: Verify Android package
         id: apk
         shell: bash
@@ -151,6 +155,10 @@ jobs:
             echo "keyPassword=$ANDROID_KEY_PASSWORD"
           } > "$android_dir/keystore.properties"
       - run: pnpm build:android:bundle
+        env:
+          ZAKAPE_BUILD_SHA: ${{ github.sha }}
+          ZAKAPE_RELEASE_CHANNEL: stable
+          ZAKAPE_BUILD_TYPE: release
       - name: Verify release bundle
         id: bundle
         shell: bash

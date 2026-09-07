@@ -14,3 +14,8 @@
 - Google login is desktop-only until a separate mobile authentication design is approved.
 - Godot integration performs explicit user-initiated imports and publishes; it does not mutate scenes or background-sync projects.
 - Unsigned macOS artifacts are testing-only and excluded from automatic updates and trusted releases.
+
+## Support diagnostics
+
+- Help diagnostics are explicit, local-only clipboard output: version, build/release metadata, OS family/version, architecture, locale, and a generic rendering-engine label only.
+- Fixed issue and funding URLs are opened through a Rust destination enum rather than a frontend URL permission; this keeps the native opener from accepting arbitrary web or file targets.

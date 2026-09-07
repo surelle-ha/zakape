@@ -292,6 +292,80 @@ button:disabled {
   margin: 4px 3px;
   background: var(--line);
 }
+.action-notice {
+  position: fixed;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 500;
+  display: flex;
+  min-height: 36px;
+  max-width: min(390px, calc(100vw - 28px));
+  align-items: center;
+  gap: 8px;
+  padding: 8px 9px 8px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgb(23 20 31 / 96%);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 38%);
+  backdrop-filter: blur(16px);
+  font-size: 10px;
+}
+.action-notice.success > svg {
+  color: var(--mint-strong);
+}
+.action-notice.error {
+  border-color: #b65678;
+}
+.action-notice.error > span {
+  color: #ffd0df;
+}
+.action-notice > span {
+  min-width: 0;
+  flex: 1;
+}
+.action-notice button {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.action-notice button:first-of-type:not(:last-child) {
+  padding: 0 6px;
+  color: var(--mint-strong);
+  background: rgb(139 92 246 / 14%);
+}
+.action-notice button:last-child {
+  width: 26px;
+  justify-content: center;
+}
+.action-notice button:hover,
+.action-notice button:focus-visible {
+  outline: 1px solid var(--mint-strong);
+  outline-offset: 1px;
+  background: rgb(139 92 246 / 18%);
+}
+.action-notice button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.action-notice-enter-active,
+.action-notice-leave-active {
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+}
+.action-notice-enter-from,
+.action-notice-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
 .menu-icon-space {
   width: 13px;
 }
@@ -8847,7 +8921,6 @@ kbd {
 @media (hover: none) and (pointer: coarse) {
   .tool-button > span,
   kbd,
-  .keyboard-shortcut-launch,
   .shortcut-backdrop {
     display: none !important;
   }
@@ -8862,6 +8935,13 @@ kbd {
     height: 15px;
     opacity: 1;
     background: rgb(17 8 28 / 72%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action-notice-enter-active,
+  .action-notice-leave-active {
+    transition: none;
   }
 }
 

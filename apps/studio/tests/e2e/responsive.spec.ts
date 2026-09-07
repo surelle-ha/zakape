@@ -108,6 +108,15 @@ test.describe('phone workbench', () => {
       'aria-expanded',
       'false',
     )
+    await expect(applicationMenu.getByRole('menuitem', { name: 'Copy System Info' })).toBeVisible()
+    await expect(applicationMenu.getByRole('menuitem', { name: 'Report a Bug' })).toBeVisible()
+    await expect(applicationMenu.getByRole('menuitem', { name: 'Suggest a Feature' })).toBeVisible()
+    await expect(
+      applicationMenu.getByRole('menuitem', { name: 'Support Zakape Development' }),
+    ).toBeVisible()
+    await expect(applicationMenu.getByRole('menuitem', { name: 'Keyboard shortcuts' })).toHaveCount(
+      0,
+    )
     await page.keyboard.press('Escape')
     await expect(applicationMenu).toBeHidden()
 

@@ -1,9 +1,11 @@
 import tailwindcss from '@tailwindcss/vite'
 import { readFileSync } from 'node:fs'
+import { resolveBuildMetadata } from './build/metadata'
 
 const studioPackage = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
 ) as { version: string }
+const buildMetadata = resolveBuildMetadata()
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-31',
@@ -20,6 +22,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       appVersion: studioPackage.version,
+      ...buildMetadata,
     },
   },
   vite: {

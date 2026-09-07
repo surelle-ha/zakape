@@ -180,6 +180,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           ZAKAPE_GOOGLE_DESKTOP_CLIENT_ID: ${{ vars.ZAKAPE_GOOGLE_DESKTOP_CLIENT_ID }}
           ZAKAPE_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.ZAKAPE_GOOGLE_DESKTOP_CLIENT_SECRET }}
+          ZAKAPE_BUILD_SHA: ${{ needs.release.outputs.build_ref }}
+          ZAKAPE_RELEASE_CHANNEL: stable
+          ZAKAPE_BUILD_TYPE: release
         with:
           projectPath: apps/studio
           releaseId: ${{ needs.release.outputs.release_id }}
@@ -247,6 +250,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:android:debug
+        env:
+          ZAKAPE_BUILD_SHA: ${{ needs.release.outputs.build_ref }}
+          ZAKAPE_RELEASE_CHANNEL: stable
+          ZAKAPE_BUILD_TYPE: debug
       - name: Verify Android package
         id: apk
         shell: bash

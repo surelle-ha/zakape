@@ -221,6 +221,51 @@ test('shows local account status and exposes desktop update controls', async ({ 
   await expect(page.getByRole('dialog', { name: 'Zakape' })).toContainText('surelle-ha')
 })
 
+test('keeps support and diagnostics actions in Help without changing the workspace', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => {
+          ;(window as Window & { __copiedSystemInfo?: string }).__copiedSystemInfo = text
+        },
+      },
+    })
+    window.open = ((...arguments_: [string, string, string]) => {
+      ;(window as Window & { __openedSupportUrl?: string }).__openedSupportUrl = arguments_[0]
+      return {} as Window
+    }) as typeof window.open
+  })
+
+  await page.getByRole('button', { name: 'Help' }).click()
+  const help = page.getByRole('menu')
+  await expect(help.getByRole('menuitem', { name: 'Copy System Info' })).toBeVisible()
+  await expect(help.getByRole('menuitem', { name: 'Report a Bug' })).toBeVisible()
+  await expect(help.getByRole('menuitem', { name: 'Suggest a Feature' })).toBeVisible()
+  await expect(help.getByRole('menuitem', { name: 'Support Zakape Development' })).toBeVisible()
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'help-support-menu.png') })
+  await expect(page.getByRole('button', { name: 'Keyboard shortcuts' })).toHaveCount(0)
+  await help.getByRole('menuitem', { name: 'Copy System Info' }).click()
+  await expect(page.getByRole('status')).toContainText('System information copied')
+  await page.screenshot({ path: resolve(snapshotDirectory, 'system-info-notice.png') })
+  expect(
+    await page.evaluate(
+      () => (window as Window & { __copiedSystemInfo?: string }).__copiedSystemInfo,
+    ),
+  ).toContain('Zakape system information')
+
+  await page.getByRole('button', { name: 'Help' }).click()
+  await page.getByRole('menuitem', { name: 'Report a Bug' }).click()
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as Window & { __openedSupportUrl?: string }).__openedSupportUrl),
+    )
+    .toBe('https://github.com/surelle-ha/zakape/issues/new?template=bug.yml')
+})
+
 test('keeps an indismissable Home tab with recent work and release notes', async ({ page }) => {
   const homeTab = page.getByRole('tab', { name: 'Home', exact: true })
   await expect(homeTab).toHaveAttribute('aria-selected', 'true')

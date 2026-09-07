@@ -3,6 +3,7 @@ import {
   Check,
   ChevronDown,
   CircleHelp,
+  ClipboardCheck,
   Cloud,
   Eye,
   FolderOpen,
@@ -18,6 +19,9 @@ import {
   RefreshCw,
   RotateCcw,
   Save,
+  HeartHandshake,
+  Lightbulb,
+  Bug,
   Undo2,
 } from '@lucide/vue'
 import type { Ref } from 'vue'
@@ -48,6 +52,7 @@ const { project, canRedo, canUndo, onionSkin, redo, showGrid, showTransparency, 
 const { saveProject, workspaceDirectory } = useProjectRepository()
 const { checkForUpdates, currentVersion, status: updateStatus } = useAppUpdater()
 const { dialogOpen: accountDialogOpen } = useGoogleAccount()
+const { busy: systemInfoBusy, copySystemInfo, openSupportDestination } = useSystemInfo()
 const win = useAppWindow()
 const livePreviewOpen = useState<boolean>('live-preview-open', () => true)
 const {
@@ -209,6 +214,28 @@ const groups = computed<{ id: GroupId; label: string; commands: Command[] }[]>((
         run: showShortcutGuide,
       },
       {
+        id: 'copy-system-info',
+        label: systemInfoBusy.value ? 'Copying system info…' : 'Copy System Info',
+        icon: ClipboardCheck,
+        separatorBefore: true,
+        disabled: () => systemInfoBusy.value,
+        run: copySystemInfo,
+      },
+      {
+        id: 'report-bug',
+        label: 'Report a Bug',
+        icon: Bug,
+        disabled: () => systemInfoBusy.value,
+        run: () => openSupportDestination('bug'),
+      },
+      {
+        id: 'suggest-feature',
+        label: 'Suggest a Feature',
+        icon: Lightbulb,
+        disabled: () => systemInfoBusy.value,
+        run: () => openSupportDestination('feature'),
+      },
+      {
         id: 'account',
         label: 'Account',
         icon: Cloud,
@@ -223,6 +250,14 @@ const groups = computed<{ id: GroupId; label: string; commands: Command[] }[]>((
         run: () => checkForUpdates(true),
       },
       { id: 'about', label: 'About Zakape', icon: Info, run: openAbout },
+      {
+        id: 'support',
+        label: 'Support Zakape Development',
+        icon: HeartHandshake,
+        separatorBefore: true,
+        disabled: () => systemInfoBusy.value,
+        run: () => openSupportDestination('support'),
+      },
     ],
   },
 ])

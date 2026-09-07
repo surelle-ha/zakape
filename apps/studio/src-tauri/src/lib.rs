@@ -12,6 +12,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Manager};
+use tauri_plugin_opener::OpenerExt;
 
 #[cfg(all(feature = "google-auth", desktop))]
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -2345,6 +2346,19 @@ async fn ollama_chat(
     Ok(payload.message.content)
 }
 
+#[tauri::command]
+fn open_support_url(app: AppHandle, destination: String) -> Result<(), String> {
+    let url = match destination.as_str() {
+        "bug" => "https://github.com/surelle-ha/zakape/issues/new?template=bug.yml",
+        "feature" => "https://github.com/surelle-ha/zakape/issues/new?template=feature.yml",
+        "support" => "https://ko-fi.com/surelle",
+        _ => return Err("That support destination is not available.".to_string()),
+    };
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|_| "Zakape could not open the system browser.".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -2358,7 +2372,10 @@ pub fn run() {
     }));
     let builder = builder
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init());
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_opener::init());
     #[cfg(desktop)]
     let builder = builder
         .plugin(tauri_plugin_process::init())
@@ -2367,6 +2384,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             ollama_list_models,
             ollama_chat,
+            open_support_url,
             codex_cli_status,
             codex_cli_chat,
             workspace_directory,

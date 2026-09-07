@@ -3,10 +3,10 @@
   "id": "HELP-JYZY",
   "title": "Support and system information commands",
   "area": "HELP",
-  "status": "planned",
+  "status": "completed",
   "summary": "Expand Help with privacy-safe system diagnostics, direct issue and feature reporting, development support, and a single menu-only keyboard shortcut entry.",
   "createdAt": "2026-09-07T07:54:44.399Z",
-  "updatedAt": "2026-09-07T08:22:48.368Z",
+  "updatedAt": "2026-09-07T09:16:21.836Z",
   "clarification": {
     "questions": [
       {
@@ -101,6 +101,8 @@
     "Run desktop, phone, and tablet accessibility and visual QA for menu containment, notices, focus, touch targets, safe areas, and reduced motion; retain reviewed product snapshots.",
     "Run studio lint, typecheck, unit tests, static build, focused/full Playwright, Rust format/clippy/check, Android/release workflow checks where available, spec validation, Prettier, and git diff checks."
   ],
-  "validationEvidence": [],
+  "validationEvidence": [
+    "Passed studio lint, typecheck, 54 Vitest unit tests, focused desktop and phone Playwright Help journeys, production Nuxt generation, cargo check, cargo fmt --check, cargo clippy -D warnings, spec validation, and git diff --check. Reviewed docs/ui-snapshots/help-support-menu.png and system-info-notice.png. Root Prettier reports pre-existing unrelated files; all HELP-JYZY files were formatted."
+  ],
   "overrides": []
 }

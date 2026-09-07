@@ -37,6 +37,8 @@ Reviewed 4 September 2026 at 1440 px desktop width:
 - `docs/ui-snapshots/studio-workbench.png`
 - `docs/ui-snapshots/first-project-walkthrough.png`
 - `docs/ui-snapshots/shortcut-guide.png`
+- `docs/ui-snapshots/help-support-menu.png`
+- `docs/ui-snapshots/system-info-notice.png`
 - `docs/ui-snapshots/custom-tool-tooltip.png`
 - `docs/ui-snapshots/custom-color-picker.png`
 - `docs/ui-snapshots/workspace-home-tab.png`
@@ -88,6 +90,7 @@ The Playwright baselines live beside the end-to-end tests so CI can detect unint
 - The 4.8-second branded splash remains stable while Anime.js sequences its short entrance; Motion surface entrances do not block controls, and animation is disabled when reduced motion is requested.
 - New layers begin with transparent, independent cels; visibility affects only the chosen layer; inline rename preserves pixels and frame buffers.
 - The first-project tour can be completed or skipped, and both the tour and command map remain available from Help.
+- Help exposes Copy System Info, Report a Bug, Suggest a Feature, and Support Zakape Development in desktop and touch menus. Copy produces only the approved local diagnostic fields; success and retryable clipboard/browser failures appear as one accessible, non-blocking notice.
 - Current-frame proposals cannot edit reference frames; entire-sheet proposals report every affected frame and apply as one undo checkpoint. The model reviews its in-memory rendered output at least once and no more than twice before handoff, and validated project actions create only safe frames and fresh layers.
 - API keys never appear in saved preferences or project exports.
 - PNG, sprite sheet + JSON, GIF, and `.zakape` downloads open in ordinary tools.

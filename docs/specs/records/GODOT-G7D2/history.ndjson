@@ -1,0 +1,2 @@
+{"at":"2026-09-05T16:35:38.000Z","specId":"GODOT-G7D2","event":"historical_delivery_imported","from":null,"to":"completed","note":"Imported from commit 56785972bbde8c9c9ffb9e1e4da95d7c4c25ec25 after the specification system was introduced.","commit":"56785972bbd"}
+{"at":"2026-09-06T12:20:58.000Z","specId":"GODOT-G7D2","event":"post_delivery_fix_imported","from":"completed","to":"completed","note":"Resource browsing and updater behavior repaired in e05913c97d161376d64c238f917c50e308796c65.","commit":"e05913c97d16"}

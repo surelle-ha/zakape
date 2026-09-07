@@ -26,6 +26,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm spec:test
+      - run: pnpm spec:validate
       - run: pnpm check:fdroid
       - run: pnpm build
 

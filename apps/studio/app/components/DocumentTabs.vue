@@ -41,6 +41,7 @@ onBeforeUnmount(() => window.removeEventListener('pointerdown', closeContextMenu
 
 <template>
   <div class="document-tabs" role="tablist" aria-label="Open sprite documents">
+    <ApplicationMenu variant="touch" />
     <button
       v-tooltip="{
         text: 'Home',

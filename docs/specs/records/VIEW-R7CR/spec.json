@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "id": "VIEW-R7CR",
+  "title": "Centralize canvas views in the View menu",
+  "area": "VIEW",
+  "status": "completed",
+  "summary": "Centralize canvas display commands in the desktop View menu and a phone-and-tablet Menu tab while removing redundant toggles from beside the zoom controls.",
+  "createdAt": "2026-09-07T02:48:16.494Z",
+  "updatedAt": "2026-09-07T03:32:15.362Z",
+  "clarification": {
+    "questions": [
+      {
+        "question": "Does the current View menu already share state with the canvas display controls?",
+        "answer": "Pixel grid and Onion skin share editor state, while Live view is a page-level useState and Transparency checkerboard is editor state not currently exposed by the menu.",
+        "decision": "Menu actions must use the existing shared state keys so checkmarks, keyboard shortcuts, the canvas, and Live Preview panel remain synchronized."
+      },
+      {
+        "question": "Does this work depend on another unfinished specification?",
+        "answer": "No pending specifications exist; the relevant controls were delivered in existing workspace commits.",
+        "decision": "Record no spec dependency and treat the existing editor and title-bar contracts as code dependencies."
+      },
+      {
+        "question": "Which display controls should be removed from beside the zoom controls?",
+        "answer": "All four: Onion skin, Live view, Pixel grid, and Transparency checkerboard.",
+        "decision": "Leave only fit and zoom controls in the canvas zoom toolbar; move all visible display-mode access into platform menus."
+      },
+      {
+        "question": "How should phone and tablet users access application menus when the desktop title bar is hidden?",
+        "answer": "Add a Menu dropdown before Home in the bottom tab pane, with File, Edit, View, and Help as categories containing their equivalent child items.",
+        "decision": "Add a touch-oriented nested Menu tab on phone and tablet, mirror desktop menu actions and availability, and keep it hidden on desktop."
+      },
+      {
+        "question": "Should keyboard shortcuts remain after removing the canvas display buttons?",
+        "answer": "Yes.",
+        "decision": "Preserve O, V, G, and Shift+G and keep their effects synchronized with menu check states."
+      },
+      {
+        "question": "How should display actions behave while the Home tab is active?",
+        "answer": "Disable them.",
+        "decision": "Show the View children consistently but disable canvas-specific actions whenever no editor workspace is active, without resetting state."
+      }
+    ],
+    "openQuestions": []
+  },
+  "dependencies": [],
+  "affectedFiles": [
+    "apps/studio/app/components/ApplicationMenu.vue",
+    "apps/studio/app/components/AppTitleBar.vue",
+    "apps/studio/app/components/DocumentTabs.vue",
+    "apps/studio/app/pages/index.vue",
+    "apps/studio/app/assets/css/main.css",
+    "apps/studio/tests/e2e/studio.spec.ts",
+    "apps/studio/tests/e2e/responsive.spec.ts",
+    "apps/studio/tests/e2e/studio.spec.ts-snapshots/studio-workbench.png",
+    "apps/studio/tests/e2e/responsive.spec.ts-snapshots/phone-workbench.png",
+    "apps/studio/tests/e2e/responsive.spec.ts-snapshots/tablet-workbench.png",
+    "docs/project-workspace.md",
+    "docs/qa.md",
+    "docs/ui-snapshots/studio-workbench.png"
+  ],
+  "risks": [
+    "Duplicating desktop and touch command handlers could make labels, disabled states, or outcomes diverge over time.",
+    "Removing the four canvas buttons before the mobile menu is reachable could strand touch users without display controls.",
+    "A bottom-anchored nested menu could overflow narrow, landscape, safe-area, or on-screen-keyboard viewports or obscure document tabs.",
+    "View commands could mutate presentation while Home is active or accidentally dirty project history.",
+    "Refactoring title-bar menu ownership could regress global shortcuts, About focus restoration, outside-click dismissal, or native window commands.",
+    "The new Menu tab consumes scarce horizontal space and could reduce access to document tabs on narrow phones."
+  ],
+  "validation": [
+    "Add desktop Playwright coverage for all four View menu checkbox states, Home disabling, shortcut synchronization, and the zoom-only toolbar.",
+    "Add phone and tablet Playwright coverage for Menu placement before Home, nested File/Edit/View/Help behavior, touch toggles, disabled Home actions, dismissal, and absence of canvas display buttons.",
+    "Capture and inspect updated desktop, phone, and tablet snapshots for menu overflow, tab compression, safe-area placement, focus, and canvas space.",
+    "Run studio lint, type checking, unit tests, focused Playwright tests, production build, spec validation, formatting checks on touched files, and git diff checks.",
+    "Manually verify that view changes do not increment editor dirty state and that unsupported mobile actions preserve their existing safe behavior."
+  ],
+  "validationEvidence": [
+    "Implemented one shared typed desktop/touch application-menu command model; added all four View commands with Home disabling and shortcut synchronization; removed canvas-toolbar duplicates; added touch Menu before Home with safe-area bounds and dismissal behavior. Studio lint, Nuxt typecheck, 44 unit tests, static build, focused desktop/phone interaction tests, and the full 36-test Playwright suite passed. Reviewed desktop, 412x839 phone, and 820x1180 tablet snapshots; updated the intended desktop workbench baseline and synchronized workspace/QA documentation."
+  ],
+  "overrides": []
+}

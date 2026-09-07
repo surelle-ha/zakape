@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "idPattern": "^[A-Z][A-Z0-9]{1,7}-[A-HJKMNP-TV-Z2-9]{4}$",
+  "statuses": [
+    "clarifying",
+    "specified",
+    "planning",
+    "planned",
+    "in_progress",
+    "blocked",
+    "completed",
+    "cancelled"
+  ],
+  "dependencyTypes": ["critical", "advisory"],
+  "recordsDirectory": "docs/specs/records",
+  "memoryDirectory": "docs/project-memory"
+}

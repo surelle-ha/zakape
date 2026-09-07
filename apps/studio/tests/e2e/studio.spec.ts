@@ -94,6 +94,53 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
+test('centralizes canvas display controls in View without changing document dirtiness', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  const homeViews = page.getByRole('menuitemcheckbox')
+  await expect(homeViews).toHaveCount(4)
+  for (const label of ['Onion skin', 'Live view', 'Pixel grid', 'Transparency checkerboard']) {
+    await expect(page.getByRole('menuitemcheckbox', { name: new RegExp(label) })).toBeDisabled()
+  }
+
+  await enterEditor(page, { name: 'View menu study' })
+  const saveState = page.locator('.save-state')
+  const initialSaveState = await saveState.textContent()
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  await expect(page.getByRole('menuitemcheckbox')).toHaveCount(4)
+  for (const label of ['Onion skin', 'Live view', 'Pixel grid', 'Transparency checkerboard']) {
+    await expect(page.getByRole('menuitemcheckbox', { name: new RegExp(label) })).toBeEnabled()
+  }
+  await expect(
+    page.getByRole('button', {
+      name: /Toggle (onion skin|live view|pixel grid|transparency checkerboard)/i,
+    }),
+  ).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('o')
+  await page.keyboard.press('v')
+  await page.keyboard.press('g')
+  await page.keyboard.press('Shift+g')
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  await expect(page.getByRole('menuitemcheckbox', { name: /Onion skin/ })).toHaveAttribute(
+    'aria-checked',
+    'false',
+  )
+  await expect(page.getByRole('menuitemcheckbox', { name: /Live view/ })).toHaveAttribute(
+    'aria-checked',
+    'false',
+  )
+  await expect(page.getByRole('menuitemcheckbox', { name: /Pixel grid/ })).toHaveAttribute(
+    'aria-checked',
+    'false',
+  )
+  await expect(
+    page.getByRole('menuitemcheckbox', { name: /Transparency checkerboard/ }),
+  ).toHaveAttribute('aria-checked', 'false')
+  await expect(saveState).toHaveText(initialSaveState ?? '')
+})
+
 test('shows local account status and exposes desktop update controls', async ({ page }) => {
   const statusbar = page.getByRole('contentinfo', { name: 'Application status' })
   await expect(statusbar).toBeVisible()
@@ -405,8 +452,9 @@ test('creates a named custom-size sprite from the modal launcher', async ({ page
   await expect(page.getByText('48×24', { exact: true })).toBeVisible()
   await expect(page.locator('.canvas-status')).toContainText('GRAYSCALE')
   await expect(page.locator('.frame-item')).toHaveCount(1)
-  await expect(page.getByRole('button', { name: 'Toggle onion skin' })).toHaveAttribute(
-    'aria-pressed',
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  await expect(page.getByRole('menuitemcheckbox', { name: /Onion skin/ })).toHaveAttribute(
+    'aria-checked',
     'true',
   )
   expect((await page.locator('.timeline').boundingBox())!.height).toBeLessThanOrEqual(146)
@@ -787,10 +835,15 @@ test('owns frame creation, copying, deletion, and onion skin in each frame menu'
   await mkdir(snapshotDirectory, { recursive: true })
   await page.screenshot({ path: resolve(snapshotDirectory, 'frame-actions-onion-skin.png') })
   await page.keyboard.press('Escape')
-  const onionSkin = page.getByRole('button', { name: 'Toggle onion skin' })
-  await expect(onionSkin).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  const onionSkin = page.getByRole('menuitemcheckbox', { name: /Onion skin/ })
+  await expect(onionSkin).toHaveAttribute('aria-checked', 'true')
   await onionSkin.click()
-  await expect(onionSkin).toHaveAttribute('aria-pressed', 'false')
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  await expect(page.getByRole('menuitemcheckbox', { name: /Onion skin/ })).toHaveAttribute(
+    'aria-checked',
+    'false',
+  )
   const withoutSilhouette = await canvas.evaluate((element: HTMLCanvasElement) =>
     element.toDataURL(),
   )
@@ -813,10 +866,13 @@ test('toggles Live View and edits frame delay from the frame context menu', asyn
   await expect(
     page.getByRole('spinbutton', { name: 'Active frame delay in milliseconds' }),
   ).toHaveCount(0)
-  const liveViewToggle = page.getByRole('button', { name: 'Toggle live view' })
-  await expect(liveViewToggle).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  let liveViewToggle = page.getByRole('menuitemcheckbox', { name: /Live view/ })
+  await expect(liveViewToggle).toHaveAttribute('aria-checked', 'true')
   await liveViewToggle.click()
   await expect(page.getByRole('region', { name: 'Live preview', exact: true })).toBeHidden()
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  liveViewToggle = page.getByRole('menuitemcheckbox', { name: /Live view/ })
   await liveViewToggle.click()
   await expect(page.getByRole('region', { name: 'Live preview', exact: true })).toBeVisible()
   await openFrameActions(page)
@@ -880,14 +936,18 @@ test('zooms toward the pointer, scales the work grid, and pans with the hand too
   await enterEditor(page, { width: 64, height: 64 })
   const zoomInput = page.getByLabel('Canvas zoom')
   const scrollHost = page.locator('.canvas-scroll')
-  const gridToggle = page.getByRole('button', { name: 'Toggle pixel grid' })
-  const transparencyToggle = page.getByRole('button', {
-    name: 'Toggle transparency checkerboard',
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  const gridToggle = page.getByRole('menuitemcheckbox', { name: /Pixel grid/ })
+  const transparencyToggle = page.getByRole('menuitemcheckbox', {
+    name: /Transparency checkerboard/,
   })
-  await expect(gridToggle).toHaveAttribute('aria-pressed', 'true')
-  await expect(transparencyToggle).toHaveAttribute('aria-pressed', 'true')
+  await expect(gridToggle).toHaveAttribute('aria-checked', 'true')
+  await expect(transparencyToggle).toHaveAttribute('aria-checked', 'true')
   await transparencyToggle.click()
-  await expect(transparencyToggle).toHaveAttribute('aria-pressed', 'false')
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  await expect(
+    page.getByRole('menuitemcheckbox', { name: /Transparency checkerboard/ }),
+  ).toHaveAttribute('aria-checked', 'false')
   await expect(scrollHost).toHaveCSS('background-size', '14px 14px, 14px 14px')
   await zoomInput.fill('20')
   await expect(scrollHost).toHaveCSS('background-size', '20px 20px, 20px 20px')

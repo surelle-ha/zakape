@@ -1,9 +1,17 @@
 # CANVAS-KG4B tasks
 
-Tasks must be dependency-ordered, independently verifiable, and linked to acceptance criteria. Use `[P]` only when work can safely proceed in parallel.
+Tasks are dependency-ordered; `[P]` tasks may run in parallel only after their prerequisites are complete.
 
-- [ ] T01 — Confirm affected contracts and baseline tests. (AC-1)
-- [ ] T02 — Implement the smallest end-to-end functional slice. (AC-1)
-- [ ] T03 — Add regression and failure-path coverage. (AC-1)
-- [ ] T04 — Update durable documentation and project memory where contracts changed. (AC-1)
-- [ ] T05 — Run the planned validation and record evidence in `spec.json`. (AC-1)
+- [ ] T01 — Capture the normal-mode baseline and add failing unit/E2E assertions for the 3×3 surface, View commands, Shift+T conflict handling, seam mapping, source-only selection, persistence neutrality, source-sized export, responsive layout, and 120×120 render/mutation counts. (AC-1, AC-2, AC-3, AC-4, AC-6, AC-8, AC-9, AC-10)
+- [ ] T02 — Add typed pure raster/layout helpers for positive modulo, effective grid and designated source-tile calculation, display-to-wrapped-source mapping, brush expansion, sample deduplication, and edge/corner-spanning shapes; unit-test negative, non-square, odd/even, and 2–9-axis cases. (AC-2, AC-3, AC-4, AC-7)
+- [ ] T03 — Add `useTiledMode.ts` with safe 3×3 defaults, 2–9 validation, upper-left central source selection for even axes, versioned device-preference hydration/persistence, and state/dialog actions that never touch project data or dirty revision. (AC-1, AC-7, AC-8)
+- [ ] T04 — Extend `useEditor.ts` with bounded exact-sample writes and a one-checkpoint atomic raster commit; route wrapped brush, mirror, dither, and shape samples through compact pixel history without per-tile replay while preserving normal-mode undo/cancel behavior. (AC-3, AC-4, AC-5, AC-10)
+- [ ] T05 — Refactor rendering to compose one complete zoomed presentation tile per scheduled frame and blit it across one physical repeated canvas, including checkerboard, opacity, onion skin, grid, source outline, wrapped preview/cursor, cache reuse, and no per-copy pixel traversal. (AC-2, AC-3, AC-5, AC-10)
+- [ ] T06 — Refactor pointer/touch input to retain unbounded display coordinates, wrap supported tools and seam-crossing previews/commits to source samples, keep fill/picker seeds bounded, and preserve right-click secondary color, cancellation, pinch, and hand panning. (AC-3, AC-4, AC-5, AC-8, AC-9, AC-10)
+- [ ] T07 — Translate selection overlays/hit testing into the source tile, allow box/lasso create/move/resize/rotate only there, expose unavailable feedback elsewhere, and preserve 1×1 selection behavior. (AC-6, AC-9)
+- [ ] T08 — Add shared desktop/touch View commands, editor-only Shift+T in the existing listener, preference lifecycle, and repeated-surface fit/wheel/pinch/layout-change focus handling. (AC-1, AC-7, AC-8, AC-9)
+- [ ] T09 — Build `TiledModeDialog.vue` with presets, independent fields, 2–9 enforcement, advisory >5 warning, atomic Apply, Cancel/Escape/backdrop recovery, focus return, safe areas, and coarse-pointer targets. (AC-1, AC-7, AC-9)
+- [ ] T10 [P] — Complete desktop coverage for all tools/seams, preview/commit equality, one-step undo, grid configurations, source-only transforms, View/shortcut state, reload persistence, multi-document neutrality, source-sized export, and singular Live Preview. (AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8)
+- [ ] T11 [P] — Complete responsive/performance coverage at 412×839, 820×1180, phone landscape, and 120×120 artwork for touch UI, scrollbars, fit, pinch, hand pan, safe areas, one scheduled composition, bounded blits, and no per-tile mutation/cloning. (AC-5, AC-7, AC-9, AC-10)
+- [ ] T12 — Update workspace/QA docs, regenerate intended desktop/phone/tablet snapshots, and inspect full-size for source emphasis, repeated fidelity, dialog/menu bounds, neutral styling, focus, contrast, touch scale, and occlusion. (AC-1, AC-2, AC-5, AC-6, AC-7, AC-9)
+- [ ] T13 — Run every engineering gate, record exact evidence/deviations, update durable memory only for lasting conventions, and complete only after every task and acceptance criterion is evidenced. (AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10)

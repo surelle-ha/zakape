@@ -3,10 +3,10 @@
   "id": "CANVAS-KG4B",
   "title": "Interactive tiled canvas mode",
   "area": "CANVAS",
-  "status": "specified",
+  "status": "planned",
   "summary": "Add a View-menu Tiled Mode that previews repeated copies of the active canvas and maps drawing on any copy back to the shared source artwork.",
   "createdAt": "2026-09-07T04:32:37.069Z",
-  "updatedAt": "2026-09-07T04:39:20.357Z",
+  "updatedAt": "2026-09-07T06:29:09.590Z",
   "clarification": {
     "questions": [
       {
@@ -46,28 +46,41 @@
   ],
   "affectedFiles": [
     "apps/studio/app/components/ApplicationMenu.vue",
+    "apps/studio/app/components/TiledModeDialog.vue",
     "apps/studio/app/components/PixelCanvas.vue",
+    "apps/studio/app/composables/useTiledMode.ts",
     "apps/studio/app/pages/index.vue",
     "apps/studio/app/composables/useEditor.ts",
+    "apps/studio/app/utils/raster.ts",
+    "apps/studio/app/utils/render.ts",
     "apps/studio/app/assets/css/main.css",
     "apps/studio/tests/e2e/studio.spec.ts",
     "apps/studio/tests/e2e/responsive.spec.ts",
     "apps/studio/tests/unit/raster.test.ts",
+    "apps/studio/tests/unit/render.test.ts",
+    "apps/studio/tests/e2e/studio.spec.ts-snapshots/studio-workbench.png",
+    "apps/studio/tests/e2e/responsive.spec.ts-snapshots/phone-workbench.png",
+    "apps/studio/tests/e2e/responsive.spec.ts-snapshots/tablet-workbench.png",
+    "docs/ui-snapshots/studio-workbench.png",
     "docs/project-workspace.md",
     "docs/qa.md"
   ],
   "risks": [
-    "Naively rendering or mutating once per visual copy could reintroduce severe large-canvas drawing lag.",
-    "Pointer and shape coordinates can wrap incorrectly at negative edges, corners, zoom levels, or non-center copies.",
-    "Selection transforms on repeated copies could duplicate or corrupt source pixels if not explicitly gated.",
+    "Naively recomposing, cloning, or mutating once per visual copy could reintroduce severe large-canvas drawing lag.",
+    "Pointer, brush, mirror, dither, and shape coordinates can wrap incorrectly at negative edges, corners, zoom levels, or non-center copies.",
+    "A separate shape-preview path can disagree with samples committed at a wrapped seam.",
+    "Selection transforms on repeated copies could corrupt source pixels if source-tile gating happens after state mutation.",
+    "Repeated-surface resize can shift wheel, pinch, fit, or hand-pan focus unexpectedly.",
     "Large configurable grids can overflow or become unusable on phone and tablet layouts.",
-    "View preferences could accidentally dirty projects or leak into portable files and exports."
+    "Preference hydration races could overwrite saved values, dirty projects, or leak presentation state into files and exports.",
+    "A continuous CSS checker phase or flattened composite can make repeated copies differ in checker, onion, or opacity presentation."
   ],
   "validation": [
-    "Unit-test positive modulo coordinate mapping and wrapped raster points across all edges and corners.",
-    "Playwright-test View commands, Shift+T, 3×3 default rendering, all supported tools, source-only selection, settings validation, persistence, and dirty/export neutrality.",
-    "Run phone, tablet, phone-landscape, and desktop interaction and snapshot QA for menu/dialog bounds, touch input, zoom, pan, and scrollbars.",
-    "Instrument a 120×120 default tiled stroke to verify batched rendering and absence of per-tile editor mutations or pixel clones.",
+    "Unit-test positive modulo, layout/source-tile selection, display mapping, brush expansion, and wrapped/deduplicated raster samples across negative coordinates, all edges, and corners.",
+    "Playwright-test shared View commands, editor-only Shift+T versus Dither, 3×3 default rendering, every supported tool, seam preview/commit equality, one-step undo, source-only selection, settings validation, persistence, and dirty/export neutrality.",
+    "Verify checkerboard, grid, onion skin, opacity, and one singular Live Preview repeat or remain independent according to the specification.",
+    "Run desktop, 412×839 phone, 820×1180 tablet, and phone-landscape interaction and full-size snapshot QA for menu/dialog bounds, touch input, zoom focus, fit, hand pan, safe areas, and custom scrollbars.",
+    "Instrument a representative 120×120 default tiled stroke to verify one scheduled source composition per frame, bounded blits, no pointer-time canvas resize, and no per-tile editor mutation, project clone, or pixel traversal.",
     "Run studio lint, typecheck, unit tests, static build, full Playwright suite, spec validation, Prettier, and git diff checks."
   ],
   "validationEvidence": [],

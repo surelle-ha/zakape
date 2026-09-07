@@ -1,2 +1,4 @@
 {"at":"2026-09-07T04:32:37.078Z","specId":"CANVAS-KG4B","event":"created","from":null,"to":"clarifying","note":"Add a View-menu Tiled Mode that previews repeated copies of the active canvas and maps drawing on any copy back to the shared source artwork.","commit":"95c426fa20bc"}
 {"at":"2026-09-07T04:39:20.358Z","specId":"CANVAS-KG4B","event":"specification_finalized","from":"clarifying","to":"specified","note":null,"commit":"95c426fa20bc"}
+{"at":"2026-09-07T04:41:43.442Z","specId":"CANVAS-KG4B","event":"planning_started","from":"specified","to":"planning","note":null,"commit":"43a010387909"}
+{"at":"2026-09-07T06:29:09.596Z","specId":"CANVAS-KG4B","event":"plan_finalized","from":"planning","to":"planned","note":null,"commit":"43a010387909"}

@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "id": "HELP-JYZY",
+  "title": "Support and system information commands",
+  "area": "HELP",
+  "status": "specified",
+  "summary": "Expand Help with privacy-safe system diagnostics, direct issue and feature reporting, development support, and a single menu-only keyboard shortcut entry.",
+  "createdAt": "2026-09-07T07:54:44.399Z",
+  "updatedAt": "2026-09-07T07:57:37.346Z",
+  "clarification": {
+    "questions": [
+      {
+        "question": "Which machine fields are useful without creating a privacy leak?",
+        "answer": "Use the proposed privacy-safe payload.",
+        "decision": "Copy only version, build identifier, release channel/type, OS family/version, architecture, locale, and generic rendering engine; exclude identity, network, paths, projects, accounts, and credentials."
+      },
+      {
+        "question": "Should reporting open generic Issues or maintained forms?",
+        "answer": "Open the matching forms directly.",
+        "decision": "Use the exact bug.yml and feature.yml GitHub issue-template URLs."
+      },
+      {
+        "question": "Which configured funding destination is primary?",
+        "answer": "Ko-fi.",
+        "decision": "Support opens https://ko-fi.com/surelle."
+      },
+      {
+        "question": "Which layouts receive the commands and how should keyboard help behave?",
+        "answer": "Add new commands everywhere and retain the recommended keyboard boundary.",
+        "decision": "All four new commands appear on desktop/touch; Keyboard shortcuts stays desktop-only under Help."
+      },
+      {
+        "question": "What feedback and recovery are required for copy failure?",
+        "answer": "Use transient success and non-blocking retryable failure feedback.",
+        "decision": "Close the menu, announce success after copy, and show Retry plus dismiss when copy or diagnostics fail."
+      }
+    ],
+    "openQuestions": []
+  },
+  "dependencies": [
+    {
+      "id": "VIEW-R7CR",
+      "type": "advisory",
+      "reason": "The completed shared desktop/touch ApplicationMenu architecture is the required Help command surface."
+    }
+  ],
+  "affectedFiles": [
+    "apps/studio/app/components/ApplicationMenu.vue",
+    "apps/studio/app/pages/index.vue",
+    "apps/studio/app/composables/useSystemInfo.ts",
+    "apps/studio/app/components/ActionNotice.vue",
+    "apps/studio/nuxt.config.ts",
+    "apps/studio/package.json",
+    "apps/studio/src-tauri/src/lib.rs",
+    "apps/studio/src-tauri/Cargo.toml",
+    "apps/studio/src-tauri/Cargo.lock",
+    "apps/studio/src-tauri/capabilities/default.json",
+    "pnpm-lock.yaml",
+    "apps/studio/app/assets/css/main.css",
+    "apps/studio/tests/unit/system-info.test.ts",
+    "apps/studio/tests/e2e/studio.spec.ts",
+    "apps/studio/tests/e2e/responsive.spec.ts",
+    "docs/privacy.md",
+    "docs/project-workspace.md",
+    "docs/qa.md"
+  ],
+  "risks": [
+    "Machine diagnostics could expose personal or fingerprinting data beyond the approved payload.",
+    "Clipboard APIs differ across secure browser, Tauri desktop, and Android environments and can fail after permission denial.",
+    "External links can navigate the app, retain opener access, or silently fail if not opened through a platform-safe boundary.",
+    "Build SHA and release channel can drift from packaged version metadata if CI injection has no deterministic fallback.",
+    "Duplicated desktop/touch actions or feedback state could diverge from the shared menu architecture.",
+    "Removing the app-bar shortcut could accidentally remove the Help or question-mark access path."
+  ],
+  "validation": [
+    "Unit-test diagnostic formatting, missing-value fallbacks, generic engine detection, deterministic build metadata, and prohibited-field absence.",
+    "Playwright-test desktop/touch Help ordering, copy success/failure/retry feedback, exact external URLs, Home/Editor neutrality, and keyboard shortcut access after app-bar removal.",
+    "Test native diagnostics on Windows and compile/check guarded macOS, Linux, and Android paths without shell permissions.",
+    "Run desktop, phone, and tablet accessibility and visual QA for menu containment, notices, focus, touch targets, and reduced motion.",
+    "Run studio lint, typecheck, unit tests, static build, Playwright, Rust format/clippy/check, spec validation, Prettier, and git diff checks."
+  ],
+  "validationEvidence": [],
+  "overrides": []
+}

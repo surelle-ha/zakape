@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "id": "CANVAS-KG4B",
+  "title": "Interactive tiled canvas mode",
+  "area": "CANVAS",
+  "status": "specified",
+  "summary": "Add a View-menu Tiled Mode that previews repeated copies of the active canvas and maps drawing on any copy back to the shared source artwork.",
+  "createdAt": "2026-09-07T04:32:37.069Z",
+  "updatedAt": "2026-09-07T04:39:20.357Z",
+  "clarification": {
+    "questions": [
+      {
+        "question": "Did 9×9 mean 81 copies or a 3×3 grid totaling nine?",
+        "answer": "Three canvases per row and column.",
+        "decision": "Default to 3 columns by 3 rows, totaling nine copies."
+      },
+      {
+        "question": "Are copies passive or interactive with source-edge wrapping?",
+        "answer": "Use interactive wraparound editing.",
+        "decision": "Map supported tool input on any copy to one source with positive modulo coordinates."
+      },
+      {
+        "question": "Which tools may operate through surrounding copies?",
+        "answer": "Use the recommended drawing tools.",
+        "decision": "Support pencil, eraser, mirror, dither, line, rectangle, circle, fill, and picker everywhere; restrict selection transforms to the source tile."
+      },
+      {
+        "question": "How is tile count configured and persisted?",
+        "answer": "Use the proposed settings contract.",
+        "decision": "Provide independent 2–9 axes, 2×2/3×3/5×5 presets, device persistence, and a warning above 5 on either axis."
+      },
+      {
+        "question": "Which platforms and adjacent view/export behavior are included?",
+        "answer": "All platforms; accept the proposed boundaries.",
+        "decision": "Support desktop, tablet, and phone; repeat grid/checker/onion skin, keep Live Preview singular, and leave exports/project data unchanged."
+      }
+    ],
+    "openQuestions": []
+  },
+  "dependencies": [
+    {
+      "id": "VIEW-R7CR",
+      "type": "advisory",
+      "reason": "Completed shared View-menu architecture is the command surface for Tiled Mode on desktop and touch."
+    }
+  ],
+  "affectedFiles": [
+    "apps/studio/app/components/ApplicationMenu.vue",
+    "apps/studio/app/components/PixelCanvas.vue",
+    "apps/studio/app/pages/index.vue",
+    "apps/studio/app/composables/useEditor.ts",
+    "apps/studio/app/assets/css/main.css",
+    "apps/studio/tests/e2e/studio.spec.ts",
+    "apps/studio/tests/e2e/responsive.spec.ts",
+    "apps/studio/tests/unit/raster.test.ts",
+    "docs/project-workspace.md",
+    "docs/qa.md"
+  ],
+  "risks": [
+    "Naively rendering or mutating once per visual copy could reintroduce severe large-canvas drawing lag.",
+    "Pointer and shape coordinates can wrap incorrectly at negative edges, corners, zoom levels, or non-center copies.",
+    "Selection transforms on repeated copies could duplicate or corrupt source pixels if not explicitly gated.",
+    "Large configurable grids can overflow or become unusable on phone and tablet layouts.",
+    "View preferences could accidentally dirty projects or leak into portable files and exports."
+  ],
+  "validation": [
+    "Unit-test positive modulo coordinate mapping and wrapped raster points across all edges and corners.",
+    "Playwright-test View commands, Shift+T, 3×3 default rendering, all supported tools, source-only selection, settings validation, persistence, and dirty/export neutrality.",
+    "Run phone, tablet, phone-landscape, and desktop interaction and snapshot QA for menu/dialog bounds, touch input, zoom, pan, and scrollbars.",
+    "Instrument a 120×120 default tiled stroke to verify batched rendering and absence of per-tile editor mutations or pixel clones.",
+    "Run studio lint, typecheck, unit tests, static build, full Playwright suite, spec validation, Prettier, and git diff checks."
+  ],
+  "validationEvidence": [],
+  "overrides": []
+}

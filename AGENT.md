@@ -59,6 +59,20 @@ scripts/                     Reproducible build, verification, and asset-generat
 
 When two implementations disagree, consolidate behavior around these sources instead of introducing another copy.
 
+## Specification and project memory
+
+For the first substantial development request in a session, run:
+
+```bash
+pnpm spec resume
+```
+
+Read the relevant files in `docs/project-memory/`, then select work by its explicit code ID. Specification records live in `docs/specs/records/`; there is no sequential current-spec pointer and the newest record is not implicitly active. Direct requests such as `plan AUTH-K7M2`, `implement UI-P9TX`, `status`, `specs`, `dependencies`, `inspect`, `resume`, `validate`, and `history` invoke the repository skill in `.agents/skills/spec-development/`.
+
+`specify` combines specification and clarification: investigate the repository and aggressively resolve requirements, edge cases, assumptions, constraints, failure behavior, and acceptance criteria before finalizing. `plan` combines implementation planning and task generation, including affected files, validation, risks, and detected dependencies. Unfinished critical dependencies block implementation unless the user explicitly authorizes a reasoned, recorded override; advisory dependencies warn only.
+
+Update project memory when completed work changes a durable product or architecture contract. Keep transient investigation in the selected spec. Tiny isolated maintenance may proceed without a spec unless the user invokes this system.
+
 ## Local setup
 
 Use the pinned versions in `.node-version` and `rust-toolchain.toml` with pnpm 10.17.1. Install platform prerequisites from the Tauri documentation before native builds.
@@ -80,6 +94,9 @@ pnpm build:desktop
 pnpm build:android:debug
 pnpm build:android:fdroid
 pnpm build:android:bundle
+pnpm spec resume
+pnpm spec validate
+pnpm spec:test
 ```
 
 ## Implementation conventions

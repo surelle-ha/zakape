@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "id": "GODOT-G7D2",
+  "title": "Godot project asset bridge",
+  "area": "GODOT",
+  "status": "completed",
+  "summary": "Connect desktop users to local Godot projects so they can browse resources and publish validated sprite assets without leaving Zakape.",
+  "createdAt": "2026-09-05T16:35:38.000Z",
+  "updatedAt": "2026-09-06T12:20:58.000Z",
+  "clarification": {
+    "questions": [
+      {
+        "question": "Should integration mutate scenes or synchronize assets automatically?",
+        "answer": "No. Saving into a Godot project remains an explicit artist action.",
+        "decision": "Limit the bridge to bounded discovery, import, folder creation, and explicit asset publishing."
+      },
+      {
+        "question": "Which platforms may receive arbitrary project filesystem access?",
+        "answer": "Desktop only.",
+        "decision": "Mobile and browser builds expose an unavailable state and never receive native project access."
+      }
+    ],
+    "openQuestions": []
+  },
+  "dependencies": [],
+  "affectedFiles": [
+    "apps/studio/app/components/GodotBridgeModal.vue",
+    "apps/studio/app/composables/useGodotBridge.ts",
+    "apps/studio/app/composables/useEditor.ts",
+    "apps/studio/src-tauri/src/lib.rs",
+    "docs/godot-integration.md"
+  ],
+  "risks": [
+    "A crafted resource path could escape the selected Godot project boundary.",
+    "A partial multi-file export could leave inconsistent sprite-sheet resources.",
+    "Godot format-version differences could produce unusable generated resources."
+  ],
+  "validation": [
+    "Run Rust unit tests for project discovery, path validation, PNG import, and explicit replacement.",
+    "Run studio type checking and production build.",
+    "Manually browse a project and publish a frame and animated SpriteFrames bundle."
+  ],
+  "validationEvidence": [
+    "Commit 56785972bbde8c9c9ffb9e1e4da95d7c4c25ec25 introduced the bridge with automated checks.",
+    "Commit e05913c97d161376d64c238f917c50e308796c65 repaired updater state and resource browsing after review.",
+    "Rust regression tests cover Godot identity parsing, owning-project discovery, relative-path rejection, PNG import, and replacement gating."
+  ],
+  "overrides": [],
+  "imported": true
+}

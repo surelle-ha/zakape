@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spec Development"
+  short_description: "Dependency-aware repository specification workflow"
+  default_prompt: "Use $spec-development to inspect the repository specs and continue a viable piece of work."

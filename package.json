@@ -15,7 +15,7 @@
     "build:android:debug": "pnpm --filter @zakape/studio tauri android build --debug --apk --target aarch64 --ci",
     "build:android:fdroid": "pnpm --filter @zakape/studio tauri android build --apk --target aarch64 --target armv7 --ci",
     "build:android:bundle": "pnpm --filter @zakape/studio tauri android build --aab --target aarch64 --target armv7 --ci",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm check:fdroid",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm spec:test && pnpm spec:validate && pnpm check:fdroid",
     "check:fdroid": "node scripts/verify-fdroid.mjs",
     "commitlint": "commitlint --from HEAD~1 --to HEAD",
     "lint": "pnpm -r lint",
@@ -24,7 +24,10 @@
     "test:e2e": "pnpm --filter @zakape/studio test:e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "spec": "node scripts/specs.mjs",
+    "spec:test": "node --test scripts/specs.test.mjs",
+    "spec:validate": "node scripts/specs.mjs validate"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",

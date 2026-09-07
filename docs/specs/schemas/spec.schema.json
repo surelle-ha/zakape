@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/surelle-ha/zakape/docs/specs/schemas/spec.schema.json",
+  "title": "Zakape dependency-aware specification",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "title",
+    "area",
+    "status",
+    "summary",
+    "createdAt",
+    "updatedAt",
+    "clarification",
+    "dependencies",
+    "affectedFiles",
+    "risks",
+    "validation",
+    "validationEvidence",
+    "overrides"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{1,7}-[A-HJKMNP-TV-Z2-9]{4}$" },
+    "title": { "type": "string", "minLength": 4, "maxLength": 120 },
+    "area": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{1,7}$" },
+    "status": {
+      "enum": [
+        "clarifying",
+        "specified",
+        "planning",
+        "planned",
+        "in_progress",
+        "blocked",
+        "completed",
+        "cancelled"
+      ]
+    },
+    "summary": { "type": "string", "minLength": 10, "maxLength": 500 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "clarification": {
+      "type": "object",
+      "required": ["questions", "openQuestions"],
+      "properties": {
+        "questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["question", "answer", "decision"],
+            "properties": {
+              "question": { "type": "string", "minLength": 5 },
+              "answer": { "type": "string", "minLength": 1 },
+              "decision": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "openQuestions": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "reason"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "enum": ["critical", "advisory"] },
+          "reason": { "type": "string", "minLength": 5 }
+        }
+      }
+    },
+    "affectedFiles": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "risks": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "validation": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "validationEvidence": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "overrides": { "type": "array" },
+    "imported": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}

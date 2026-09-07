@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/surelle-ha/zakape/compare/v0.18.0...v0.19.0) (2026-09-07)
+
+
+### Features
+
+* **studio:** centralize canvas view menus ([d760017](https://github.com/surelle-ha/zakape/commit/d76001789fb101b0f7e9b65aa4a3144d7c1034fe))
+
 ## [0.18.0](https://github.com/surelle-ha/zakape/compare/v0.17.3...v0.18.0) (2026-09-07)
 
 

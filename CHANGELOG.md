@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/surelle-ha/zakape/compare/v0.19.0...v0.20.0) (2026-09-07)
+
+
+### Features
+
+* **canvas:** add interactive tiled mode ([9d9deab](https://github.com/surelle-ha/zakape/commit/9d9deabc9a7e62e0e8124f181bf8f9ac9e3efd98))
+
 ## [0.19.0](https://github.com/surelle-ha/zakape/compare/v0.18.0...v0.19.0) (2026-09-07)
 
 

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "VIEW-R7CR",
+  "title": "Centralize canvas views in the View menu",
+  "area": "VIEW",
+  "status": "specified",
+  "summary": "Centralize canvas display commands in the desktop View menu and a phone-and-tablet Menu tab while removing redundant toggles from beside the zoom controls.",
+  "createdAt": "2026-09-07T02:48:16.494Z",
+  "updatedAt": "2026-09-07T02:53:46.532Z",
+  "clarification": {
+    "questions": [
+      {
+        "question": "Does the current View menu already share state with the canvas display controls?",
+        "answer": "Pixel grid and Onion skin share editor state, while Live view is a page-level useState and Transparency checkerboard is editor state not currently exposed by the menu.",
+        "decision": "Menu actions must use the existing shared state keys so checkmarks, keyboard shortcuts, the canvas, and Live Preview panel remain synchronized."
+      },
+      {
+        "question": "Does this work depend on another unfinished specification?",
+        "answer": "No pending specifications exist; the relevant controls were delivered in existing workspace commits.",
+        "decision": "Record no spec dependency and treat the existing editor and title-bar contracts as code dependencies."
+      },
+      {
+        "question": "Which display controls should be removed from beside the zoom controls?",
+        "answer": "All four: Onion skin, Live view, Pixel grid, and Transparency checkerboard.",
+        "decision": "Leave only fit and zoom controls in the canvas zoom toolbar; move all visible display-mode access into platform menus."
+      },
+      {
+        "question": "How should phone and tablet users access application menus when the desktop title bar is hidden?",
+        "answer": "Add a Menu dropdown before Home in the bottom tab pane, with File, Edit, View, and Help as categories containing their equivalent child items.",
+        "decision": "Add a touch-oriented nested Menu tab on phone and tablet, mirror desktop menu actions and availability, and keep it hidden on desktop."
+      },
+      {
+        "question": "Should keyboard shortcuts remain after removing the canvas display buttons?",
+        "answer": "Yes.",
+        "decision": "Preserve O, V, G, and Shift+G and keep their effects synchronized with menu check states."
+      },
+      {
+        "question": "How should display actions behave while the Home tab is active?",
+        "answer": "Disable them.",
+        "decision": "Show the View children consistently but disable canvas-specific actions whenever no editor workspace is active, without resetting state."
+      }
+    ],
+    "openQuestions": []
+  },
+  "dependencies": [],
+  "affectedFiles": [],
+  "risks": [],
+  "validation": [],
+  "validationEvidence": [],
+  "overrides": []
+}

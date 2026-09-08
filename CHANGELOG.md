@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1](https://github.com/surelle-ha/zakape/compare/v0.22.0...v0.22.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **studio:** refine selection and palette workflows ([#40](https://github.com/surelle-ha/zakape/issues/40)) ([c84ec27](https://github.com/surelle-ha/zakape/commit/c84ec27d712e5f462fa602dbdb73ab7423266c50))
+
 ## [0.22.0](https://github.com/surelle-ha/zakape/compare/v0.21.0...v0.22.0) (2026-09-07)
 
 

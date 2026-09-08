@@ -13,7 +13,6 @@ const useGoogle = async () => {
 
 <template>
   <main class="authentication-page" aria-labelledby="authentication-heading">
-    <div class="authentication-grid" aria-hidden="true" />
     <section v-motion-enter="'surface'" class="authentication-card">
       <div class="authentication-brand">
         <img :src="zakapeMark" width="58" height="58" alt="" />

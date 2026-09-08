@@ -7,6 +7,7 @@ import {
   emptyPixels,
   normalizeHex,
   parseSpriteProject,
+  registerPixelColor,
 } from '~/utils/project'
 
 describe('project helpers', () => {
@@ -87,6 +88,40 @@ describe('project helpers', () => {
     ])
 
     expect(project.palette).toEqual(['#22aaff', '#110022'])
+  })
+
+  it('preserves an explicitly empty palette and registers indexed colors on first use', () => {
+    const rgba = createBlankProject(4, 4, 'No palette', 'rgba', 'transparent', [])
+    const indexed = createBlankProject(4, 4, 'Growing palette', 'indexed', 'transparent', [])
+
+    expect(rgba.palette).toEqual([])
+    expect(indexed.palette).toEqual([])
+    expect(registerPixelColor(indexed, '#22AAFF')).toBe('#22aaff')
+    expect(indexed.palette).toEqual(['#22aaff'])
+    expect(registerPixelColor(indexed, '#22aaff')).toBe('#22aaff')
+    expect(indexed.palette).toHaveLength(1)
+  })
+
+  it('normalizes non-empty greyscale starting palettes', () => {
+    const project = createBlankProject(2, 2, 'Value palette', 'grayscale', 'transparent', [
+      '#ff0000',
+      '#00ff00',
+    ])
+
+    expect(project.palette).toEqual(['#363636', '#b6b6b6'])
+  })
+
+  it('uses the nearest indexed color after reaching the palette limit', () => {
+    const palette = Array.from(
+      { length: 256 },
+      (_, index) => `#00${index.toString(16).padStart(2, '0')}00`,
+    )
+    const project = createBlankProject(2, 2, 'Full palette', 'indexed', 'transparent', palette)
+    const resolved = registerPixelColor(project, '#ff0000')
+
+    expect(project.palette).toHaveLength(256)
+    expect(project.palette).toContain(resolved)
+    expect(resolved).not.toBe('#ff0000')
   })
 
   it('accepts complete projects and rejects unsafe or incomplete imports', () => {

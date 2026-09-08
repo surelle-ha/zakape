@@ -927,6 +927,9 @@ onBeforeUnmount(() => {
           </div>
           <footer class="canvas-status">
             <div class="canvas-palette" role="list" aria-label="Project color palette">
+              <span v-if="!project.palette.length" class="canvas-palette-empty" role="status">
+                {{ project.colorMode === 'indexed' ? 'Colors appear as you draw' : 'No palette' }}
+              </span>
               <span v-for="color in project.palette" :key="color" role="listitem">
                 <button
                   v-tooltip="{

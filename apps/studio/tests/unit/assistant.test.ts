@@ -212,6 +212,29 @@ describe('assistant proposal validation', () => {
 })
 
 describe('assistant project changes', () => {
+  it('registers assistant colors in an initially empty indexed palette', () => {
+    const project = createDemoProject()
+    project.colorMode = 'indexed'
+    project.palette = []
+    const frameId = project.frames[0]!.id
+    const layer = project.layers[0]!
+
+    applyAssistantChanges(
+      project,
+      [],
+      [
+        {
+          frameId,
+          layerId: layer.id,
+          operations: [{ type: 'set_pixels', pixels: [{ x: 0, y: 0, color: '#22aaff' }] }],
+        },
+      ],
+    )
+
+    expect(project.palette).toEqual(['#22aaff'])
+    expect(layer.cels[frameId]![0]).toBe('#22aaff')
+  })
+
   it('creates blank layers and copied frames before applying their edits', () => {
     const project = createDemoProject()
     const sourceFrameId = project.frames[0]!.id

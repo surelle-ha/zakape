@@ -51,7 +51,7 @@ const colorMode = ref<ColorMode>('rgba')
 const background = ref<CanvasBackground>('transparent')
 const checkerSize = ref(2)
 const selectedPaletteId = ref(palettePresets[0]!.id)
-const customPalette = ref(normalizePalette(palettePresets[0]!.colors))
+const customPalette = ref<string[]>([])
 const customColor = ref('#8B5CF6')
 const customColorOpen = ref(false)
 const formError = ref('')
@@ -62,9 +62,11 @@ const previewStyle = computed(() => ({
   '--checker-preview-size': `${Math.max(4, Math.min(24, checkerSize.value * 3))}px`,
 }))
 const selectedPalette = computed(() =>
-  selectedPaletteId.value === 'custom'
-    ? normalizePalette(customPalette.value)
-    : [...(palettePresets.find((preset) => preset.id === selectedPaletteId.value)?.colors ?? [])],
+  selectedPaletteId.value === 'skip'
+    ? []
+    : selectedPaletteId.value === 'custom'
+      ? normalizePalette(customPalette.value)
+      : [...(palettePresets.find((preset) => preset.id === selectedPaletteId.value)?.colors ?? [])],
 )
 const newProjectFolderId = ref<string | null>(null)
 const filteredProjects = computed(() => {
@@ -98,7 +100,6 @@ const addCustomColor = () => {
 }
 
 const removeCustomColor = (color: string) => {
-  if (customPalette.value.length === 1) return
   customPalette.value = customPalette.value.filter((entry) => entry !== color)
 }
 
@@ -133,10 +134,6 @@ const submit = () => {
     transparencyCheckerSize > 32
   ) {
     formError.value = 'Checker tile size must be between 1 and 32 pixels.'
-    return
-  }
-  if (!selectedPalette.value.length) {
-    formError.value = 'Choose at least one palette color.'
     return
   }
   formError.value = ''
@@ -384,6 +381,21 @@ watch(
                 </button>
                 <button
                   type="button"
+                  class="palette-preset palette-skip-option"
+                  :class="{ selected: selectedPaletteId === 'skip' }"
+                  role="radio"
+                  :aria-checked="selectedPaletteId === 'skip'"
+                  @click="selectPalette('skip')"
+                >
+                  <span class="palette-preset-heading">
+                    <strong>Skip</strong>
+                    <Check v-if="selectedPaletteId === 'skip'" :size="12" />
+                  </span>
+                  <span class="palette-empty-preview" aria-hidden="true">No swatches</span>
+                  <small>Start without a palette and add colors while you draw.</small>
+                </button>
+                <button
+                  type="button"
                   class="palette-preset custom-palette-option"
                   :class="{ selected: selectedPaletteId === 'custom' }"
                   role="radio"
@@ -400,6 +412,9 @@ watch(
                       :key="color"
                       :style="{ backgroundColor: color }"
                     />
+                    <span v-if="!customPalette.length" class="palette-empty-preview"
+                      >No swatches</span
+                    >
                   </span>
                   <small>Build a reusable color set for this sprite.</small>
                 </button>
@@ -412,7 +427,6 @@ watch(
                     <button
                       type="button"
                       :aria-label="`Remove ${color}`"
-                      :disabled="customPalette.length === 1"
                       @click="removeCustomColor(color)"
                     >
                       <Trash2 :size="9" />
@@ -446,9 +460,16 @@ watch(
                     ? 'Greyscale'
                     : 'Palette indexed'
               }}
-              · {{ background }} background · {{ selectedPalette.length }} colors · 1 frame
+              · {{ background }} background ·
+              {{
+                selectedPalette.length ? `${selectedPalette.length} colors` : 'no starting colors'
+              }}
+              · 1 frame
               <template v-if="background === 'transparent'">
                 · {{ checkerSize }}px checker</template
+              >
+              <template v-if="colorMode === 'indexed' && !selectedPalette.length">
+                · colors join the palette as you draw</template
               >
             </p>
 

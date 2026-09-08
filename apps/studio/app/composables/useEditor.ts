@@ -10,12 +10,18 @@ import type {
 import { applyAssistantChanges } from '~/utils/assistant'
 import {
   cloneProject,
-  coercePixelToColorMode,
   createDemoProject,
   emptyPixels,
   makeId,
+  registerPixelColor,
 } from '~/utils/project'
 import { rasterCircle, rasterLine, rasterRectangle } from '~/utils/raster'
+import {
+  applySelectionPixelChanges,
+  captureColoredSelectionSamples,
+  planColoredSelectionMutation,
+  translateSelectionPoints,
+} from '~/utils/selection'
 import { toRaw } from 'vue'
 
 const HISTORY_LIMIT = 60
@@ -287,7 +293,7 @@ export const useEditor = () => {
     const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
     if (!pixels) return
     const radius = Math.floor((brushSize.value - 1) / 2)
-    const drawingPixel = coercePixelToColorMode(project.value, color)
+    const drawingPixel = registerPixelColor(project.value, color)
     for (let offsetY = -radius; offsetY < brushSize.value - radius; offsetY += 1) {
       for (let offsetX = -radius; offsetX < brushSize.value - radius; offsetX += 1) {
         const targetX = x + offsetX
@@ -329,7 +335,7 @@ export const useEditor = () => {
         writeStrokePixel(
           pixels,
           targetY * project.value.width + targetX,
-          coercePixelToColorMode(
+          registerPixelColor(
             project.value,
             useSecondary ? secondaryColor.value : primaryColor.value,
           ),
@@ -352,7 +358,7 @@ export const useEditor = () => {
         return
       unique.set(
         sample.y * project.value.width + sample.x,
-        coercePixelToColorMode(project.value, sample.color),
+        registerPixelColor(project.value, sample.color),
       )
     })
     unique.forEach((pixel, index) => writeStrokePixel(pixels, index, pixel))
@@ -442,7 +448,7 @@ export const useEditor = () => {
   const floodFill = (x: number, y: number, color: Pixel, cancellable = false) => {
     const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
     if (!pixels) return false
-    const fillColor = coercePixelToColorMode(project.value, color)
+    const fillColor = registerPixelColor(project.value, color)
     const target = pixels[y * project.value.width + x]
     if (target === fillColor) return false
     beginPixelMutation('Fill area')
@@ -561,23 +567,32 @@ export const useEditor = () => {
     const current = activeSelection.value
     const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
     if (!current || !pixels || (offsetX === 0 && offsetY === 0)) return false
-    checkpoint('Move selection')
-    const captured = current.points.map((point) => ({
-      point,
-      pixel: pixels[point.y * project.value.width + point.x] ?? null,
+    const captured = captureColoredSelectionSamples(pixels, project.value.width, current.points)
+    const targetSamples = captured.map((sample) => ({
+      ...sample,
+      x: sample.x + offsetX,
+      y: sample.y + offsetY,
     }))
-    current.points.forEach((point) => {
-      pixels[point.y * project.value.width + point.x] = null
-    })
-    const movedPoints: PixelPoint[] = []
-    captured.forEach(({ point, pixel }) => {
-      const x = point.x + offsetX
-      const y = point.y + offsetY
-      if (x < 0 || y < 0 || x >= project.value.width || y >= project.value.height) return
-      pixels[y * project.value.width + x] = pixel
-      movedPoints.push({ x, y })
-    })
-    selection.value = { ...current, points: movedPoints }
+    const changes = planColoredSelectionMutation(
+      pixels,
+      project.value.width,
+      project.value.height,
+      current.points,
+      targetSamples,
+    )
+    if (!changes.length) return false
+    checkpoint('Move selection')
+    applySelectionPixelChanges(pixels, changes)
+    selection.value = {
+      ...current,
+      points: translateSelectionPoints(
+        current.points,
+        offsetX,
+        offsetY,
+        project.value.width,
+        project.value.height,
+      ),
+    }
     touch(`Moved selection ${offsetX}, ${offsetY}`)
     return true
   }
@@ -599,13 +614,16 @@ export const useEditor = () => {
     })
     if (!transformed.size) return false
 
+    const changes = planColoredSelectionMutation(
+      pixels,
+      project.value.width,
+      project.value.height,
+      current.points,
+      [...transformed.values()],
+    )
+    if (!changes.length) return false
     checkpoint(action)
-    current.points.forEach((point) => {
-      pixels[point.y * project.value.width + point.x] = null
-    })
-    transformed.forEach((sample) => {
-      pixels[sample.y * project.value.width + sample.x] = sample.color
-    })
+    applySelectionPixelChanges(pixels, changes)
     selection.value = {
       ...current,
       points: [...transformed.values()].map(({ x, y }) => ({ x, y })),

@@ -1131,10 +1131,6 @@ button:disabled {
   padding: 22px clamp(22px, 3vw, 48px) 32px;
   overflow: auto;
   background-color: #100e18;
-  background-image:
-    linear-gradient(rgb(139 92 246 / 7%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(139 92 246 / 7%) 1px, transparent 1px);
-  background-size: 24px 24px;
 }
 .home-hero {
   position: relative;
@@ -1213,10 +1209,7 @@ button:disabled {
   overflow: hidden;
   border: 1px solid #4b3e68;
   background-color: #15111f;
-  background-image:
-    linear-gradient(rgb(139 92 246 / 10%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(139 92 246 / 10%) 1px, transparent 1px);
-  background-size: 16px 16px;
+  background-image: radial-gradient(circle at center, rgb(139 92 246 / 9%), transparent 68%);
   box-shadow: 10px 10px 0 rgb(217 70 239 / 7%);
   transform: rotate(1.25deg);
 }
@@ -1852,16 +1845,6 @@ button:disabled {
   overflow: hidden;
   color: var(--text);
   background: #100d17;
-}
-.splash-field {
-  position: absolute;
-  inset: -20%;
-  opacity: 0.3;
-  background-image:
-    linear-gradient(var(--line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line) 1px, transparent 1px);
-  background-size: 24px 24px;
-  mask-image: radial-gradient(circle at center, black, transparent 62%);
 }
 .splash-lockup {
   position: relative;
@@ -5752,7 +5735,6 @@ kbd {
 
   .home-workspace {
     padding: 14px 12px 28px;
-    background-size: 18px 18px;
   }
 
   .home-hero {
@@ -7118,18 +7100,6 @@ kbd {
   background: radial-gradient(circle at 72% 28%, rgb(139 92 246 / 10%), transparent 32%), #0b0d10;
 }
 
-.authentication-grid {
-  position: absolute;
-  inset: 0;
-  opacity: 0.36;
-  background-image:
-    linear-gradient(rgb(72 81 94 / 14%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(72 81 94 / 14%) 1px, transparent 1px);
-  background-size: 20px 20px;
-  mask-image: linear-gradient(115deg, black, transparent 70%);
-  pointer-events: none;
-}
-
 .authentication-card {
   position: relative;
   z-index: 1;
@@ -8312,6 +8282,18 @@ kbd {
   flex: 1;
 }
 
+.palette-empty-preview {
+  display: flex;
+  min-height: 9px;
+  align-items: center;
+  color: #746b80;
+  font:
+    7px/1 'Azeret Mono Variable',
+    monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .palette-preset small {
   min-height: 18px;
   color: #948aa0;
@@ -8423,6 +8405,15 @@ kbd {
   gap: 2px;
   overflow-x: auto;
   scrollbar-width: none;
+}
+
+.canvas-palette-empty {
+  color: #887d95;
+  font:
+    7px/1 'Azeret Mono Variable',
+    monospace;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .canvas-palette::-webkit-scrollbar {
@@ -9059,9 +9050,7 @@ kbd {
 }
 
 .home-workspace {
-  background-image:
-    linear-gradient(rgb(72 81 94 / 10%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(72 81 94 / 10%) 1px, transparent 1px);
+  background-image: radial-gradient(circle at 82% 12%, rgb(139 92 246 / 4%), transparent 28%);
 }
 
 .home-hero {
@@ -9088,9 +9077,7 @@ kbd {
 .home-brand-canvas {
   border-color: #3b424d;
   background-color: #101318;
-  background-image:
-    linear-gradient(rgb(72 81 94 / 16%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(72 81 94 / 16%) 1px, transparent 1px);
+  background-image: radial-gradient(circle at center, rgb(139 92 246 / 9%), transparent 68%);
 }
 
 .home-recent-item,

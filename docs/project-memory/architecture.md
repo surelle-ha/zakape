@@ -8,6 +8,8 @@
 - `apps/studio/app/components/ApplicationMenu.vue` is the shared command model for desktop and touch File, Edit, View, and Help menus; presentation variants must not duplicate command behavior or global shortcuts.
 - `useSystemInfo.ts` assembles explicit, privacy-bounded diagnostics only on user request; fixed support destinations cross the native boundary as an enum, and `useActionNotice.ts` provides the one application-scoped recovery surface.
 - Tiled canvas presentation uses one physical canvas and one source composition per scheduled frame; visual copies are blits, and wrapped gestures mutate one authoritative source through one undo checkpoint.
+- Selection masks retain their full rectangular or lasso geometry for bounds, handles, and transforms, while the editor's mutation boundary captures and writes only non-transparent pixels. Transparent holes never clear destination artwork, and a real selection gesture remains one undoable pixel operation.
+- Project creation distinguishes an omitted palette (programmatic default) from an explicit empty palette (Skip or empty Custom). Indexed projects register first-used colors through the shared editor/assistant color resolver until the 256-color limit.
 - `apps/site/` is the static public website; it may reuse reviewed product screenshots but not private project data.
 - `.github/workflows/` owns CI, desktop/updater releases, Android packaging, macOS test builds, and website deployment.
 

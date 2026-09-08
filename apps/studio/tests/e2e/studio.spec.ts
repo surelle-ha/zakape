@@ -87,6 +87,13 @@ test.beforeEach(async ({ page }) => {
   await expect(authentication).toBeVisible()
   await authentication.getByRole('button', { name: 'Continue as Guest' }).click()
   await expect(page.locator('.home-workspace')).toBeVisible()
+  await expect
+    .poll(() =>
+      page
+        .locator('.home-workspace')
+        .evaluate((element) => getComputedStyle(element).backgroundImage),
+    )
+    .not.toContain('linear-gradient')
   await expect(page.getByTestId('project-launcher')).toBeHidden()
   await page.evaluate(() => document.fonts.ready)
   await expect(page.getByRole('status', { name: 'Indexing your workspace…' })).toBeHidden({
@@ -575,6 +582,27 @@ test('creates a sprite with a preset or custom project palette', async ({ page }
   await enterEditor(page, { name: 'Palette study' })
   await expect(page.getByRole('list', { name: 'Project color palette' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Use #22AAFF as primary color' })).toBeVisible()
+})
+
+test('allows a skipped or empty custom starting palette', async ({ page }) => {
+  await page.getByRole('button', { name: 'New sprite', exact: true }).first().click()
+  const launcher = page.getByTestId('project-launcher')
+  const skip = launcher.getByRole('radio', { name: /Skip/ })
+  await expect(skip).toBeVisible()
+  await skip.click()
+  await expect(launcher.locator('.document-note')).toContainText('no starting colors')
+  await launcher.getByRole('radio', { name: /Custom/ }).click()
+  await expect(launcher.locator('.custom-palette-colors > span')).toHaveCount(0)
+  await expect(launcher.locator('.palette-color-control')).toBeVisible()
+  await skip.click()
+  await launcher.locator('.launcher-segments').getByText('Indexed', { exact: true }).click()
+  await launcher.getByRole('button', { name: 'Create sprite', exact: true }).click()
+  const canvas = page.getByTestId('pixel-canvas')
+  await expect(canvas).toBeVisible()
+  await expect(page.locator('.canvas-palette-empty')).toContainText('Colors appear as you draw')
+  const box = await canvas.boundingBox()
+  await canvas.click({ position: { x: box!.width / 2, y: box!.height / 2 } })
+  await expect(page.getByRole('button', { name: 'Use #D946EF as primary color' })).toBeVisible()
 })
 
 test('organizes projects in nested sprite suites from Home and the project launcher', async ({

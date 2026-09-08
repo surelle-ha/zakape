@@ -17,7 +17,7 @@ export const createBlankProject = (
   name = 'Untitled sprite',
   colorMode: ColorMode = 'rgba',
   background: CanvasBackground = 'transparent',
-  selectedPalette: string[] = defaultPalette,
+  selectedPalette?: string[],
   checkerSize = 2,
 ): SpriteProject => {
   const canvasWidth = Math.max(1, Math.min(1024, Math.round(width)))
@@ -29,13 +29,21 @@ export const createBlankProject = (
   const frameId = makeId('frame')
   const backgroundColor =
     background === 'black' ? '#000000' : background === 'white' ? '#ffffff' : null
-  const normalizedPalette = normalizePalette(selectedPalette)
-  const palette =
+  const normalizedPalette = normalizePalette(selectedPalette ?? defaultPalette)
+  const palette = normalizedPalette
+  const normalizedStartingPalette =
     colorMode === 'grayscale'
-      ? ['#000000', '#333333', '#666666', '#999999', '#cccccc', '#ffffff']
-      : normalizedPalette.length
-        ? normalizedPalette
-        : [...defaultPalette]
+      ? normalizePalette(
+          palette.map((color) => {
+            const channels = colorChannels(color)
+            const value = Math.round(
+              channels[0]! * 0.2126 + channels[1]! * 0.7152 + channels[2]! * 0.0722,
+            )
+            const hex = value.toString(16).padStart(2, '0')
+            return `#${hex}${hex}${hex}`
+          }),
+        )
+      : palette
   return {
     version: 1,
     id: makeId('project'),
@@ -45,7 +53,7 @@ export const createBlankProject = (
     colorMode,
     background,
     checkerSize: Math.max(1, Math.min(32, Math.round(checkerSize))),
-    palette,
+    palette: normalizedStartingPalette,
     frames: [{ id: frameId, name: 'F1', duration: 120 }],
     layers: [
       {
@@ -198,6 +206,19 @@ export const coercePixelToColorMode = (project: SpriteProject, color: Pixel): Pi
     },
     { color: normalized, distance: Number.POSITIVE_INFINITY },
   ).color
+}
+
+export const registerPixelColor = (project: SpriteProject, color: Pixel): Pixel => {
+  if (!color || project.colorMode !== 'indexed') return coercePixelToColorMode(project, color)
+  const normalized = normalizeHex(color)
+  if (!normalized) return color
+  const existing = project.palette.find((entry) => entry.toLowerCase() === normalized)
+  if (existing) return existing.toLowerCase()
+  if (project.palette.length < 256) {
+    project.palette.push(normalized)
+    return normalized
+  }
+  return coercePixelToColorMode(project, normalized)
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

@@ -74,11 +74,12 @@ The Playwright baselines live beside the end-to-end tests so CI can detect unint
 - The profile drawer exposes artwork sync as a disabled **Coming soon** action and does not make a network request.
 - Sprite suites support root folders, nested variant folders, filtering, assignment, and direct new-project destinations in both Home and the launcher.
 - Palette presets reproduce their documented hex values, custom colors use the in-app mixer, and the canvas palette blocks select the primary color.
+- Starting palettes offer Preset, empty Custom, and Skip paths. An indexed project created without colors adds each first-used drawing color once, while RGBA and greyscale projects may remain palette-free.
 - Controls expose visible labels, tooltips, or accessible names.
 - Tooltips appear for pointer and keyboard focus, describe the control's purpose, and show its shortcut when available.
 - Project launcher, document tabs, timeline, inspector, and canvas remain usable at the minimum 1024 × 720 window.
 - Line, rectangle, and circle previews match their committed pixels; left-click paints with the primary color and right-click paints with the secondary color without opening a native context menu.
-- Box and lasso selection boundaries match the chosen region; dragging inside moves all selected pixels, corner handles resize with nearest-neighbor sampling, the round handle rotates without smoothing, transformed bounds stay inside the canvas, and Delete clears the selection before it can delete a frame.
+- Box and lasso selection boundaries match the chosen region; dragging inside moves only colored pixels, transparent holes preserve destination artwork, corner handles resize colored samples with nearest-neighbor sampling, the round handle rotates without smoothing, transformed bounds stay inside the canvas, and Delete clears the selection before it can delete a frame.
 - Primary and secondary swatches can each be selected with the pointer; the active swatch is visually explicit, and neither opens the browser's native color dialog.
 - Mirror-pencil output is symmetrical across the requested axis combination, and dithering alternates both selected colors without gaps in fast strokes.
 - The previous-frame silhouette disappears when onion skinning is unchecked and never wraps from frame one to the last frame.
@@ -89,6 +90,7 @@ The Playwright baselines live beside the end-to-end tests so CI can detect unint
 - The assistant is clearly optional; its small model-management control, persistent chat, scope, agent-pass activity, proposal, discard, and apply states are distinct.
 - The assistant opens without canned prompt suggestions, leaving art direction entirely to the artist.
 - The 4.8-second branded splash remains stable while Anime.js sequences its short entrance; Motion surface entrances do not block controls, and animation is disabled when reduced motion is requested.
+- Splash, authentication, Home, and the Home brand panel use plain dark or subtly lit backgrounds without decorative grid fields; the canvas transparency checker remains available and unchanged.
 - New layers begin with transparent, independent cels; visibility affects only the chosen layer; inline rename preserves pixels and frame buffers.
 - The first-project tour can be completed or skipped, and both the tour and command map remain available from Help.
 - Help exposes Copy System Info, Report a Bug, Suggest a Feature, and Support Zakape Development in desktop and touch menus. Copy produces only the approved local diagnostic fields; success and retryable clipboard/browser failures appear as one accessible, non-blocking notice.

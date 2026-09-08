@@ -54,7 +54,6 @@ onBeforeUnmount(() => animations.forEach((animation) => animation.revert()))
       aria-atomic="true"
       aria-label="Opening Zakape"
     >
-      <div class="splash-field" aria-hidden="true" />
       <div class="splash-lockup">
         <img
           ref="spriteElement"

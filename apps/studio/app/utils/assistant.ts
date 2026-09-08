@@ -5,16 +5,13 @@ import type {
   Pixel,
   SpriteProject,
 } from '~/types/editor'
-import { coercePixelToColorMode, emptyPixels, normalizeHex } from '~/utils/project'
+import { emptyPixels, normalizeHex, registerPixelColor } from '~/utils/project'
 
 const applyOperation = (project: SpriteProject, pixels: Pixel[], operation: ArtOperation) => {
   const set = (x: number, y: number, color: Pixel) => {
     if (x < 0 || y < 0 || x >= project.width || y >= project.height) return
-    const nextColor = coercePixelToColorMode(project, color)
+    const nextColor = registerPixelColor(project, color)
     pixels[y * project.width + x] = nextColor
-    if (nextColor && !project.palette.some((entry) => entry.toLowerCase() === nextColor)) {
-      project.palette.push(nextColor)
-    }
   }
 
   if (operation.type === 'set_pixels') {
@@ -42,11 +39,8 @@ const applyOperation = (project: SpriteProject, pixels: Pixel[], operation: ArtO
     const from = normalizeHex(operation.from)
     pixels.forEach((pixel, index) => {
       if (pixel?.toLowerCase() === from) {
-        const nextColor = coercePixelToColorMode(project, operation.to)
+        const nextColor = registerPixelColor(project, operation.to)
         pixels[index] = nextColor
-        if (nextColor && !project.palette.some((entry) => entry.toLowerCase() === nextColor)) {
-          project.palette.push(nextColor)
-        }
       }
     })
     return

@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "id": "EDITOR-7ED4",
+  "title": "Plain entry surfaces and precise selection moves",
+  "area": "EDITOR",
+  "status": "completed",
+  "summary": "Remove animated grid backgrounds from entry surfaces, move only colored pixels in selections, and make starting palettes optional or custom.",
+  "createdAt": "2026-09-08T01:38:16.466Z",
+  "updatedAt": "2026-09-08T05:46:19.922Z",
+  "clarification": {
+    "questions": [
+      {
+        "question": "When moving a selection containing transparent cells, should the operation cut colored pixels or copy them?",
+        "answer": "Use option 1: cut-and-move colored pixels only.",
+        "decision": "Move only non-transparent pixels, clear those colored source pixels, and preserve transparent holes so they never erase destination content."
+      },
+      {
+        "question": "What should Skip starting palette create across color modes?",
+        "answer": "Use the recommended empty-palette behavior.",
+        "decision": "RGBA and greyscale projects may retain an empty palette; indexed projects also begin empty and add valid colors as they are first used, up to the 256-color limit, rather than silently falling back to a preset."
+      },
+      {
+        "question": "How plain should the three entry surfaces be?",
+        "answer": "A: remove the grid motif and animated grid only.",
+        "decision": "Retain subtle non-grid lighting/gradient accents and foreground cards."
+      },
+      {
+        "question": "Should transparent-safe behavior cover selection resize and rotation?",
+        "answer": "A: yes.",
+        "decision": "Transform only colored samples; transparent cells never clear or paint pixels, while the selection mask and handles remain usable."
+      },
+      {
+        "question": "Should Custom allow an empty palette?",
+        "answer": "A: yes.",
+        "decision": "Custom may be submitted empty and colors can be added later."
+      },
+      {
+        "question": "Does the clarified design tree reflect the shared understanding?",
+        "answer": "Yes.",
+        "decision": "The requirements are approved for specification finalization."
+      }
+    ],
+    "openQuestions": []
+  },
+  "dependencies": [],
+  "affectedFiles": [
+    "apps/studio/app/components/AppSplash.vue",
+    "apps/studio/app/components/AuthenticationPage.vue",
+    "apps/studio/app/components/ProjectLauncher.vue",
+    "apps/studio/app/components/PixelCanvas.vue",
+    "apps/studio/app/composables/useEditor.ts",
+    "apps/studio/app/utils/selection.ts",
+    "apps/studio/app/utils/project.ts",
+    "apps/studio/app/utils/assistant.ts",
+    "apps/studio/app/pages/index.vue",
+    "apps/studio/app/assets/css/main.css",
+    "apps/studio/tests/unit/selection.test.ts",
+    "apps/studio/tests/unit/project.test.ts",
+    "apps/studio/tests/unit/assistant.test.ts",
+    "apps/studio/tests/e2e/studio.spec.ts",
+    "apps/studio/tests/e2e/editor-7ed4-visual.spec.ts",
+    "apps/studio/tests/e2e/responsive.spec.ts",
+    "docs/ui-snapshots/",
+    "docs/qa.md",
+    "docs/project-memory/architecture.md"
+  ],
+  "risks": [
+    "Filtering transparent samples too early could collapse selection bounds, handles, or rotation centers around colored artwork.",
+    "Clearing and writing overlapping selections in the wrong order could smear pixels or erase destination artwork under transparent holes.",
+    "All-transparent or unchanged gestures could create misleading history and dirty-state entries.",
+    "Editor and assistant indexed-color rules could diverge or exceed the 256-color project limit.",
+    "Explicit empty palettes could be silently repopulated by project defaults or leave indexed drawing unusable.",
+    "Greyscale starting palettes could retain misleading colored values instead of normalized greyscale entries.",
+    "Broad CSS cleanup could remove useful non-grid lighting, document transparency checkers, or responsive hierarchy.",
+    "Additional launcher choices and empty states could overflow phone/tablet layouts or reduce touch target sizes.",
+    "Selection corrections could regress high-pixel-count performance if they add snapshots or full-canvas work during pointer movement."
+  ],
+  "validation": [
+    "Unit-test colored-only selection capture/application, transparent destination preservation, overlap, clipping, empty masks, and unchanged results.",
+    "Unit-test omitted versus explicit empty palettes, greyscale normalization, indexed registration/deduplication, 256-color fallback, and assistant parity.",
+    "Playwright-test rectangular and lasso move/resize/rotate with transparent holes plus exact one-step undo/redo restoration.",
+    "Playwright-test Preset, empty Custom, and Skip project creation, honest summaries/hints, indexed first-use growth, and custom design-system color picker behavior.",
+    "Review desktop, phone, and tablet splash/auth/Home/launcher screenshots and assert decorative entry grids are absent without removing approved lighting or transparency checkers.",
+    "Run studio lint, typecheck, unit tests, production build, focused/full Playwright, changed-file formatting, spec validation, and git diff checks."
+  ],
+  "validationEvidence": [
+    "Implemented alpha-safe selection mutations, empty/custom/skip palettes, indexed first-use registration, and grid-free entry surfaces. Passed studio lint, typecheck, 62 Vitest tests, production Nuxt build, focused Playwright palette/Home/selection journeys, visual review of app-splash and mobile-home-flat snapshots, formatting, and git diff checks. A standalone Python static-server probe was attempted but blocked by Windows connection behavior; repository Playwright succeeded.",
+    "Added and passed editor-7ed4-visual Playwright auth journey; reviewed updated authentication-entry.png with no grid field and retained subtle radial lighting.",
+    "Indexed empty-palette Playwright journey passed after verifying first-use drawing registration; focused unit suite now covers assistant parity and 256-color fallback (33 tests)."
+  ],
+  "overrides": []
+}

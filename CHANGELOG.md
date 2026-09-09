@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/surelle-ha/zakape/compare/v0.24.0...v0.25.0) (2026-09-09)
+
+
+### Features
+
+* **site:** redesign public experience ([#47](https://github.com/surelle-ha/zakape/issues/47)) ([143a41e](https://github.com/surelle-ha/zakape/commit/143a41e942dfd4a9331d62b3c1f17f65e8e5006b))
+
 ## [0.24.0](https://github.com/surelle-ha/zakape/compare/v0.23.0...v0.24.0) (2026-09-09)
 
 

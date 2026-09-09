@@ -7,6 +7,11 @@ interface PixelSurface {
   imageData: ImageData
 }
 
+export const nativeCanvasSize = (width: number, height: number, columns = 1, rows = 1) => ({
+  width: Math.max(1, Math.round(width)) * Math.max(1, Math.round(columns)),
+  height: Math.max(1, Math.round(height)) * Math.max(1, Math.round(rows)),
+})
+
 let pixelSurface: PixelSurface | null = null
 
 const getPixelSurface = (width: number, height: number): PixelSurface => {

@@ -1,5 +1,17 @@
 <script setup lang="ts">
-import { Bot, Check, Cpu, Eye, KeyRound, ShieldCheck, SquareTerminal } from '@lucide/vue'
+import {
+  Bot,
+  Check,
+  Code2,
+  Cpu,
+  Eye,
+  Heading2,
+  KeyRound,
+  List,
+  Quote,
+  SquareTerminal,
+  Type,
+} from '@lucide/vue'
 import type {
   AssistantPreference,
   AssistantSettingsTab,
@@ -13,7 +25,7 @@ import {
   useAiAssistant,
 } from '~/composables/useAiAssistant'
 import { ASSISTANT_SKILLS, ASSISTANT_TOOL_CATALOG } from '~/utils/assistantSkills'
-import { normalizeAssistantPreference } from '~/utils/editorSettings'
+import { DEFAULT_ASSISTANT_INSTRUCTION, normalizeAssistantPreference } from '~/utils/editorSettings'
 
 const props = defineProps<{ open: boolean; initialTab: AssistantSettingsTab }>()
 const emit = defineEmits<{ close: []; applied: [] }>()
@@ -31,6 +43,65 @@ const visionEnabled = ref(true)
 const saving = ref(false)
 const saved = ref(false)
 const connectionSnapshot = ref<ModelConnection>({ ...connection.value })
+const instructionMode = ref<'write' | 'preview'>('write')
+const instructionEditor = ref<HTMLTextAreaElement | null>(null)
+const escapeMarkdown = (value: string) =>
+  value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!,
+  )
+const renderedInstruction = computed(() => {
+  const lines = escapeMarkdown(draft.value.userInstruction || DEFAULT_ASSISTANT_INSTRUCTION).split(
+    '\n',
+  )
+  let inList = false
+  const output: string[] = []
+  for (const line of lines) {
+    if (/^[-*] /.test(line)) {
+      if (!inList) {
+        output.push('<ul>')
+        inList = true
+      }
+      output.push(`<li>${line.slice(2)}</li>`)
+      continue
+    }
+    if (inList) {
+      output.push('</ul>')
+      inList = false
+    }
+    if (!line.trim()) {
+      output.push('<div class="md-spacer"></div>')
+      continue
+    }
+    const inline = line
+      .replace(/^### (.+)$/, '<h5>$1</h5>')
+      .replace(/^## (.+)$/, '<h4>$1</h4>')
+      .replace(/^# (.+)$/, '<h3>$1</h3>')
+      .replace(/^> (.+)$/, '<blockquote>$1</blockquote>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    output.push(/^<h[345]|^<blockquote/.test(inline) ? inline : `<p>${inline}</p>`)
+  }
+  if (inList) output.push('</ul>')
+  return output.join('')
+})
+const insertInstruction = (text: string) => {
+  const editor = instructionEditor.value
+  if (!editor) return
+  const start = editor.selectionStart
+  const end = editor.selectionEnd
+  draft.value.userInstruction =
+    `${draft.value.userInstruction.slice(0, start)}${text}${draft.value.userInstruction.slice(end)}`.slice(
+      0,
+      4000,
+    )
+  nextTick(() => {
+    editor.focus()
+    editor.setSelectionRange(start + text.length, start + text.length)
+  })
+}
 
 const isOllama = computed(() => provider.value === 'ollama')
 const isCompatible = computed(() => provider.value === 'openai-compatible')
@@ -117,6 +188,7 @@ watch(
   (open) => {
     if (open) {
       activeTab.value = props.initialTab
+      instructionMode.value = 'write'
       void loadDrafts()
     }
   },
@@ -225,13 +297,78 @@ watch(
         <strong>Additional instruction</strong
         ><small>Zakape’s safety and pixel-art rules remain protected.</small>
       </div>
-      <textarea
-        v-model="draft.userInstruction"
-        class="settings-textarea"
-        maxlength="4000"
-        rows="8"
-        placeholder="Describe your preferred art direction, review style, or palette discipline…"
-      /><small class="settings-count">{{ draft.userInstruction.length }}/4000</small>
+      <div class="markdown-editor">
+        <div class="markdown-toolbar" role="toolbar" aria-label="Instruction formatting">
+          <button
+            type="button"
+            :class="{ active: instructionMode === 'write' }"
+            @click="instructionMode = 'write'"
+          >
+            <Type :size="13" />Write
+          </button>
+          <button
+            type="button"
+            :class="{ active: instructionMode === 'preview' }"
+            @click="instructionMode = 'preview'"
+          >
+            <Eye :size="13" />Preview
+          </button>
+          <span></span>
+          <button
+            type="button"
+            title="Heading"
+            aria-label="Insert heading"
+            @click="insertInstruction('# ')"
+          >
+            <Heading2 :size="13" />
+          </button>
+          <button
+            type="button"
+            title="Bold"
+            aria-label="Insert bold text"
+            @click="insertInstruction('**bold**')"
+          >
+            <strong>B</strong>
+          </button>
+          <button
+            type="button"
+            title="List"
+            aria-label="Insert list item"
+            @click="insertInstruction('- item\n')"
+          >
+            <List :size="13" />
+          </button>
+          <button
+            type="button"
+            title="Quote"
+            aria-label="Insert quote"
+            @click="insertInstruction('> note\n')"
+          >
+            <Quote :size="13" />
+          </button>
+          <button
+            type="button"
+            title="Code"
+            aria-label="Insert inline code"
+            @click="insertInstruction('`code`')"
+          >
+            <Code2 :size="13" />
+          </button>
+        </div>
+        <textarea
+          v-if="instructionMode === 'write'"
+          ref="instructionEditor"
+          v-model="draft.userInstruction"
+          class="settings-textarea"
+          maxlength="4000"
+          rows="10"
+          placeholder="Describe your preferred art direction, review style, or palette discipline…"
+        />
+        <!-- Escaped before the limited Markdown replacements in renderedInstruction. -->
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <div v-else class="markdown-preview" v-html="renderedInstruction" />
+      </div>
+      <small class="settings-count">{{ draft.userInstruction.length }}/4000</small>
     </section>
     <section v-else-if="activeTab === 'skills'" class="settings-section">
       <div class="settings-section-heading">
@@ -267,8 +404,7 @@ watch(
       /></label>
     </section>
     <template #status
-      ><span v-if="saved" class="connection-success"><Check :size="13" /> Saved</span
-      ><span v-else><ShieldCheck :size="13" /> Local settings</span></template
+      ><span v-if="saved" class="connection-success"><Check :size="13" /> Saved</span></template
     >
   </SettingsDialogShell>
 </template>

@@ -9,12 +9,10 @@ import {
   Eye,
   Film,
   FileJson,
-  Frame,
   Layers3,
   LockKeyhole,
   MousePointer2,
   Palette,
-  Play,
   ShieldCheck,
   Sparkles,
 } from '@lucide/vue'
@@ -22,6 +20,10 @@ import homeScreenshot from '../../../../docs/ui-snapshots/workspace-home-tab.png
 import assistantScreenshot from '../../../../docs/ui-snapshots/assistant-drawer.png'
 
 const repository = 'https://github.com/surelle-ha/zakape'
+const siteURL = 'https://zakape.0110harold.workers.dev'
+
+useSeoMeta({ ogUrl: siteURL })
+useHead({ link: [{ rel: 'canonical', href: siteURL }] })
 
 const features = [
   {
@@ -62,19 +64,7 @@ const outputs = [
   <div class="site-shell">
     <SiteSectionScroller />
     <SiteMotion />
-    <header class="site-nav">
-      <a href="#top" class="site-logo" aria-label="Zakape home">
-        <img src="/icon.png" alt="" width="30" height="30" />
-        <span><strong>Zakape</strong><small>Pixel studio</small></span>
-      </a>
-      <nav aria-label="Primary navigation">
-        <a href="#workbench">Workbench</a>
-        <a href="#workspace">Workspace</a>
-        <a href="#assistant">Assistant</a>
-        <a href="#open-source">Open source</a>
-      </nav>
-      <a :href="repository" class="nav-source"><Code2 :size="15" /> View source</a>
-    </header>
+    <SiteHeader />
 
     <main id="top">
       <section class="hero-section" data-scroll-section data-scroll-label="Opening">
@@ -98,16 +88,7 @@ const outputs = [
           </div>
         </div>
 
-        <div
-          class="hero-index"
-          data-reveal
-          data-reveal-delay="0.12"
-          aria-label="Workbench coordinates"
-        >
-          <span>CANVAS / 01</span><i /><span>FRAME 01:04</span><i /><span>ZOOM 1600%</span>
-        </div>
-
-        <div class="hero-visual" data-reveal data-reveal-delay="0.18">
+        <div class="hero-visual" data-reveal data-reveal-delay="0.12">
           <StudioMockup />
           <div class="hero-note">
             <span>REAL INTERFACE</span>
@@ -301,17 +282,6 @@ const outputs = [
       </section>
     </main>
 
-    <footer class="site-footer">
-      <a href="#top" class="site-logo">
-        <img src="/icon.png" alt="" width="30" height="30" />
-        <span><strong>Zakape</strong><small>Pixel studio</small></span>
-      </a>
-      <p><Frame :size="12" /> Pixel by pixel. Built in the open.</p>
-      <div>
-        <a :href="repository">GitHub</a>
-        <a :href="`${repository}/blob/main/README.md`">Docs</a>
-        <a :href="`${repository}/releases`"><Play :size="11" /> Releases</a>
-      </div>
-    </footer>
+    <SiteFooter />
   </div>
 </template>

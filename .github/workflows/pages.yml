@@ -1,4 +1,4 @@
-name: Website
+name: Website — Cloudflare Worker
 
 on:
   push:
@@ -12,18 +12,16 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: cloudflare-website
   cancel-in-progress: true
 
 jobs:
   deploy:
     environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      name: cloudflare
+      url: https://zakape.0110harold.workers.dev
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -34,16 +32,14 @@ jobs:
         with:
           node-version-file: .node-version
           cache: pnpm
-      - uses: actions/configure-pages@v6
-        with:
-          enablement: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @zakape/site build
         env:
-          NUXT_APP_BASE_URL: /zakape/
-      - uses: actions/upload-pages-artifact@v5
+          NUXT_APP_BASE_URL: /
+          NUXT_PUBLIC_SITE_URL: https://zakape.0110harold.workers.dev
+      - name: Deploy website to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
         with:
-          path: apps/site/.output/public
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --config apps/site/wrangler.jsonc

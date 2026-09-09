@@ -5,6 +5,7 @@ import {
   drawProjectFrame,
   drawRepeatedSurface,
   getCompositePixels,
+  nativeCanvasSize,
 } from '~/utils/render'
 import {
   mapTiledPoint,
@@ -94,11 +95,27 @@ let pinchGesture: {
 let lastPainted = ''
 let redrawFrame: number | null = null
 let presentationSurface: HTMLCanvasElement | null = null
+let frameSurface: HTMLCanvasElement | null = null
+let frameSurfaceKey = ''
+let onionSurface: HTMLCanvasElement | null = null
+let onionSurfaceKey = ''
+let queuedStrokePoints: Array<{ point: PixelPoint; color: Pixel }> = []
+let interactionBounds: DOMRect | null = null
 
 const tileWidth = computed(() => project.value.width * zoom.value)
 const tileHeight = computed(() => project.value.height * zoom.value)
 const canvasWidth = computed(() => tileWidth.value * effectiveColumns.value)
 const canvasHeight = computed(() => tileHeight.value * effectiveRows.value)
+const backingSize = computed(() =>
+  nativeCanvasSize(
+    project.value.width,
+    project.value.height,
+    effectiveColumns.value,
+    effectiveRows.value,
+  ),
+)
+const backingWidth = computed(() => backingSize.value.width)
+const backingHeight = computed(() => backingSize.value.height)
 const sourceTile = computed(() => tiledSourceTile(effectiveColumns.value, effectiveRows.value))
 const sourceOffset = computed(() => ({
   x: sourceTile.value.column * tileWidth.value,
@@ -108,6 +125,15 @@ const selectionTools = ['select-rect', 'select-lasso'] as const
 const isSelectionTool = computed(() =>
   selectionTools.includes(activeTool.value as (typeof selectionTools)[number]),
 )
+const cursorMarkers = computed(() => {
+  if (!cursor.value || activeTool.value === 'hand' || isSelectionTool.value) return []
+  return mirrorPoints(cursor.value).flatMap((point) =>
+    Array.from({ length: effectiveRows.value * effectiveColumns.value }, (_, index) => ({
+      x: (index % effectiveColumns.value) * project.value.width + point.x,
+      y: Math.floor(index / effectiveColumns.value) * project.value.height + point.y,
+    })),
+  )
+})
 
 const boundedSelectionOffset = (from: PixelPoint, to: PixelPoint) => {
   if (!activeSelection.value?.points.length) return { x: 0, y: 0 }
@@ -319,39 +345,111 @@ const activeShapeSamples = () => {
 
 const getPresentationSurface = () => {
   presentationSurface ??= document.createElement('canvas')
-  if (presentationSurface.width !== tileWidth.value) presentationSurface.width = tileWidth.value
-  if (presentationSurface.height !== tileHeight.value) presentationSurface.height = tileHeight.value
+  if (presentationSurface.width !== project.value.width)
+    presentationSurface.width = project.value.width
+  if (presentationSurface.height !== project.value.height)
+    presentationSurface.height = project.value.height
   return presentationSurface
+}
+
+const getFrameSurface = () => {
+  frameSurface ??= document.createElement('canvas')
+  if (frameSurface.width !== project.value.width || frameSurface.height !== project.value.height) {
+    frameSurface.width = project.value.width
+    frameSurface.height = project.value.height
+    frameSurfaceKey = ''
+  }
+  const key = `${project.value.id}:${activeFrameId.value}:${dirtyRevision.value}`
+  if (frameSurfaceKey !== key) {
+    const context = frameSurface.getContext('2d')!
+    context.resetTransform()
+    drawProjectFrame(context, project.value, activeFrameId.value, 1)
+    frameSurfaceKey = key
+  }
+  return frameSurface
+}
+
+const patchFrameSurface = (samples: PixelSample[]) => {
+  if (!frameSurface || !samples.length) return
+  const context = frameSurface.getContext('2d')!
+  const unique = new Set(samples.map((sample) => sample.y * project.value.width + sample.x))
+  context.resetTransform()
+  context.imageSmoothingEnabled = false
+  unique.forEach((index) => {
+    const x = index % project.value.width
+    const y = Math.floor(index / project.value.width)
+    context.clearRect(x, y, 1, 1)
+    for (const layer of project.value.layers) {
+      if (!layer.visible || layer.opacity <= 0) continue
+      const pixel = layer.cels[activeFrameId.value]?.[index]
+      if (!pixel) continue
+      context.globalAlpha = layer.opacity
+      context.fillStyle = pixel
+      context.fillRect(x, y, 1, 1)
+    }
+  })
+  context.globalAlpha = 1
+}
+
+const getOnionSurface = (frameId: string) => {
+  onionSurface ??= document.createElement('canvas')
+  if (onionSurface.width !== project.value.width || onionSurface.height !== project.value.height) {
+    onionSurface.width = project.value.width
+    onionSurface.height = project.value.height
+    onionSurfaceKey = ''
+  }
+  const key = `${project.value.id}:${frameId}:${dirtyRevision.value}`
+  if (onionSurfaceKey !== key) {
+    const context = onionSurface.getContext('2d')!
+    context.resetTransform()
+    context.clearRect(0, 0, onionSurface.width, onionSurface.height)
+    drawPixelRuns(
+      context,
+      getCompositePixels(project.value, frameId),
+      project.value.width,
+      1,
+      '#c4b5fd',
+    )
+    onionSurfaceKey = key
+  }
+  return onionSurface
 }
 
 const redraw = () => {
   const element = canvas.value
   if (!element) return
-  if (element.width !== canvasWidth.value) element.width = canvasWidth.value
-  if (element.height !== canvasHeight.value) element.height = canvasHeight.value
+  // Keep the backing bitmap at native project resolution. CSS scales it with
+  // nearest-neighbour rendering, avoiding zoom² memory usage (a 1024² canvas
+  // at 14× otherwise exceeds 800 MB for this surface alone).
+  if (element.width !== backingWidth.value) element.width = backingWidth.value
+  if (element.height !== backingHeight.value) element.height = backingHeight.value
   const context = element.getContext('2d')!
-  context.clearRect(0, 0, element.width, element.height)
+  context.resetTransform()
+  context.clearRect(0, 0, canvasWidth.value, canvasHeight.value)
+  context.scale(1 / zoom.value, 1 / zoom.value)
 
   const surface = getPresentationSurface()
   const surfaceContext = surface.getContext('2d')!
-  surfaceContext.clearRect(0, 0, surface.width, surface.height)
+  surfaceContext.resetTransform()
+  surfaceContext.clearRect(0, 0, tileWidth.value, tileHeight.value)
+  surfaceContext.scale(1 / zoom.value, 1 / zoom.value)
   if (onionSkin.value && project.value.frames.length > 1) {
     const currentIndex = project.value.frames.findIndex((frame) => frame.id === activeFrameId.value)
     const previous = currentIndex > 0 ? project.value.frames[currentIndex - 1] : undefined
     if (previous) {
       surfaceContext.save()
       surfaceContext.globalAlpha = 0.24
-      drawPixelRuns(
-        surfaceContext,
-        getCompositePixels(project.value, previous.id),
-        project.value.width,
-        zoom.value,
-        '#c4b5fd',
+      surfaceContext.drawImage(
+        getOnionSurface(previous.id),
+        0,
+        0,
+        tileWidth.value,
+        tileHeight.value,
       )
       surfaceContext.restore()
     }
   }
-  drawProjectFrame(surfaceContext, project.value, activeFrameId.value, zoom.value, false)
+  surfaceContext.drawImage(getFrameSurface(), 0, 0, tileWidth.value, tileHeight.value)
   drawRepeatedSurface(
     context,
     surface,
@@ -381,21 +479,6 @@ const redraw = () => {
     context.restore()
   }
 
-  if (showGrid.value && zoom.value >= 8) {
-    context.beginPath()
-    context.strokeStyle = 'rgba(15, 13, 23, 0.42)'
-    context.lineWidth = 1
-    for (let x = 0; x <= project.value.width * effectiveColumns.value; x += 1) {
-      context.moveTo(x * zoom.value + 0.5, 0)
-      context.lineTo(x * zoom.value + 0.5, element.height)
-    }
-    for (let y = 0; y <= project.value.height * effectiveRows.value; y += 1) {
-      context.moveTo(0, y * zoom.value + 0.5)
-      context.lineTo(element.width, y * zoom.value + 0.5)
-    }
-    context.stroke()
-  }
-
   if (tiledMode.value) {
     context.save()
     context.beginPath()
@@ -404,12 +487,12 @@ const redraw = () => {
     for (let column = 1; column < effectiveColumns.value; column += 1) {
       const x = column * tileWidth.value + 0.5
       context.moveTo(x, 0)
-      context.lineTo(x, element.height)
+      context.lineTo(x, canvasHeight.value)
     }
     for (let row = 1; row < effectiveRows.value; row += 1) {
       const y = row * tileHeight.value + 0.5
       context.moveTo(0, y)
-      context.lineTo(element.width, y)
+      context.lineTo(canvasWidth.value, y)
     }
     context.stroke()
     context.restore()
@@ -484,35 +567,22 @@ const redraw = () => {
     )
     context.restore()
   }
-
-  if (cursor.value && activeTool.value !== 'hand' && !isSelectionTool.value) {
-    context.strokeStyle = '#ffffff'
-    context.lineWidth = 1
-    mirrorPoints(cursor.value).forEach((point) => {
-      for (let row = 0; row < effectiveRows.value; row += 1) {
-        for (let column = 0; column < effectiveColumns.value; column += 1) {
-          context.strokeRect(
-            (column * project.value.width + point.x) * zoom.value + 0.5,
-            (row * project.value.height + point.y) * zoom.value + 0.5,
-            zoom.value - 1,
-            zoom.value - 1,
-          )
-        }
-      }
-    })
-  }
 }
 
 const scheduleRedraw = () => {
   if (redrawFrame !== null) return
   redrawFrame = window.requestAnimationFrame(() => {
+    // Keep the frame marked as scheduled while batched stroke points flush so
+    // paintAt does not enqueue a redundant second animation frame.
+    redrawFrame = -1
+    flushQueuedStrokePoints()
     redrawFrame = null
     redraw()
   })
 }
 
 const displayPointFromEvent = (event: PointerEvent): PixelPoint => {
-  const bounds = canvas.value!.getBoundingClientRect()
+  const bounds = interactionBounds ?? canvas.value!.getBoundingClientRect()
   const width = project.value.width * effectiveColumns.value
   const height = project.value.height * effectiveRows.value
   const raw = {
@@ -676,11 +746,23 @@ const paintAt = (point: PixelPoint, color: Pixel) => {
   if (lastPainted === key) return
   lastPainted = key
   paintPixelSamples(samples)
+  patchFrameSurface(samples)
   scheduleRedraw()
 }
 
 const paintStrokeAt = (point: PixelPoint, color: Pixel) => {
   paintAt(point, color)
+}
+
+const queueStrokePoint = (point: PixelPoint, color: Pixel) => {
+  queuedStrokePoints.push({ point, color })
+}
+
+const flushQueuedStrokePoints = () => {
+  if (!queuedStrokePoints.length) return
+  const points = queuedStrokePoints
+  queuedStrokePoints = []
+  points.forEach(({ point, color }) => paintStrokeAt(point, color))
 }
 
 const beginToolAction = (
@@ -863,6 +945,7 @@ const onPointerDown = (event: PointerEvent) => {
   if (isSelectionTool.value && event.button === 2) return
   modifierKeys.value = { ctrl: event.ctrlKey || event.metaKey, shift: event.shiftKey }
   canvas.value?.setPointerCapture(event.pointerId)
+  interactionBounds = canvas.value?.getBoundingClientRect() ?? null
   if (event.pointerType === 'touch') {
     event.preventDefault()
     activeTouches.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY })
@@ -967,7 +1050,8 @@ const onPointerMove = async (event: PointerEvent) => {
     const points = lastStrokeDisplayPoint.value
       ? rasterLine(lastStrokeDisplayPoint.value, displayPoint)
       : [displayPoint]
-    points.forEach((strokePoint) => paintStrokeAt(strokePoint, strokeColor.value))
+    points.forEach((strokePoint) => queueStrokePoint(strokePoint, strokeColor.value))
+    scheduleRedraw()
     lastStrokePoint.value = point
     lastStrokeDisplayPoint.value = displayPoint
   } else {
@@ -991,17 +1075,20 @@ const onPointerUp = (event: PointerEvent) => {
         pinchGesture = null
       }
       canvas.value?.releasePointerCapture(event.pointerId)
+      interactionBounds = null
       return
     }
   }
   if (panning.value) {
     panning.value = false
     canvas.value?.releasePointerCapture(event.pointerId)
+    interactionBounds = null
     return
   }
   if (selectionTransformMode.value) {
     finishSelectionTransform()
     canvas.value?.releasePointerCapture(event.pointerId)
+    interactionBounds = null
     scheduleRedraw()
     return
   }
@@ -1011,11 +1098,14 @@ const onPointerUp = (event: PointerEvent) => {
     selectionDragStart.value = null
     selectionOffset.value = { x: 0, y: 0 }
     canvas.value?.releasePointerCapture(event.pointerId)
+    interactionBounds = null
     scheduleRedraw()
     return
   }
+  flushQueuedStrokePoints()
   if (!drawing.value) {
     touchMutationCheckpoint = false
+    interactionBounds = null
     canvas.value?.releasePointerCapture(event.pointerId)
     return
   }
@@ -1049,6 +1139,8 @@ const onPointerUp = (event: PointerEvent) => {
   lastStrokePoint.value = null
   lastStrokeDisplayPoint.value = null
   lastPainted = ''
+  queuedStrokePoints = []
+  interactionBounds = null
   touchMutationCheckpoint = false
   canvas.value?.releasePointerCapture(event.pointerId)
   scheduleRedraw()
@@ -1071,6 +1163,8 @@ const onPointerCancel = (event: PointerEvent) => {
   lastStrokePoint.value = null
   lastStrokeDisplayPoint.value = null
   lastPainted = ''
+  queuedStrokePoints = []
+  interactionBounds = null
   if (activeTouches.size === 0) {
     pinchActive = false
     pinchGesture = null
@@ -1118,7 +1212,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="canvas-mat" data-testid="canvas-mat">
+  <div
+    class="canvas-mat"
+    :class="{ 'show-pixel-grid': showGrid && zoom >= 8 }"
+    :style="{
+      width: `${canvasWidth}px`,
+      height: `${canvasHeight}px`,
+      '--pixel-grid-size': `${zoom}px`,
+    }"
+    data-testid="canvas-mat"
+  >
     <canvas
       ref="canvas"
       class="pixel-canvas"
@@ -1145,6 +1248,18 @@ onBeforeUnmount(() => {
       @pointerup="onPointerUp"
       @pointercancel="onPointerCancel"
       @pointerleave="onPointerLeave"
+    />
+    <i
+      v-for="(marker, index) in cursorMarkers"
+      :key="`${marker.x}:${marker.y}:${index}`"
+      class="pixel-cursor-marker"
+      :style="{
+        left: `${marker.x * zoom}px`,
+        top: `${marker.y * zoom}px`,
+        width: `${zoom}px`,
+        height: `${zoom}px`,
+      }"
+      aria-hidden="true"
     />
   </div>
 </template>

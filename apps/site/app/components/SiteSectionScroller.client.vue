@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ChevronDown } from '@lucide/vue'
 
-type ScrollAnimation = { cancel: () => void }
-
 const labels = ref<string[]>([])
 const activeIndex = ref(0)
 
@@ -13,7 +11,7 @@ const goToSection = (index: number) => {
 
 let cleanup: (() => void) | undefined
 
-onMounted(async () => {
+onMounted(() => {
   const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-scroll-section]'))
   if (sections.length < 2) return
 
@@ -22,8 +20,7 @@ onMounted(async () => {
   )
   const desktopPointer = window.matchMedia('(min-width: 1024px) and (pointer: fine)')
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-  const { animate } = await import('animejs')
-  let animation: ScrollAnimation | undefined
+  let unlockTimer = 0
   let lockedUntil = 0
 
   const topOffset = () => document.querySelector<HTMLElement>('.site-nav')?.offsetHeight ?? 0
@@ -42,56 +39,50 @@ onMounted(async () => {
     activeIndex.value = nearestIndex()
   }
 
+  const scheduleUnlock = () => {
+    window.clearTimeout(unlockTimer)
+    unlockTimer = window.setTimeout(
+      () => {
+        const remaining = lockedUntil - performance.now()
+        if (remaining > 0) {
+          scheduleUnlock()
+          return
+        }
+        document.documentElement.classList.remove('site-section-moving')
+      },
+      Math.max(16, lockedUntil - performance.now()),
+    )
+  }
+
   const scrollToSection = (index: number) => {
     const section = sections[index]
     if (!section) return
     const target = Math.max(0, section.offsetTop - topOffset())
     activeIndex.value = index
-    animation?.cancel()
-
-    if (reducedMotion.matches) {
-      window.scrollTo(0, target)
-      return
-    }
-
-    const tracker = { y: window.scrollY }
     document.documentElement.classList.add('site-section-moving')
-    animation = animate(tracker, {
-      y: target,
-      duration: 920,
-      ease: 'inOutQuart',
-      onUpdate: () => window.scrollTo(0, tracker.y),
-      onComplete: () => {
-        window.scrollTo(0, target)
-        lockedUntil = performance.now() + 180
-        document.documentElement.classList.remove('site-section-moving')
-      },
-    })
+    window.scrollTo({ top: target, behavior: reducedMotion.matches ? 'auto' : 'smooth' })
+    lockedUntil = performance.now() + (reducedMotion.matches ? 120 : 850)
+    scheduleUnlock()
   }
 
   const onWheel = (event: WheelEvent) => {
     if (!desktopPointer.matches || event.ctrlKey || Math.abs(event.deltaY) < 4) return
-    if (
-      performance.now() < lockedUntil ||
-      document.documentElement.classList.contains('site-section-moving')
-    ) {
+
+    if (document.documentElement.classList.contains('site-section-moving')) {
       event.preventDefault()
+      // Keep trackpad momentum from advancing through a second chapter after
+      // the first transition has completed.
+      lockedUntil = Math.max(lockedUntil, performance.now() + 180)
+      scheduleUnlock()
       return
     }
 
-    const index = nearestIndex()
-    const section = sections[index]!
     const direction = event.deltaY > 0 ? 1 : -1
-    const viewTop = window.scrollY + topOffset()
-    const viewBottom = window.scrollY + window.innerHeight
-    const atBoundary =
-      direction > 0
-        ? viewBottom >= section.offsetTop + section.offsetHeight - 4
-        : viewTop <= section.offsetTop + 4
+    const target = nearestIndex() + direction
+    if (!sections[target]) return
 
-    if (!atBoundary || !sections[index + direction]) return
     event.preventDefault()
-    scrollToSection(index + direction)
+    scrollToSection(target)
   }
 
   const editable = (target: EventTarget | null) =>
@@ -132,7 +123,7 @@ onMounted(async () => {
   updateActive()
 
   cleanup = () => {
-    animation?.cancel()
+    window.clearTimeout(unlockTimer)
     cancelAnimationFrame(frame)
     window.removeEventListener('wheel', onWheel)
     window.removeEventListener('keydown', onKeydown)

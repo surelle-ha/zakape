@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://zakape.0110harold.workers.dev/sitemap.xml

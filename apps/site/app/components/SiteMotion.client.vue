@@ -8,8 +8,6 @@ onMounted(async () => {
   const elements = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'))
   const stops: Array<() => void> = []
   const played = new WeakSet<Element>()
-  document.documentElement.classList.add('site-motion-ready')
-
   for (const element of elements) {
     const stop = inView(
       element,
@@ -20,11 +18,10 @@ onMounted(async () => {
         animate(
           element,
           {
-            opacity: [0, 1],
-            transform: ['translateY(34px)', 'translateY(0px)'],
-            filter: ['blur(9px)', 'blur(0px)'],
+            opacity: [0.72, 1],
+            transform: ['translateY(18px)', 'translateY(0px)'],
           },
-          { duration: 0.82, delay, ease: [0.16, 1, 0.3, 1] },
+          { duration: 0.46, delay: Math.min(delay, 0.08), ease: [0.16, 1, 0.3, 1] },
         )
       },
       { amount: 0.16, margin: '0px 0px -8% 0px' },
@@ -34,7 +31,6 @@ onMounted(async () => {
 
   cleanup = () => {
     stops.forEach((stop) => stop())
-    document.documentElement.classList.remove('site-motion-ready')
   }
 })
 

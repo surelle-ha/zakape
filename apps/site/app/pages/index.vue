@@ -6,7 +6,6 @@ import {
   Check,
   Code2,
   Download,
-  Eye,
   Film,
   FileJson,
   Layers3,
@@ -16,7 +15,6 @@ import {
   ShieldCheck,
   Sparkles,
 } from '@lucide/vue'
-import homeScreenshot from '../../../../docs/ui-snapshots/workspace-home-tab.png'
 import assistantScreenshot from '../../../../docs/ui-snapshots/assistant-drawer.png'
 
 const repository = 'https://github.com/surelle-ha/zakape'
@@ -25,260 +23,185 @@ const siteURL = 'https://zakape.0110harold.workers.dev'
 useSeoMeta({ ogUrl: siteURL })
 useHead({ link: [{ rel: 'canonical', href: siteURL }] })
 
-const features = [
+const craft = [
   {
     icon: MousePointer2,
-    label: 'Pixel-native tools',
-    copy: 'Draw, fill, sample, mirror, dither, select, transform, and pan without leaving the canvas loop.',
-    key: 'P',
+    title: 'Pixel-native tools',
+    copy: 'Draw, dither, select, transform, mirror, and pan with controls tuned for deliberate marks.',
   },
   {
     icon: Layers3,
-    label: 'Independent layers',
-    copy: 'Separate silhouette, color, and detail with per-layer names, visibility, opacity, and blend state.',
-    key: 'F2',
+    title: 'Layers with purpose',
+    copy: 'Name, order, blend, hide, and shape every layer without losing the thread of the frame.',
   },
   {
     icon: Film,
-    label: 'Frame-by-frame motion',
-    copy: 'Reorder frames, tune timing, use onion skinning, and watch the animation while you work.',
-    key: 'O',
-  },
-  {
-    icon: FileJson,
-    label: 'Outputs that travel',
-    copy: 'Ship a frame, animated GIF, sprite sheet with metadata, or the open project file.',
-    key: 'E',
+    title: 'Motion at a glance',
+    copy: 'Reorder frames, tune timing, reveal onion skinning, and preview the animation as you work.',
   },
 ]
 
-const outputs = [
-  ['Still', 'PNG', 'Native or scaled'],
-  ['Motion', 'GIF', 'Per-frame timing'],
-  ['Engine', 'Sheet + JSON', 'Predictable metadata'],
-  ['Project', '.zakape', 'Readable and portable'],
-]
+const formats = ['PNG stills', 'Animated GIF', 'Sprite sheet + JSON', 'Portable .zakape project']
 </script>
 
 <template>
-  <div class="site-shell">
+  <div class="site-shell atelier-shell">
     <SiteSectionScroller />
     <SiteMotion />
     <SiteHeader />
 
-    <main id="top">
-      <section class="hero-section" data-scroll-section data-scroll-label="Opening">
+    <main id="main-content">
+      <section class="atelier-hero" data-scroll-section data-scroll-label="Opening">
+        <img
+          class="old-master"
+          src="/art/calling-of-saint-matthew.jpg"
+          alt=""
+          width="1060"
+          height="1001"
+          aria-hidden="true"
+        />
+        <div class="chiaroscuro" aria-hidden="true" />
+
         <div class="hero-copy" data-reveal>
-          <p class="site-kicker"><span /> Independent pixel studio</p>
-          <h1>Draw every pixel.<br /><em>Make every frame count.</em></h1>
+          <p class="site-kicker"><span /> The open digital atelier</p>
+          <h1>Craft sprites<br /><em>worthy of a world.</em></h1>
           <p class="hero-lede">
-            A focused, local-first workspace for sprites and animation. Work by hand from first mark
-            to final export, then invite your own model only when it earns a place in the process.
+            A focused studio for hand-built pixel art and frame-by-frame animation—with an optional
+            assistant that works beside you, never in place of you.
           </p>
           <div class="hero-actions">
-            <a :href="`${repository}/releases`" class="cta-primary">
-              <Download :size="17" /> Download alpha <ArrowRight :size="15" />
-            </a>
-            <a :href="repository" class="cta-secondary"><Code2 :size="16" /> Follow the build</a>
+            <NuxtLink to="/download" class="cta-primary"
+              ><Download :size="17" /> Enter the studio <ArrowRight :size="15"
+            /></NuxtLink>
+            <a :href="repository" class="cta-secondary"><Code2 :size="16" /> View the source</a>
           </div>
           <div class="hero-proof" aria-label="Project qualities">
+            <span><Check :size="13" /> Local-first</span>
             <span><Check :size="13" /> Guest access</span>
-            <span><Check :size="13" /> Offline editor</span>
             <span><Check :size="13" /> MIT licensed</span>
           </div>
         </div>
 
-        <div class="hero-visual" data-reveal data-reveal-delay="0.12">
-          <StudioMockup />
-          <div class="hero-note">
-            <span>REAL INTERFACE</span>
-            <strong>No concept render.</strong>
-            <small>Captured from the tested desktop build.</small>
+        <div class="hero-gallery" data-reveal data-reveal-delay="0.12">
+          <div class="gilded-capture"><StudioMockup /></div>
+          <div class="gallery-plaque">
+            <span>WORKBENCH No. 01</span>
+            <strong>The living canvas</strong>
+            <small>Authentic capture from Zakape Studio</small>
           </div>
         </div>
 
-        <a href="#workbench" class="hero-scroll"><ArrowDown :size="14" /> Read the workbench</a>
+        <a href="#atelier" class="hero-scroll"><ArrowDown :size="14" /> Tour the atelier</a>
       </section>
 
-      <section
-        id="workbench"
-        class="workbench-section"
-        data-scroll-section
-        data-scroll-label="Workbench"
-      >
-        <header class="section-intro" data-reveal>
-          <p class="site-kicker"><span /> Built for the loop</p>
-          <h2>A real editor first.<br /><em>No prompt required.</em></h2>
+      <section id="atelier" class="atelier-section" data-scroll-section data-scroll-label="Atelier">
+        <div class="section-heading" data-reveal>
+          <p class="site-kicker"><span /> The maker's workbench</p>
+          <h2>Every instrument<br /><em>within reach.</em></h2>
           <p>
-            Fast iteration comes from muscle memory, visible state, and files you can trust. Every
-            control stays close to the thing it changes.
+            The canvas, timeline, palette, layers, and live preview share one composed workspace.
+            Nothing interrupts the rhythm between first mark and final frame.
           </p>
-        </header>
+        </div>
 
-        <div class="feature-grid" data-reveal data-reveal-delay="0.1">
-          <article v-for="(feature, index) in features" :key="feature.label">
+        <div class="craft-panels" data-reveal data-reveal-delay="0.1">
+          <article v-for="(item, index) in craft" :key="item.title">
             <header>
               <span>0{{ index + 1 }}</span
-              ><kbd>{{ feature.key }}</kbd>
+              ><component :is="item.icon" :size="20" />
             </header>
-            <component :is="feature.icon" :size="23" :stroke-width="1.5" />
-            <h3>{{ feature.label }}</h3>
-            <p>{{ feature.copy }}</p>
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.copy }}</p>
           </article>
         </div>
-      </section>
 
-      <section
-        id="workspace"
-        class="workspace-section"
-        data-scroll-section
-        data-scroll-label="Local desk"
-      >
-        <div class="workspace-story">
-          <div class="workspace-copy" data-reveal>
-            <p class="site-kicker"><span /> Your local desk</p>
-            <h3>Open where you left off.</h3>
-            <p>
-              Recent canvases carry their real previews. Changelogs, workspace location, and the
-              complete sprite loop live on an indismissable Home tab.
-            </p>
-            <dl>
-              <div>
-                <dt>Projects</dt>
-                <dd>Local by default</dd>
-              </div>
-              <div>
-                <dt>Working directory</dt>
-                <dd>Documents/zakape</dd>
-              </div>
-              <div>
-                <dt>Formats</dt>
-                <dd>Open, ordinary files</dd>
-              </div>
-            </dl>
-          </div>
-          <figure class="workspace-shot" data-reveal data-reveal-delay="0.12">
-            <img
-              :src="homeScreenshot"
-              alt="Zakape Studio Home tab with recent work, changelog, and workspace details"
-              width="1440"
-              height="960"
-              loading="lazy"
-            />
-            <figcaption>
-              <span>HOME / LIVE BUILD</span><small>Resume, create, or open</small>
-            </figcaption>
-          </figure>
+        <div class="atelier-ribbon" data-reveal>
+          <span><Palette :size="15" /> Indexed palettes</span>
+          <span><Film :size="15" /> Tiled preview</span>
+          <span><FileJson :size="15" /> Engine-ready metadata</span>
         </div>
       </section>
 
       <section
         id="assistant"
-        class="assistant-section"
+        class="companion-section"
         data-scroll-section
-        data-scroll-label="Assistant"
+        data-scroll-label="Companion"
       >
-        <div class="assistant-copy" data-reveal>
-          <p class="site-kicker light"><span /> Optional by design</p>
-          <h2>Your model.<br />Your endpoint.<br /><em>Your approval.</em></h2>
-          <p>
-            Connect local Ollama or a compatible endpoint. The assistant works against an explicit
-            frame or sheet scope, inspects its draft, and returns a reviewable proposal.
-          </p>
-          <ul>
-            <li>
-              <LockKeyhole :size="17" />
-              <span
-                ><strong>Private configuration</strong
-                ><small>Keys stay on your device.</small></span
-              >
-            </li>
-            <li>
-              <Eye :size="17" />
-              <span
-                ><strong>Visible before apply</strong
-                ><small>Inspect every proposed result.</small></span
-              >
-            </li>
-            <li>
-              <ShieldCheck :size="17" />
-              <span
-                ><strong>Bounded operations</strong
-                ><small>No shell or unrestricted code.</small></span
-              >
-            </li>
-          </ul>
-        </div>
-
-        <div class="assistant-visual" data-reveal data-reveal-delay="0.12">
-          <figure class="assistant-shot">
+        <div class="companion-visual" data-reveal>
+          <figure class="assistant-frame">
             <img
               :src="assistantScreenshot"
-              alt="Zakape Studio with the Art assistant drawer open beside the canvas"
+              alt="Zakape Studio with the Art Assistant open beside a pixel canvas"
               width="1440"
               height="960"
               loading="lazy"
             />
-            <figcaption><Bot :size="13" /> AGENTIC WORKSPACE / REAL CAPTURE</figcaption>
+            <figcaption><Bot :size="13" /> A reviewable creative companion</figcaption>
           </figure>
-          <div class="assistant-protocol">
-            <header><Sparkles :size="14" /><span>REVIEW SEQUENCE</span></header>
-            <ol>
-              <li>
-                <span>01</span><strong>Describe</strong><small>Set intent and edit scope</small>
-              </li>
-              <li>
-                <span>02</span><strong>Inspect</strong
-                ><small>Agent checks its rendered draft</small>
-              </li>
-              <li>
-                <span>03</span><strong>Approve</strong><small>Apply as one undoable edit</small>
-              </li>
-            </ol>
+        </div>
+
+        <div class="companion-copy" data-reveal data-reveal-delay="0.12">
+          <p class="site-kicker"><span /> Intelligence by invitation</p>
+          <h2>Your hand leads.<br /><em>Your model assists.</em></h2>
+          <p>
+            Connect local Ollama or a compatible endpoint. Set the frame or sheet scope, let the
+            assistant inspect its own draft, then accept only the work that belongs on your canvas.
+          </p>
+          <ul>
+            <li>
+              <LockKeyhole :size="17" /><span
+                ><strong>Private configuration</strong
+                ><small>Credentials remain on your device.</small></span
+              >
+            </li>
+            <li>
+              <Sparkles :size="17" /><span
+                ><strong>Iterative proposals</strong
+                ><small>The assistant can inspect and refine before handoff.</small></span
+              >
+            </li>
+            <li>
+              <ShieldCheck :size="17" /><span
+                ><strong>Undoable approval</strong
+                ><small>Every applied proposal remains under artist control.</small></span
+              >
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="finale-section" data-scroll-section data-scroll-label="Open studio">
+        <div class="finale-heading" data-reveal>
+          <p class="site-kicker"><span /> Leave with your work</p>
+          <h2>Open files.<br />Open source.<br /><em>An open invitation.</em></h2>
+        </div>
+
+        <div class="finale-body" data-reveal data-reveal-delay="0.1">
+          <div class="format-list" aria-label="Export formats">
+            <span v-for="(format, index) in formats" :key="format"
+              ><i>0{{ index + 1 }}</i
+              >{{ format }}</span
+            >
+          </div>
+          <p>
+            Start with the complete local studio for free. The optional $4 monthly plan will add
+            sync, private share links, and collaboration—without taking the open editor away.
+          </p>
+          <div class="finale-actions">
+            <NuxtLink to="/pricing" class="cta-primary"
+              >Compare plans <ArrowRight :size="15"
+            /></NuxtLink>
+            <a :href="repository" class="text-link"
+              ><Code2 :size="16" /> Shape the project on GitHub</a
+            >
           </div>
         </div>
-      </section>
 
-      <section
-        class="output-section"
-        aria-labelledby="output-heading"
-        data-scroll-section
-        data-scroll-label="Outputs"
-      >
-        <header data-reveal>
-          <p class="site-kicker"><span /> Leave with files</p>
-          <h2 id="output-heading">From the canvas<br />to the build.</h2>
-        </header>
-        <div class="output-list" data-reveal data-reveal-delay="0.1">
-          <article v-for="([kind, format, detail], index) in outputs" :key="format">
-            <span>0{{ index + 1 }} / {{ kind }}</span
-            ><strong>{{ format }}</strong
-            ><small>{{ detail }}</small>
-          </article>
-        </div>
-      </section>
-
-      <section
-        id="open-source"
-        class="open-section"
-        data-scroll-section
-        data-scroll-label="Open source"
-      >
-        <div class="open-mark" aria-hidden="true">
-          <Palette :size="26" />
-          <span v-for="pixel in 25" :key="pixel" />
-        </div>
-        <div data-reveal>
-          <p class="site-kicker"><span /> Built in public</p>
-          <h2>The studio belongs to the artists who shape it.</h2>
-        </div>
-        <div class="open-copy" data-reveal data-reveal-delay="0.12">
-          <p>
-            Zakape is MIT licensed. Its project format, roadmap, architecture, privacy notes, and
-            visual QA live beside the source.
-          </p>
-          <a :href="repository"><Code2 :size="17" /> Read the source <ArrowRight :size="15" /></a>
-        </div>
+        <footer class="art-credit">
+          Background study: Caravaggio, <cite>The Calling of Saint Matthew</cite>, 1599–1600. Public
+          domain, via Wikimedia Commons.
+        </footer>
       </section>
     </main>
 

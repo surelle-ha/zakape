@@ -12,6 +12,7 @@ const repository = 'https://github.com/surelle-ha/zakape'
     </NuxtLink>
     <p><Frame :size="12" /> Pixel by pixel. Built in the open.</p>
     <div>
+      <NuxtLink to="/pricing">Pricing</NuxtLink>
       <NuxtLink to="/download">Download</NuxtLink>
       <NuxtLink to="/privacy">Privacy</NuxtLink>
       <a :href="repository">GitHub</a>

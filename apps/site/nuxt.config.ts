@@ -33,7 +33,6 @@ export default defineNuxtConfig({
         { property: 'og:description', content: description },
         { property: 'og:type', content: 'website' },
         { property: 'og:site_name', content: 'Zakape' },
-        { property: 'og:url', content: siteURL },
         { property: 'og:image', content: `${siteURL}/zakape-social-banner.png` },
         { property: 'og:image:width', content: '2048' },
         { property: 'og:image:height', content: '768' },
@@ -43,10 +42,7 @@ export default defineNuxtConfig({
         { name: 'twitter:description', content: description },
         { name: 'twitter:image', content: `${siteURL}/zakape-social-banner.png` },
       ],
-      link: [
-        { rel: 'canonical', href: siteURL },
-        { rel: 'icon', href: `${baseURL}icon.png`, type: 'image/png' },
-      ],
+      link: [{ rel: 'icon', href: `${baseURL}icon.png`, type: 'image/png' }],
       script: [
         {
           type: 'application/ld+json',

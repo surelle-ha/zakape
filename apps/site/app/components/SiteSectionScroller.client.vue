@@ -20,7 +20,6 @@ onMounted(async () => {
   )
   const desktopPointer = window.matchMedia('(min-width: 1024px) and (pointer: fine)')
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-  let lockedUntil = 0
   let unlockTimer = 0
 
   const topOffset = () => document.querySelector<HTMLElement>('.site-nav')?.offsetHeight ?? 0
@@ -44,7 +43,6 @@ onMounted(async () => {
     if (!section) return
     const target = Math.max(0, section.offsetTop - topOffset())
     activeIndex.value = index
-    lockedUntil = performance.now() + (reducedMotion.matches ? 120 : 760)
     document.documentElement.classList.add('site-section-moving')
     window.scrollTo({ top: target, behavior: reducedMotion.matches ? 'auto' : 'smooth' })
     window.clearTimeout(unlockTimer)
@@ -54,23 +52,6 @@ onMounted(async () => {
       },
       reducedMotion.matches ? 120 : 760,
     )
-  }
-
-  const onWheel = (event: WheelEvent) => {
-    if (!desktopPointer.matches || event.ctrlKey || Math.abs(event.deltaY) < 4) return
-    if (
-      performance.now() < lockedUntil ||
-      document.documentElement.classList.contains('site-section-moving')
-    ) {
-      event.preventDefault()
-      return
-    }
-
-    const index = nearestIndex()
-    const direction = event.deltaY > 0 ? 1 : -1
-    if (!sections[index + direction]) return
-    event.preventDefault()
-    scrollToSection(index + direction)
   }
 
   const editable = (target: EventTarget | null) =>
@@ -105,7 +86,6 @@ onMounted(async () => {
     frame = requestAnimationFrame(updateActive)
   }
 
-  window.addEventListener('wheel', onWheel, { passive: false })
   window.addEventListener('keydown', onKeydown)
   window.addEventListener('scroll', onScroll, { passive: true })
   updateActive()
@@ -113,7 +93,6 @@ onMounted(async () => {
   cleanup = () => {
     window.clearTimeout(unlockTimer)
     cancelAnimationFrame(frame)
-    window.removeEventListener('wheel', onWheel)
     window.removeEventListener('keydown', onKeydown)
     window.removeEventListener('scroll', onScroll)
     document.documentElement.classList.remove('site-section-moving')

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.24.0](https://github.com/surelle-ha/zakape/compare/v0.23.0...v0.24.0) (2026-09-09)
+
+
+### Features
+
+* **site:** refine hero and section navigation ([#44](https://github.com/surelle-ha/zakape/issues/44)) ([d118e4c](https://github.com/surelle-ha/zakape/commit/d118e4c022d820765ebbbce603f5278d859e9ece))
+
+
+### Bug Fixes
+
+* **ci:** install wrangler in site workspace ([#46](https://github.com/surelle-ha/zakape/issues/46)) ([e14fd32](https://github.com/surelle-ha/zakape/commit/e14fd326ec31435971ac4eb9144b2d9f52231504))
+
 ## [0.23.0](https://github.com/surelle-ha/zakape/compare/v0.22.1...v0.23.0) (2026-09-09)
 
 

@@ -11,7 +11,7 @@ const goToSection = (index: number) => {
 
 let cleanup: (() => void) | undefined
 
-onMounted(async () => {
+onMounted(() => {
   const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-scroll-section]'))
   if (sections.length < 2) return
 
@@ -21,6 +21,7 @@ onMounted(async () => {
   const desktopPointer = window.matchMedia('(min-width: 1024px) and (pointer: fine)')
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
   let unlockTimer = 0
+  let lockedUntil = 0
 
   const topOffset = () => document.querySelector<HTMLElement>('.site-nav')?.offsetHeight ?? 0
   const nearestIndex = () => {
@@ -38,6 +39,21 @@ onMounted(async () => {
     activeIndex.value = nearestIndex()
   }
 
+  const scheduleUnlock = () => {
+    window.clearTimeout(unlockTimer)
+    unlockTimer = window.setTimeout(
+      () => {
+        const remaining = lockedUntil - performance.now()
+        if (remaining > 0) {
+          scheduleUnlock()
+          return
+        }
+        document.documentElement.classList.remove('site-section-moving')
+      },
+      Math.max(16, lockedUntil - performance.now()),
+    )
+  }
+
   const scrollToSection = (index: number) => {
     const section = sections[index]
     if (!section) return
@@ -45,13 +61,28 @@ onMounted(async () => {
     activeIndex.value = index
     document.documentElement.classList.add('site-section-moving')
     window.scrollTo({ top: target, behavior: reducedMotion.matches ? 'auto' : 'smooth' })
-    window.clearTimeout(unlockTimer)
-    unlockTimer = window.setTimeout(
-      () => {
-        document.documentElement.classList.remove('site-section-moving')
-      },
-      reducedMotion.matches ? 120 : 760,
-    )
+    lockedUntil = performance.now() + (reducedMotion.matches ? 120 : 850)
+    scheduleUnlock()
+  }
+
+  const onWheel = (event: WheelEvent) => {
+    if (!desktopPointer.matches || event.ctrlKey || Math.abs(event.deltaY) < 4) return
+
+    if (document.documentElement.classList.contains('site-section-moving')) {
+      event.preventDefault()
+      // Keep trackpad momentum from advancing through a second chapter after
+      // the first transition has completed.
+      lockedUntil = Math.max(lockedUntil, performance.now() + 180)
+      scheduleUnlock()
+      return
+    }
+
+    const direction = event.deltaY > 0 ? 1 : -1
+    const target = nearestIndex() + direction
+    if (!sections[target]) return
+
+    event.preventDefault()
+    scrollToSection(target)
   }
 
   const editable = (target: EventTarget | null) =>
@@ -86,6 +117,7 @@ onMounted(async () => {
     frame = requestAnimationFrame(updateActive)
   }
 
+  window.addEventListener('wheel', onWheel, { passive: false })
   window.addEventListener('keydown', onKeydown)
   window.addEventListener('scroll', onScroll, { passive: true })
   updateActive()
@@ -93,6 +125,7 @@ onMounted(async () => {
   cleanup = () => {
     window.clearTimeout(unlockTimer)
     cancelAnimationFrame(frame)
+    window.removeEventListener('wheel', onWheel)
     window.removeEventListener('keydown', onKeydown)
     window.removeEventListener('scroll', onScroll)
     document.documentElement.classList.remove('site-section-moving')

@@ -42,4 +42,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config apps/site/wrangler.jsonc
+          workingDirectory: apps/site
+          command: deploy --config wrangler.jsonc

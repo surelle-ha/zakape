@@ -4,11 +4,11 @@ import { resolve } from 'node:path'
 
 const snapshotDirectory = resolve(process.cwd(), '../../docs/ui-snapshots')
 
-test('public site explains the workbench and optional assistant', async ({ page }) => {
+test('public site presents the atelier and optional assistant', async ({ page }) => {
   await page.goto('http://127.0.0.1:3301')
-  await expect(page.getByRole('heading', { name: /Draw every pixel/i })).toBeVisible()
-  await expect(page.getByText('A real editor first.')).toBeVisible()
-  await expect(page.getByText('Your model.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Craft sprites/i })).toBeVisible()
+  await expect(page.getByText('Every instrument')).toBeAttached()
+  await expect(page.getByText('Your hand leads.')).toBeAttached()
   await expect(page.getByRole('link', { name: /View source/i })).toHaveAttribute(
     'href',
     'https://github.com/surelle-ha/zakape',
@@ -36,9 +36,9 @@ test('keeps the real product story readable on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('http://127.0.0.1:3301')
-  await expect(page.getByRole('heading', { name: /Draw every pixel/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Craft sprites/i })).toBeVisible()
   await expect(page.getByAltText(/Zakape Studio showing a selected group/i)).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeHidden()
+  await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
     .toBe(true)
@@ -53,6 +53,19 @@ test('keeps the real product story readable on a phone', async ({ page }) => {
   }
 })
 
+test('keeps every chapter composed on a tablet', async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1180 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('http://127.0.0.1:3301')
+  await expect(page.getByRole('heading', { name: /Craft sprites/i })).toBeVisible()
+  await expect(page.locator('.craft-panels')).toBeAttached()
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    .toBe(true)
+  await mkdir(snapshotDirectory, { recursive: true })
+  await page.screenshot({ path: resolve(snapshotDirectory, 'website-tablet.png'), fullPage: true })
+})
+
 test('moves through desktop chapters without hijacking phone scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('http://127.0.0.1:3301')
@@ -63,34 +76,43 @@ test('moves through desktop chapters without hijacking phone scrolling', async (
     'step',
   )
 
-  const heroBoundary = await page.locator('.hero-section').evaluate((section) => {
-    const target = section.offsetTop + section.clientHeight - window.innerHeight
-    window.scrollTo(0, target)
-    return target
-  })
-  await expect
-    .poll(() => page.evaluate(() => window.scrollY))
-    .toBeGreaterThanOrEqual(heroBoundary - 2)
-  await expect(chapters.getByRole('button', { name: 'Go to Opening' })).toHaveAttribute(
-    'aria-current',
-    'step',
-  )
   await page.mouse.wheel(0, 720)
-  await expect(chapters.getByRole('button', { name: 'Go to Workbench' })).toHaveAttribute(
+  await expect(chapters.getByRole('button', { name: 'Go to Atelier' })).toHaveAttribute(
     'aria-current',
     'step',
   )
   await expect
     .poll(() =>
       page
-        .locator('#workbench')
+        .locator('#atelier')
         .evaluate((section) => Math.round(section.getBoundingClientRect().top)),
     )
-    .toBeLessThanOrEqual(74)
+    .toBeLessThanOrEqual(2)
+
+  // Trackpad momentum and repeated wheel events must not skip a chapter.
+  await page.mouse.wheel(0, 720)
+  await expect(chapters.getByRole('button', { name: 'Go to Atelier' })).toHaveAttribute(
+    'aria-current',
+    'step',
+  )
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.evaluate(() => window.scrollTo(0, 0))
   await expect(chapters).toBeHidden()
   await page.mouse.wheel(0, 360)
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100)
+})
+
+test('pricing distinguishes the available editor from planned connected services', async ({
+  page,
+}) => {
+  await page.goto('http://127.0.0.1:3301/pricing')
+  await expect(page.getByRole('heading', { name: 'Open Source' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Studio', exact: true })).toBeVisible()
+  await expect(page.getByText('$4')).toBeVisible()
+  await expect(page.getByText('No checkout yet.')).toBeVisible()
+  await expect(page.getByRole('link', { name: /Download Zakape/i })).toHaveAttribute(
+    'href',
+    '/download',
+  )
 })

@@ -29,6 +29,9 @@ importers:
       '@fontsource-variable/bricolage-grotesque':
         specifier: ^5.3.0
         version: 5.3.0
+      '@fontsource-variable/cormorant-garamond':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource-variable/handjet':
         specifier: ^5.3.0
         version: 5.3.0
@@ -866,6 +869,9 @@ packages:
 
   '@fontsource-variable/bricolage-grotesque@5.3.0':
     resolution: {integrity: sha512-TLi9Q4hJjS2UvoTMRSS2nHu6c4R56lAw60NR9QYtVRCHn0XtsFpiEhNffZ8Glsoxu6wEEwLKBP8lb94J52PNBA==}
+
+  '@fontsource-variable/cormorant-garamond@5.3.0':
+    resolution: {integrity: sha512-rgZJ/5w3hi60swAPnrOXpZf5wEH6NTrvm4H8D9Y4b1QIFUqlX14eM3QTMU/eAznjfh0eXpO1QUqsFhiy58aoMg==}
 
   '@fontsource-variable/handjet@5.3.0':
     resolution: {integrity: sha512-IQEVbZpn7sPTBQENwJCWyzNxQ+Ac6fzPRKEvSJV87b76XeHNc9aM4qQTW3tj1TnWzCRK9I6PBui61nmTSV0nwQ==}
@@ -5999,6 +6005,8 @@ snapshots:
   '@fontsource-variable/azeret-mono@5.3.0': {}
 
   '@fontsource-variable/bricolage-grotesque@5.3.0': {}
+
+  '@fontsource-variable/cormorant-garamond@5.3.0': {}
 
   '@fontsource-variable/handjet@5.3.0': {}
 

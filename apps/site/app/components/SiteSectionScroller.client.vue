@@ -4,10 +4,7 @@ import { ChevronDown } from '@lucide/vue'
 const labels = ref<string[]>([])
 const activeIndex = ref(0)
 
-const goToSection = (index: number) => {
-  const section = document.querySelectorAll<HTMLElement>('[data-scroll-section]')[index]
-  section?.scrollIntoView({ behavior: 'smooth' })
-}
+const sectionTarget = ref<(index: number) => void>(() => undefined)
 
 let cleanup: (() => void) | undefined
 
@@ -23,7 +20,6 @@ onMounted(() => {
   let unlockTimer = 0
   let lockedUntil = 0
 
-  const topOffset = () => document.querySelector<HTMLElement>('.site-nav')?.offsetHeight ?? 0
   const nearestIndex = () => {
     const viewportCenter = window.scrollY + window.innerHeight / 2
     return sections.reduce((nearest, section, index) => {
@@ -57,13 +53,14 @@ onMounted(() => {
   const scrollToSection = (index: number) => {
     const section = sections[index]
     if (!section) return
-    const target = Math.max(0, section.offsetTop - topOffset())
+    const target = Math.max(0, section.offsetTop)
     activeIndex.value = index
     document.documentElement.classList.add('site-section-moving')
     window.scrollTo({ top: target, behavior: reducedMotion.matches ? 'auto' : 'smooth' })
     lockedUntil = performance.now() + (reducedMotion.matches ? 120 : 850)
     scheduleUnlock()
   }
+  sectionTarget.value = scrollToSection
 
   const onWheel = (event: WheelEvent) => {
     if (!desktopPointer.matches || event.ctrlKey || Math.abs(event.deltaY) < 4) return
@@ -144,7 +141,7 @@ onBeforeUnmount(() => cleanup?.())
       :class="{ active: activeIndex === index }"
       :aria-label="`Go to ${label}`"
       :aria-current="activeIndex === index ? 'step' : undefined"
-      @click="goToSection(index)"
+      @click="sectionTarget(index)"
     >
       <span>{{ String(index + 1).padStart(2, '0') }}</span>
       <i />

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/surelle-ha/zakape/compare/v0.22.1...v0.23.0) (2026-09-09)
+
+
+### Features
+
+* **studio:** add editor customization settings ([#42](https://github.com/surelle-ha/zakape/issues/42)) ([4f598a6](https://github.com/surelle-ha/zakape/commit/4f598a6e955eec5a8ba2430749a4097a52114174))
+
 ## [0.22.1](https://github.com/surelle-ha/zakape/compare/v0.22.0...v0.22.1) (2026-09-08)
 
 

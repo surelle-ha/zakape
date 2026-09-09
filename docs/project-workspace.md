@@ -94,3 +94,7 @@ Desktop builds use a frameless Tauri window. Zakape's own 36 px titlebar owns:
 - circular minimize, maximize/restore, and close controls on the right
 
 The titlebar remains visible over the splash and project launcher so the window can always be moved or closed. Only each traffic-light circle reacts visually to hover or focus; the larger button hit target remains transparent. Browser builds render the same layout but do not attempt native window operations.
+
+# Editor preferences
+
+The **Editor** menu owns global appearance, assistant, and toolbox preferences. Changes are drafted in a modal and are saved only with **Apply**. These preferences stay on the current device and do not mark artwork as modified or become part of a `.zakape` project.

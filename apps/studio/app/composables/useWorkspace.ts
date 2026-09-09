@@ -1,18 +1,28 @@
+import type { AssistantSettingsTab } from '~/types/editor'
+
 export type LauncherView = 'recent' | 'new'
 export type WorkspaceScreen = 'home' | 'editor'
+export type EditorSettingKind = 'appearance' | 'assistant' | 'toolbox'
 
 export const useWorkspace = () => {
   const launcherOpen = useState<boolean>('workspace-launcher-open', () => false)
   const launcherView = useState<LauncherView>('workspace-launcher-view', () => 'recent')
   const screen = useState<WorkspaceScreen>('workspace-screen', () => 'home')
   const assistantOpen = useState<boolean>('workspace-assistant-open', () => false)
-  const modelConnectionOpen = useState<boolean>('workspace-model-connection-open', () => false)
+  const editorSettingOpen = useState<EditorSettingKind | null>(
+    'workspace-editor-setting-open',
+    () => null,
+  )
+  const assistantSettingsTab = useState<AssistantSettingsTab>(
+    'workspace-assistant-settings-tab',
+    () => 'model',
+  )
   const shortcutGuideOpen = useState<boolean>('workspace-shortcut-guide-open', () => false)
   const walkthroughOpen = useState<boolean>('workspace-walkthrough-open', () => false)
   const godotOpen = useState<boolean>('workspace-godot-open', () => false)
   const showHome = () => {
     assistantOpen.value = false
-    modelConnectionOpen.value = false
+    editorSettingOpen.value = null
     shortcutGuideOpen.value = false
     walkthroughOpen.value = false
     godotOpen.value = false
@@ -29,7 +39,7 @@ export const useWorkspace = () => {
   const showGodotBridge = () => {
     launcherOpen.value = false
     assistantOpen.value = false
-    modelConnectionOpen.value = false
+    editorSettingOpen.value = null
     shortcutGuideOpen.value = false
     walkthroughOpen.value = false
     godotOpen.value = true
@@ -49,7 +59,15 @@ export const useWorkspace = () => {
     shortcutGuideOpen.value = false
     walkthroughOpen.value = false
     assistantOpen.value = !assistantOpen.value
-    if (!assistantOpen.value) modelConnectionOpen.value = false
+  }
+
+  const showEditorSetting = (kind: EditorSettingKind, tab: AssistantSettingsTab = 'model') => {
+    editorSettingOpen.value = kind
+    if (kind === 'assistant') assistantSettingsTab.value = tab
+  }
+
+  const closeEditorSetting = () => {
+    editorSettingOpen.value = null
   }
 
   const showShortcutGuide = () => {
@@ -69,7 +87,8 @@ export const useWorkspace = () => {
     launcherOpen,
     launcherView,
     assistantOpen,
-    modelConnectionOpen,
+    editorSettingOpen,
+    assistantSettingsTab,
     shortcutGuideOpen,
     walkthroughOpen,
     godotOpen,
@@ -79,6 +98,8 @@ export const useWorkspace = () => {
     requestOpen,
     requestNew,
     toggleAssistant,
+    showEditorSetting,
+    closeEditorSetting,
     showShortcutGuide,
     showWalkthrough,
   }

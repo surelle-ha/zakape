@@ -27,3 +27,7 @@ Desktop builds may contact the public GitHub release endpoint to check for signe
 ## Contact
 
 Privacy questions can be opened in the public [Zakape issue tracker](https://github.com/surelle-ha/zakape/issues). Do not include private project content, credentials, or personal information in a public issue.
+
+# Device-local editor preferences
+
+Theme, accent, toolbox layout, assistant instructions, and enabled assistant capabilities are stored on the device. They are not embedded in artwork, synchronized to an account, or exported. Model API keys are not persisted.

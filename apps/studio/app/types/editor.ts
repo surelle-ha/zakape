@@ -46,6 +46,39 @@ export type ToolId =
   | 'select-lasso'
   | 'hand'
 
+export type AppearanceTheme = 'dark' | 'light'
+export type AssistantSettingsTab = 'model' | 'instructions' | 'skills' | 'tools'
+export type AssistantToolId =
+  | 'set_pixels'
+  | 'fill_rect'
+  | 'outline_rect'
+  | 'replace_palette_color'
+  | 'translate_region'
+  | 'flip_region'
+  | 'create_layer'
+  | 'create_frame'
+  | 'set_frame_duration'
+
+export interface AppearancePreference {
+  version: 1
+  theme: AppearanceTheme
+  accent: string
+}
+
+export interface AssistantPreference {
+  version: 1
+  userInstruction: string
+  enabledSkillIds: AssistantSkillId[]
+  enabledToolIds: AssistantToolId[]
+}
+
+export interface ToolboxPreference {
+  version: 1
+  knownToolIds: ToolId[]
+  order: ToolId[]
+  visibleToolIds: ToolId[]
+}
+
 export interface PixelPoint {
   x: number
   y: number

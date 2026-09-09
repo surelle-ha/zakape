@@ -6,6 +6,7 @@ import type {
   AssistantEditScope,
   AssistantProjectAction,
   AssistantSkillId,
+  AssistantToolId,
   ModelConnection,
   ModelProvider,
   Pixel,
@@ -583,6 +584,7 @@ export interface AssistantValidationContext {
   knownLayerIds: string[]
   targetFrameIds: string[]
   editableLayerIds: string[]
+  enabledToolIds?: AssistantToolId[]
 }
 
 export interface ValidatedAssistantPass {
@@ -634,6 +636,19 @@ export const validateProposal = (
   const knownLayers = new Set(context.knownLayerIds)
   const targetFrames = new Set(context.targetFrameIds)
   const editableLayers = new Set(context.editableLayerIds)
+  const enabledTools = new Set<AssistantToolId>(
+    context.enabledToolIds ?? [
+      'set_pixels',
+      'fill_rect',
+      'outline_rect',
+      'replace_palette_color',
+      'translate_region',
+      'flip_region',
+      'create_layer',
+      'create_frame',
+      'set_frame_duration',
+    ],
+  )
   const createdIds = new Set<string>()
   const actions: AssistantProjectAction[] = candidate.actions.map((rawAction) => {
     if (!rawAction || typeof rawAction !== 'object') {
@@ -641,6 +656,8 @@ export const validateProposal = (
     }
     const action = rawAction as Record<string, unknown>
     if (action.type === 'create_layer') {
+      if (!enabledTools.has('create_layer'))
+        throw new Error('Layer creation is disabled in Assistant Settings.')
       const layerId = validateNewId(action.layer_id, 'new_layer_')
       if (createdIds.has(layerId) || knownLayers.has(layerId)) {
         throw new Error('The proposal repeats a layer ID.')
@@ -651,6 +668,8 @@ export const validateProposal = (
       return { type: 'create_layer', layerId, name: validateName(action.name, 'Assistant layer') }
     }
     if (action.type === 'create_frame') {
+      if (!enabledTools.has('create_frame'))
+        throw new Error('Frame creation is disabled in Assistant Settings.')
       if (knownFrames.size >= MAX_TARGET_FRAMES) {
         throw new Error(
           `Assistant projects support at most ${MAX_TARGET_FRAMES} frames per session.`,
@@ -686,6 +705,8 @@ export const validateProposal = (
       }
     }
     if (action.type === 'set_frame_duration') {
+      if (!enabledTools.has('set_frame_duration'))
+        throw new Error('Frame timing is disabled in Assistant Settings.')
       const frameId = String(action.frame_id)
       const duration = Number(action.duration_ms)
       if (!knownFrames.has(frameId) || !targetFrames.has(frameId)) {
@@ -712,6 +733,22 @@ export const validateProposal = (
       throw new Error('The proposal edits a layer that was not made available to the assistant.')
     }
     const validated = validateOperations(edit.operations, context.width, context.height)
+    for (const operation of validated.operations) {
+      const toolId: AssistantToolId =
+        operation.type === 'set_pixels'
+          ? 'set_pixels'
+          : operation.type === 'fill_rect'
+            ? 'fill_rect'
+            : operation.type === 'outline_rect'
+              ? 'outline_rect'
+              : operation.type === 'replace_palette_color'
+                ? 'replace_palette_color'
+                : operation.type === 'translate_region'
+                  ? 'translate_region'
+                  : 'flip_region'
+      if (!enabledTools.has(toolId))
+        throw new Error(`${toolId.replaceAll('_', ' ')} is disabled in Assistant Settings.`)
+    }
     const framePixelCount = (framePixelCounts.get(frameId) ?? 0) + validated.pixelCount
     const framePixelLimit = Math.min(
       context.width * context.height * 2,
@@ -793,6 +830,8 @@ export interface AssistantIterationContext {
     frameIds: string[]
     scale: number
   }
+  userInstruction?: string
+  enabledToolIds?: AssistantToolId[]
 }
 
 export const createAssistantMessages = (
@@ -897,7 +936,12 @@ export const createAssistantMessages = (
           rendered_vision: Boolean(iteration.vision?.frameIds.length),
           incremental_visual_review: true,
         },
-        tools: ASSISTANT_TOOL_CATALOG,
+        tools: ASSISTANT_TOOL_CATALOG.filter((tool) =>
+          (iteration.enabledToolIds ?? ASSISTANT_TOOL_CATALOG.map((item) => item.name)).includes(
+            tool.name,
+          ),
+        ),
+        user_instruction: iteration.userInstruction?.trim() || undefined,
         vision: iteration.vision
           ? {
               format: 'image/png',
@@ -1064,6 +1108,7 @@ export const useAiAssistant = () => {
     total: MAX_AGENT_PASSES,
   }))
   const { loadPreference, savePreference } = useProjectRepository()
+  const { applied: assistantSettings, hydrate: hydrateAssistantSettings } = useAssistantSettings()
 
   const endpoint = (path: string) => `${connection.value.baseUrl.replace(/\/$/, '')}${path}`
   const headers = () => ({
@@ -1071,13 +1116,13 @@ export const useAiAssistant = () => {
     ...(connection.value.apiKey ? { Authorization: `Bearer ${connection.value.apiKey}` } : {}),
   })
 
-  const testConnection = async () => {
+  const testConnection = async (candidate: ModelConnection = connection.value) => {
     status.value = 'testing'
     errorMessage.value = ''
     try {
-      const models = await discoverModels(connection.value)
+      const models = await discoverModels(candidate)
       availableModels.value = models
-      if (connection.value.provider === 'ollama' && models.length === 0) {
+      if (candidate.provider === 'ollama' && models.length === 0) {
         throw new Error(
           'Ollama is running, but no models are installed. Pull a model, then refresh.',
         )
@@ -1088,9 +1133,9 @@ export const useAiAssistant = () => {
       status.value = 'error'
       availableModels.value = []
       errorMessage.value =
-        connection.value.provider === 'ollama'
-          ? mapOllamaError(error, connection.value.baseUrl, connection.value.model)
-          : connection.value.provider === 'codex-cli'
+        candidate.provider === 'ollama'
+          ? mapOllamaError(error, candidate.baseUrl, candidate.model)
+          : candidate.provider === 'codex-cli'
             ? mapCodexCliError(error)
             : errorText(error)
       return []
@@ -1200,12 +1245,16 @@ export const useAiAssistant = () => {
     scope: AssistantEditScope,
     skill: AssistantSkillId = 'fix',
   ) => {
+    await hydrateAssistantSettings()
     if (!prompt.trim()) return
+    const effectiveSkill = assistantSettings.value.enabledSkillIds.includes(skill)
+      ? skill
+      : (assistantSettings.value.enabledSkillIds[0] ?? 'fix')
     if (chatProjectId.value !== project.id) await loadChat(project.id)
     appendChat({
       role: 'user',
       content: prompt.trim().slice(0, 4000),
-      skill,
+      skill: effectiveSkill,
       scope,
       state: 'message',
     })
@@ -1233,11 +1282,13 @@ export const useAiAssistant = () => {
           : null
         const messages = createAssistantMessages(prompt, workingProject, frameId, layerId, scope, {
           pass: passNumber,
-          skill,
+          skill: effectiveSkill,
           createdFrameIds,
           editableLayerIds,
           priorSummary: summary,
           priorReviewNotes: reviewNotes.slice(-4),
+          userInstruction: assistantSettings.value.userInstruction,
+          enabledToolIds: assistantSettings.value.enabledToolIds,
           vision: vision
             ? {
                 frameIds: vision.frameIds,
@@ -1255,6 +1306,7 @@ export const useAiAssistant = () => {
           knownLayerIds: workingProject.layers.map((layer) => layer.id),
           targetFrameIds,
           editableLayerIds,
+          enabledToolIds: assistantSettings.value.enabledToolIds,
         })
         applyAssistantChanges(workingProject, pass.actions, pass.edits)
         actions.push(...pass.actions)
@@ -1273,14 +1325,20 @@ export const useAiAssistant = () => {
       }
       proposal.value = {
         summary,
-        skill,
+        skill: effectiveSkill,
         scope,
         actions,
         edits,
         reviewNotes: [...new Set(reviewNotes)].slice(-8),
         passes: agentPass.value.current,
       }
-      appendChat({ role: 'assistant', content: summary, skill, scope, state: 'proposal' })
+      appendChat({
+        role: 'assistant',
+        content: summary,
+        skill: effectiveSkill,
+        scope,
+        state: 'proposal',
+      })
       status.value = 'connected'
     } catch (error) {
       status.value = 'error'
@@ -1293,7 +1351,7 @@ export const useAiAssistant = () => {
       appendChat({
         role: 'assistant',
         content: errorMessage.value,
-        skill,
+        skill: effectiveSkill,
         scope,
         state: 'error',
       })

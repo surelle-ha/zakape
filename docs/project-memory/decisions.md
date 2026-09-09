@@ -19,3 +19,7 @@
 
 - Help diagnostics are explicit, local-only clipboard output: version, build/release metadata, OS family/version, architecture, locale, and a generic rendering-engine label only.
 - Fixed issue and funding URLs are opened through a Rust destination enum rather than a frontend URL permission; this keeps the native opener from accepting arbitrary web or file targets.
+
+# UI-49ZB — bounded editor customization
+
+Zakape uses explicit Dark/Light themes, contrast-validated accent presets or custom hex colors, transactional settings dialogs, a single tabbed Assistant Settings surface, and a configurable tool rail. Assistant extensions remain built-in and allow-listed; arbitrary executable, native, network, or model-defined tools are outside the trust boundary.

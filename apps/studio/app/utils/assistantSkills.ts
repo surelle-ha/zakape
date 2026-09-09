@@ -1,4 +1,4 @@
-import type { AssistantEditScope, AssistantSkillId } from '~/types/editor'
+import type { AssistantEditScope, AssistantSkillId, AssistantToolId } from '~/types/editor'
 
 export interface AssistantSkillDefinition {
   id: AssistantSkillId
@@ -62,10 +62,17 @@ export const ASSISTANT_SKILLS: readonly AssistantSkillDefinition[] = [
 export const assistantSkill = (id: AssistantSkillId): AssistantSkillDefinition =>
   ASSISTANT_SKILLS.find((skill) => skill.id === id) ?? ASSISTANT_SKILLS[4]!
 
-export const ASSISTANT_TOOL_CATALOG = [
+export interface AssistantToolDefinition {
+  name: AssistantToolId
+  purpose: string
+  required?: boolean
+}
+
+export const ASSISTANT_TOOL_CATALOG: readonly AssistantToolDefinition[] = [
   {
     name: 'set_pixels',
     purpose: 'Place or erase exact pixels for contours, clusters, highlights, and cleanup.',
+    required: true,
   },
   {
     name: 'fill_rect',

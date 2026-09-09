@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const splashVisible = ref(true)
 const updater = useAppUpdater()
+const { hydrate: hydrateAppearance } = useAppearanceSettings()
 const {
   authenticationRequired,
   initialize: initializeAccount,
@@ -10,6 +11,7 @@ const splashDurationMs = 4_800
 let splashTimer: number | null = null
 
 onMounted(() => {
+  void hydrateAppearance()
   void updater.initialize()
   void initializeAccount()
   if (new URLSearchParams(window.location.search).get('splash') === 'hold') return

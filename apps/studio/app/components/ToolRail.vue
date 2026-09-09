@@ -29,6 +29,7 @@ const {
   swapColors,
   selectDrawingColor,
 } = useEditor()
+const { applied: toolbox } = useToolboxSettings()
 const colorPicker = ref<'primary' | 'secondary' | null>(null)
 const swapDrawingColors = () => {
   colorPicker.value = null
@@ -54,7 +55,20 @@ const toolIcons: Record<ToolId, Component> = {
   hand: Hand,
 }
 
-const tools = toolDefinitions.map((tool) => ({ ...tool, icon: toolIcons[tool.id] }))
+const tools = computed(() =>
+  toolbox.value.order
+    .filter((id) => toolbox.value.visibleToolIds.includes(id))
+    .map((id) => toolDefinitions.find((tool) => tool.id === id))
+    .filter((tool): tool is (typeof toolDefinitions)[number] => Boolean(tool))
+    .map((tool) => ({ ...tool, icon: toolIcons[tool.id] })),
+)
+watch(
+  () => toolbox.value.visibleToolIds,
+  (visible) => {
+    if (!visible.includes(activeTool.value)) activeTool.value = 'pencil'
+  },
+  { deep: true },
+)
 </script>
 
 <template>

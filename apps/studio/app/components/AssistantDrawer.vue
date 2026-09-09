@@ -26,7 +26,7 @@ const {
   activeLayer,
   applyProposal: applyEditorProposal,
 } = useEditor()
-const { modelConnectionOpen: connectionOpen } = useWorkspace()
+const { editorSettingOpen, showEditorSetting, closeEditorSetting } = useWorkspace()
 const {
   connection,
   status,
@@ -39,6 +39,7 @@ const {
   discardProposal,
   markProposalApplied,
 } = useAiAssistant()
+const { applied: assistantSettings } = useAssistantSettings()
 const prompt = ref('')
 const scope = ref<AssistantEditScope>('frame')
 const skill = useState<AssistantSkillId>('assistant-skill', () => 'fix')
@@ -52,6 +53,9 @@ const activeFrameIndex = computed(() =>
   ),
 )
 const selectedSkill = computed(() => assistantSkill(skill.value))
+const enabledSkills = computed(() =>
+  ASSISTANT_SKILLS.filter((item) => assistantSettings.value.enabledSkillIds.includes(item.id)),
+)
 const proposalOperationCount = computed(
   () => proposal.value?.edits.reduce((total, edit) => total + edit.operations.length, 0) ?? 0,
 )
@@ -88,7 +92,7 @@ const submitPrompt = async () => {
   const message = prompt.value.trim()
   if (!message || status.value === 'working') return
   if (connection.value.provider !== 'codex-cli' && !connection.value.model) {
-    connectionOpen.value = true
+    showEditorSetting('assistant', 'model')
     return
   }
   prompt.value = ''
@@ -124,14 +128,14 @@ const selectSkill = (nextSkill: AssistantSkillId) => {
 }
 
 const onKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Escape' && !connectionOpen.value) emit('close')
+  if (event.key === 'Escape' && !editorSettingOpen.value) emit('close')
 }
 
 watch(
   () => [props.open, project.value.id] as const,
   async ([open, projectId]) => {
     if (!open) {
-      connectionOpen.value = false
+      closeEditorSetting()
       return
     }
     await loadChat(projectId)
@@ -142,6 +146,13 @@ watch(
 )
 watch(() => chatEntries.value.length, scrollToLatest)
 watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
+watch(
+  () => assistantSettings.value.enabledSkillIds,
+  (enabled) => {
+    if (!enabled.includes(skill.value)) skill.value = enabled[0] ?? 'fix'
+  },
+  { deep: true, immediate: true },
+)
 </script>
 
 <template>
@@ -165,7 +176,7 @@ watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
               type="button"
               class="assistant-model-button"
               :aria-label="`Manage model${connection.model ? `: ${connection.model}` : ''}`"
-              @click="connectionOpen = true"
+              @click="showEditorSetting('assistant', 'model')"
             >
               <span :class="['connection-indicator', { connected: status === 'connected' }]" />
               <Settings2 :size="14" />
@@ -192,7 +203,7 @@ watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
             </header>
             <div role="group" aria-label="Zakape art skills">
               <button
-                v-for="item in ASSISTANT_SKILLS"
+                v-for="item in enabledSkills"
                 :key="item.id"
                 type="button"
                 :class="{ active: skill === item.id }"
@@ -331,7 +342,7 @@ watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
               </div>
             </article>
 
-            <p v-if="errorMessage && !connectionOpen" class="inline-error" role="alert">
+            <p v-if="errorMessage && !editorSettingOpen" class="inline-error" role="alert">
               {{ errorMessage }}
             </p>
           </div>
@@ -376,8 +387,6 @@ watch(status, (nextStatus) => nextStatus === 'working' && void scrollToLatest())
             </div>
           </div>
         </div>
-
-        <ModelConnectionDialog :open="connectionOpen" @close="connectionOpen = false" />
       </aside>
     </Transition>
   </Teleport>

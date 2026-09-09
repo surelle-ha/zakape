@@ -75,7 +75,8 @@ const {
   launcherOpen,
   launcherView,
   assistantOpen,
-  modelConnectionOpen,
+  editorSettingOpen,
+  assistantSettingsTab,
   shortcutGuideOpen,
   walkthroughOpen,
   godotOpen,
@@ -86,7 +87,10 @@ const {
   toggleAssistant,
   showShortcutGuide,
   showWalkthrough,
+  closeEditorSetting,
 } = useWorkspace()
+const { hydrate: hydrateAssistantSettings } = useAssistantSettings()
+const { hydrate: hydrateToolboxSettings } = useToolboxSettings()
 const { closeRequest, requestProjectClose, requestApplicationClose, cancelClose } =
   useCloseConfirmation()
 const appWindow = useAppWindow()
@@ -370,7 +374,10 @@ const keydown = (event: KeyboardEvent) => {
     return
   }
   if (event.key === 'Escape') {
-    if (modelConnectionOpen.value) return
+    if (editorSettingOpen.value) {
+      closeEditorSetting()
+      return
+    }
     if (accountDialogOpen.value) accountDialogOpen.value = false
     else if (godotOpen.value) godotOpen.value = false
     else if (shortcutGuideOpen.value) shortcutGuideOpen.value = false
@@ -653,6 +660,7 @@ onMounted(async () => {
   unlistenWindowClose = await appWindow.onCloseRequested(requestApplicationClose)
   await refreshProjects()
   await hydrateTiledMode()
+  await Promise.all([hydrateAssistantSettings(), hydrateToolboxSettings()])
   initialized.value = true
   window.addEventListener('keydown', keydown, true)
   window.addEventListener('keyup', keyup)
@@ -676,6 +684,7 @@ onBeforeUnmount(() => {
         godotOpen ||
         accountDialogOpen ||
         tiledModeDialogOpen ||
+        Boolean(editorSettingOpen) ||
         Boolean(closeRequest)
       "
       data-testid="app-shell"
@@ -1011,6 +1020,13 @@ onBeforeUnmount(() => {
     />
 
     <AssistantDrawer :open="assistantOpen" @close="assistantOpen = false" />
+    <AppearanceDialog :open="editorSettingOpen === 'appearance'" @close="closeEditorSetting" />
+    <AssistantSettingsDialog
+      :open="editorSettingOpen === 'assistant'"
+      :initial-tab="assistantSettingsTab"
+      @close="closeEditorSetting"
+    />
+    <ToolboxEditorDialog :open="editorSettingOpen === 'toolbox'" @close="closeEditorSetting" />
     <AccountDialog
       :open="accountDialogOpen"
       :projects="recentProjects"

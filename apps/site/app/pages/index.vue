@@ -98,16 +98,7 @@ const outputs = [
           </div>
         </div>
 
-        <div
-          class="hero-index"
-          data-reveal
-          data-reveal-delay="0.12"
-          aria-label="Workbench coordinates"
-        >
-          <span>CANVAS / 01</span><i /><span>FRAME 01:04</span><i /><span>ZOOM 1600%</span>
-        </div>
-
-        <div class="hero-visual" data-reveal data-reveal-delay="0.18">
+        <div class="hero-visual" data-reveal data-reveal-delay="0.12">
           <StudioMockup />
           <div class="hero-note">
             <span>REAL INTERFACE</span>

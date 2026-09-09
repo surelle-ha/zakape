@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ChevronDown } from '@lucide/vue'
 
-type ScrollAnimation = { cancel: () => void }
-
 const labels = ref<string[]>([])
 const activeIndex = ref(0)
 
@@ -22,9 +20,8 @@ onMounted(async () => {
   )
   const desktopPointer = window.matchMedia('(min-width: 1024px) and (pointer: fine)')
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-  const { animate } = await import('animejs')
-  let animation: ScrollAnimation | undefined
   let lockedUntil = 0
+  let unlockTimer = 0
 
   const topOffset = () => document.querySelector<HTMLElement>('.site-nav')?.offsetHeight ?? 0
   const nearestIndex = () => {
@@ -47,26 +44,16 @@ onMounted(async () => {
     if (!section) return
     const target = Math.max(0, section.offsetTop - topOffset())
     activeIndex.value = index
-    animation?.cancel()
-
-    if (reducedMotion.matches) {
-      window.scrollTo(0, target)
-      return
-    }
-
-    const tracker = { y: window.scrollY }
+    lockedUntil = performance.now() + (reducedMotion.matches ? 120 : 760)
     document.documentElement.classList.add('site-section-moving')
-    animation = animate(tracker, {
-      y: target,
-      duration: 920,
-      ease: 'inOutQuart',
-      onUpdate: () => window.scrollTo(0, tracker.y),
-      onComplete: () => {
-        window.scrollTo(0, target)
-        lockedUntil = performance.now() + 180
+    window.scrollTo({ top: target, behavior: reducedMotion.matches ? 'auto' : 'smooth' })
+    window.clearTimeout(unlockTimer)
+    unlockTimer = window.setTimeout(
+      () => {
         document.documentElement.classList.remove('site-section-moving')
       },
-    })
+      reducedMotion.matches ? 120 : 760,
+    )
   }
 
   const onWheel = (event: WheelEvent) => {
@@ -80,16 +67,8 @@ onMounted(async () => {
     }
 
     const index = nearestIndex()
-    const section = sections[index]!
     const direction = event.deltaY > 0 ? 1 : -1
-    const viewTop = window.scrollY + topOffset()
-    const viewBottom = window.scrollY + window.innerHeight
-    const atBoundary =
-      direction > 0
-        ? viewBottom >= section.offsetTop + section.offsetHeight - 4
-        : viewTop <= section.offsetTop + 4
-
-    if (!atBoundary || !sections[index + direction]) return
+    if (!sections[index + direction]) return
     event.preventDefault()
     scrollToSection(index + direction)
   }
@@ -132,7 +111,7 @@ onMounted(async () => {
   updateActive()
 
   cleanup = () => {
-    animation?.cancel()
+    window.clearTimeout(unlockTimer)
     cancelAnimationFrame(frame)
     window.removeEventListener('wheel', onWheel)
     window.removeEventListener('keydown', onKeydown)

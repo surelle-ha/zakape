@@ -2,13 +2,14 @@ import type { AssistantPreference } from '~/types/editor'
 import {
   DEFAULT_ASSISTANT_SKILLS,
   DEFAULT_ASSISTANT_TOOLS,
+  DEFAULT_ASSISTANT_INSTRUCTION,
   normalizeAssistantPreference,
 } from '~/utils/editorSettings'
 
 const preferenceKey = 'assistant-settings'
 const defaults = (): AssistantPreference => ({
   version: 1,
-  userInstruction: '',
+  userInstruction: DEFAULT_ASSISTANT_INSTRUCTION,
   enabledSkillIds: [...DEFAULT_ASSISTANT_SKILLS],
   enabledToolIds: [...DEFAULT_ASSISTANT_TOOLS],
 })

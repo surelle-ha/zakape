@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
-import { drawPixelRuns, drawRepeatedSurface } from '~/utils/render'
+import { drawPixelRuns, drawRepeatedSurface, nativeCanvasSize } from '~/utils/render'
 
 describe('pixel rendering', () => {
+  it('keeps high-resolution backing stores independent from visual zoom', () => {
+    expect(nativeCanvasSize(1024, 1024)).toEqual({ width: 1024, height: 1024 })
+    expect(nativeCanvasSize(1024, 1024, 3, 3)).toEqual({ width: 3072, height: 3072 })
+  })
   it('draws contiguous colors as horizontal runs without crossing rows', () => {
     const context = {
       fillStyle: '',

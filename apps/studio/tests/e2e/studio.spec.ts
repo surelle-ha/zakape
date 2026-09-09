@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { mkdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { DEFAULT_ASSISTANT_INSTRUCTION } from '../../app/utils/editorSettings'
 
 const snapshotDirectory = resolve(process.cwd(), '../../docs/ui-snapshots')
 const walkthroughHandled = new WeakSet<import('@playwright/test').Page>()
@@ -124,7 +125,7 @@ test('configures appearance, assistant, and toolbox from the Editor menu', async
   await page.getByRole('button', { name: 'Editor', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Assistant Settings…' }).click()
   await assistant.getByRole('tab', { name: 'Instructions' }).click()
-  await expect(assistant.getByRole('textbox')).toHaveValue('')
+  await expect(assistant.getByRole('textbox')).toHaveValue(DEFAULT_ASSISTANT_INSTRUCTION)
   await assistant.getByRole('button', { name: 'Cancel' }).click()
 
   await enterEditor(page, { name: 'Custom toolbox' })
@@ -873,7 +874,8 @@ test('paints with mouse-selected colors, mirror axes, and dithering', async ({ p
         Array.from(
           element
             .getContext('2d')!
-            .getImageData(point.x * point.zoom + 2, point.y * point.zoom + 2, 1, 1).data,
+            // PixelCanvas keeps a native-resolution backing bitmap; CSS owns zoom.
+            .getImageData(point.x, point.y, 1, 1).data,
         ),
       { x, y, zoom },
     )

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown, ChevronUp, GripVertical, LockKeyhole } from '@lucide/vue'
+import { GripVertical, LockKeyhole } from '@lucide/vue'
 import type { ToolId, ToolboxPreference } from '~/types/editor'
 import { toolDefinitions } from '~/utils/commands'
 
@@ -11,6 +11,7 @@ const draft = ref<ToolboxPreference>(defaults())
 const saving = ref(false)
 const error = ref('')
 const dragged = ref<ToolId | null>(null)
+const pointerDragged = ref<ToolId | null>(null)
 const definition = (id: ToolId) => toolDefinitions.find((tool) => tool.id === id)!
 const copyPreference = (value: ToolboxPreference): ToolboxPreference => ({
   version: 1,
@@ -35,6 +36,27 @@ const drop = (target: ToolId) => {
   const [item] = next.splice(from, 1)
   if (item) next.splice(to, 0, item)
   draft.value = { ...draft.value, order: next }
+  dragged.value = null
+}
+const beginPointerDrag = (event: PointerEvent, id: ToolId) => {
+  if (event.pointerType === 'mouse') return
+  pointerDragged.value = id
+  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+}
+const movePointerDrag = (event: PointerEvent) => {
+  if (!pointerDragged.value) return
+  event.preventDefault()
+  const target = document
+    .elementFromPoint(event.clientX, event.clientY)
+    ?.closest<HTMLElement>('[data-tool-id]')
+  const targetId = target?.dataset.toolId as ToolId | undefined
+  if (!targetId || targetId === pointerDragged.value) return
+  dragged.value = pointerDragged.value
+  drop(targetId)
+  dragged.value = pointerDragged.value
+}
+const endPointerDrag = () => {
+  pointerDragged.value = null
   dragged.value = null
 }
 const restore = () => (draft.value = defaults())
@@ -81,14 +103,29 @@ watch(
     <div class="toolbox-editor-layout">
       <ol class="toolbox-order" aria-label="Toolbox order">
         <li
-          v-for="(id, index) in draft.order"
+          v-for="id in draft.order"
           :key="id"
-          draggable="true"
-          @dragstart="dragged = id"
+          :data-tool-id="id"
+          :class="{ dragging: dragged === id || pointerDragged === id }"
           @dragover.prevent
           @drop="drop(id)"
         >
-          <GripVertical :size="15" class="drag-grip" aria-hidden="true" />
+          <span
+            class="drag-grip"
+            role="button"
+            tabindex="0"
+            draggable="true"
+            :aria-label="`Drag ${definition(id).label} to reorder`"
+            @dragstart.stop="dragged = id"
+            @dragend="dragged = null"
+            @pointerdown="beginPointerDrag($event, id)"
+            @pointermove="movePointerDrag"
+            @pointerup="endPointerDrag"
+            @pointercancel="endPointerDrag"
+            @keydown.up.prevent="move(id, -1)"
+            @keydown.down.prevent="move(id, 1)"
+            ><GripVertical :size="15" aria-hidden="true"
+          /></span>
           <span
             ><strong>{{ definition(id).label }}</strong
             ><small>{{ definition(id).shortcut }}</small></span
@@ -102,23 +139,6 @@ watch(
             /><span>{{ draft.visibleToolIds.includes(id) ? 'Shown' : 'Hidden' }}</span></label
           >
           <LockKeyhole v-if="isRequired(id)" :size="13" aria-label="Required tool" />
-          <div class="order-actions">
-            <button
-              type="button"
-              :disabled="index === 0"
-              :aria-label="`Move ${definition(id).label} up`"
-              @click="move(id, -1)"
-            >
-              <ChevronUp :size="14" /></button
-            ><button
-              type="button"
-              :disabled="index === draft.order.length - 1"
-              :aria-label="`Move ${definition(id).label} down`"
-              @click="move(id, 1)"
-            >
-              <ChevronDown :size="14" />
-            </button>
-          </div>
         </li>
       </ol>
       <aside class="toolbox-miniature" aria-label="Tool rail preview">

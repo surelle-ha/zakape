@@ -8,6 +8,8 @@ import type {
 import { ASSISTANT_SKILLS, ASSISTANT_TOOL_CATALOG } from '~/utils/assistantSkills'
 import { toolDefinitions } from '~/utils/commands'
 
+export const DEFAULT_ASSISTANT_INSTRUCTION = `Work like a careful pixel-art editor. Preserve the existing silhouette and native pixel scale unless the request explicitly changes them. Use a small intentional palette, hard pixel clusters, and one clear light direction. Inspect the current artwork before editing, make the smallest useful change, and review every affected frame and layer for stray pixels, broken silhouettes, and inconsistent timing. Never use anti-aliasing or introduce unrequested colors.`
+
 export const REQUIRED_TOOL_IDS: ToolId[] = ['pencil', 'eraser', 'hand']
 export const DEFAULT_ASSISTANT_SKILLS: AssistantSkillId[] = ASSISTANT_SKILLS.map(
   (skill) => skill.id,
@@ -49,7 +51,7 @@ export const normalizeAssistantPreference = (value: unknown): AssistantPreferenc
   ) {
     return {
       version: 1,
-      userInstruction: '',
+      userInstruction: DEFAULT_ASSISTANT_INSTRUCTION,
       enabledSkillIds: [...DEFAULT_ASSISTANT_SKILLS],
       enabledToolIds: [...DEFAULT_ASSISTANT_TOOLS],
     }
@@ -59,7 +61,9 @@ export const normalizeAssistantPreference = (value: unknown): AssistantPreferenc
   return {
     version: 1,
     userInstruction:
-      typeof record.userInstruction === 'string' ? sanitizeInstruction(record.userInstruction) : '',
+      typeof record.userInstruction === 'string'
+        ? sanitizeInstruction(record.userInstruction) || DEFAULT_ASSISTANT_INSTRUCTION
+        : DEFAULT_ASSISTANT_INSTRUCTION,
     enabledSkillIds: skills.length ? skills : ['fix'],
     enabledToolIds: tools.includes('set_pixels') ? tools : [...tools, 'set_pixels'],
   }

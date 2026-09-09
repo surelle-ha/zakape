@@ -3,6 +3,7 @@ import { toolDefinitions } from '../../app/utils/commands'
 import {
   DEFAULT_ASSISTANT_SKILLS,
   DEFAULT_ASSISTANT_TOOLS,
+  DEFAULT_ASSISTANT_INSTRUCTION,
   normalizeAssistantPreference,
   normalizeToolboxPreference,
 } from '../../app/utils/editorSettings'
@@ -12,6 +13,7 @@ describe('editor settings contracts', () => {
     const value = normalizeAssistantPreference(null)
     expect(value.enabledSkillIds).toEqual(DEFAULT_ASSISTANT_SKILLS)
     expect(value.enabledToolIds).toEqual(DEFAULT_ASSISTANT_TOOLS)
+    expect(value.userInstruction).toBe(DEFAULT_ASSISTANT_INSTRUCTION)
   })
 
   it('bounds instructions and preserves required assistant capability', () => {

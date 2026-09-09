@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { drawLayerFrame, drawProjectFrame } from '~/utils/render'
-
 const props = withDefaults(
   defineProps<{
     frameId?: string
@@ -20,22 +18,61 @@ let redrawFrame: number | null = null
 const displayedFrame = computed(
   () => props.frameId ?? (props.animate ? animationFrameId.value : activeFrameId.value),
 )
-const scale = computed(() =>
-  Math.max(1, Math.floor(props.size / Math.max(project.value.width, project.value.height))),
+const previewScale = computed(() => {
+  const largestEdge = Math.max(project.value.width, project.value.height)
+  return largestEdge <= props.size
+    ? Math.max(1, Math.floor(props.size / largestEdge))
+    : props.size / largestEdge
+})
+const previewWidth = computed(() =>
+  Math.max(1, Math.round(project.value.width * previewScale.value)),
+)
+const previewHeight = computed(() =>
+  Math.max(1, Math.round(project.value.height * previewScale.value)),
 )
 
 const redraw = () => {
   const element = canvas.value
   if (!element) return
-  const width = project.value.width * scale.value
-  const height = project.value.height * scale.value
+  const width = previewWidth.value
+  const height = previewHeight.value
   if (element.width !== width) element.width = width
   if (element.height !== height) element.height = height
   const context = element.getContext('2d')!
-  if (props.layerId) {
-    drawLayerFrame(context, project.value, displayedFrame.value, props.layerId, scale.value)
-  } else {
-    drawProjectFrame(context, project.value, displayedFrame.value, scale.value)
+  context.clearRect(0, 0, width, height)
+  context.imageSmoothingEnabled = false
+  const layer = props.layerId
+    ? project.value.layers.find((item) => item.id === props.layerId)
+    : null
+  for (let y = 0; y < height; y += 1) {
+    const sourceY = Math.min(
+      project.value.height - 1,
+      Math.floor((y / height) * project.value.height),
+    )
+    for (let x = 0; x < width; x += 1) {
+      const sourceX = Math.min(
+        project.value.width - 1,
+        Math.floor((x / width) * project.value.width),
+      )
+      const index = sourceY * project.value.width + sourceX
+      let color: string | null = null
+      if (layer) {
+        if (layer.visible && layer.opacity > 0)
+          color = layer.cels[displayedFrame.value]?.[index] ?? null
+      } else {
+        for (const candidate of project.value.layers) {
+          if (!candidate.visible || candidate.opacity <= 0) continue
+          const next = candidate.cels[displayedFrame.value]?.[index]
+          if (next) {
+            color = next
+          }
+        }
+      }
+      if (color) {
+        context.fillStyle = color
+        context.fillRect(x, y, 1, 1)
+      }
+    }
   }
 }
 
@@ -68,7 +105,8 @@ watch(
     () => project.value.height,
     displayedFrame,
     dirtyRevision,
-    scale,
+    previewWidth,
+    previewHeight,
     () => props.layerId,
   ],
   scheduleRedraw,
@@ -89,7 +127,7 @@ onBeforeUnmount(() => {
   <canvas
     ref="canvas"
     class="preview-canvas"
-    :style="{ width: `${project.width * scale}px`, height: `${project.height * scale}px` }"
+    :style="{ width: `${previewWidth}px`, height: `${previewHeight}px` }"
     aria-label="Sprite preview"
   />
 </template>

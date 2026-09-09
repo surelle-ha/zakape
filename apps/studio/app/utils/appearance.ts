@@ -67,35 +67,39 @@ const mix = (first: string, second: string, amount: number) => {
 
 export const deriveAppearanceTokens = (preference: AppearancePreference) => {
   const dark = preference.theme === 'dark'
-  const ink = dark ? '#0b0d10' : '#eef1f5'
-  const panel = dark ? '#12151a' : '#f7f8fa'
-  const raised = dark ? '#181c22' : '#ffffff'
-  const soft = dark ? '#20252d' : '#e5e9ef'
-  const text = dark ? '#f2f4f7' : '#18202b'
-  const muted = dark ? '#9aa3af' : '#5e6877'
-  const line = dark ? '#303640' : '#cbd2dc'
+  // Drafting-paper surfaces keep light mode neutral while the chosen accent
+  // remains reserved for focus, selection, and important actions.
+  const ink = dark ? '#0b0d10' : '#e8e5df'
+  const panel = dark ? '#12151a' : '#f4f1eb'
+  const raised = dark ? '#181c22' : '#fbfaf7'
+  const soft = dark ? '#20252d' : '#e9e6df'
+  const text = dark ? '#f2f4f7' : '#252831'
+  const muted = dark ? '#9aa3af' : '#686b72'
+  const line = dark ? '#303640' : '#d2cec5'
   const accent = normalizeAccent(preference.accent)
   const accentSoft = dark ? mix(ink, accent, 0.22) : mix(panel, accent, 0.14)
-  const accentText =
-    contrastRatio(accent, dark ? ink : panel) >= 4.5 ? accent : dark ? '#ffffff' : '#111827'
+  const accentForeground =
+    contrastRatio(accent, '#ffffff') >= contrastRatio(accent, '#15171c') ? '#ffffff' : '#15171c'
   return {
     '--ink': ink,
     '--panel': panel,
     '--panel-raised': raised,
     '--panel-soft': soft,
     '--line': line,
-    '--line-strong': dark ? '#48515e' : '#9aa5b4',
+    '--line-strong': dark ? '#48515e' : '#aaa59b',
     '--muted': muted,
     '--text': text,
-    '--paper': dark ? '#e5e7eb' : '#111827',
-    '--mint': accentText,
+    '--paper': dark ? '#e5e7eb' : '#292b32',
+    '--mint': accent,
     '--mint-strong': accent,
-    '--orange': dark ? '#d946ef' : '#c026d3',
+    // Legacy component styles use --orange for primary actions; map it to the
+    // selected accent so every interactive family changes together.
+    '--orange': accent,
     '--yellow': dark ? '#e9d5ff' : '#7c3aed',
-    '--scroll-thumb': dark ? '#4b5260' : '#9aa5b4',
-    '--scroll-thumb-hover': dark ? '#656e7d' : '#6b7280',
+    '--scroll-thumb': dark ? '#4b5260' : '#aaa59b',
+    '--scroll-thumb-hover': dark ? '#656e7d' : '#7c7d80',
     '--accent-soft': accentSoft,
-    '--accent-contrast': accentText,
+    '--accent-contrast': accentForeground,
   }
 }
 

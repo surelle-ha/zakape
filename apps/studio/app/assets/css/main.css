@@ -327,6 +327,83 @@
     9px 'Azeret Mono Variable',
     monospace;
 }
+.markdown-editor {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--panel-soft);
+}
+.markdown-toolbar {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-raised);
+}
+.markdown-toolbar > span {
+  flex: 1;
+}
+.markdown-toolbar button {
+  display: inline-flex;
+  min-width: 27px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 9px;
+  cursor: pointer;
+}
+.markdown-toolbar button:hover,
+.markdown-toolbar button.active {
+  border-color: var(--mint-strong);
+  color: var(--text);
+  background: var(--accent-soft);
+}
+.markdown-editor .settings-textarea {
+  display: block;
+  min-height: 210px;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  font-family: 'Azeret Mono Variable', monospace;
+  font-size: 10px;
+}
+.markdown-preview {
+  min-height: 210px;
+  padding: 12px;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.markdown-preview :is(h3, h4, h5, p, blockquote, ul) {
+  margin: 0 0 8px;
+}
+.markdown-preview :is(h3, h4, h5) {
+  font-family: var(--font-display);
+}
+.markdown-preview blockquote {
+  padding-left: 9px;
+  border-left: 2px solid var(--mint-strong);
+  color: var(--muted);
+}
+.markdown-preview code {
+  padding: 1px 3px;
+  border-radius: 3px;
+  color: var(--mint);
+  background: var(--accent-soft);
+  font-family: 'Azeret Mono Variable', monospace;
+}
+.markdown-preview .md-spacer {
+  height: 6px;
+}
 .toolbox-editor-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 74px;
@@ -342,7 +419,7 @@
 }
 .toolbox-order li {
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto auto 46px;
+  grid-template-columns: 20px minmax(0, 1fr) auto auto;
   min-height: 44px;
   align-items: center;
   gap: 7px;
@@ -351,11 +428,10 @@
   border-radius: 6px;
   background: var(--panel-soft);
 }
-.toolbox-order li[draggable='true'] {
-  cursor: grab;
-}
-.toolbox-order li:active {
-  cursor: grabbing;
+.toolbox-order li.dragging {
+  border-color: var(--mint-strong);
+  background: var(--accent-soft);
+  opacity: 0.72;
 }
 .toolbox-order li > span {
   display: grid;
@@ -368,7 +444,23 @@
     monospace;
 }
 .drag-grip {
+  display: grid;
+  width: 20px;
+  height: 30px;
+  place-items: center;
+  border-radius: 4px;
   color: var(--muted);
+  touch-action: none;
+  cursor: grab;
+}
+.drag-grip:hover,
+.drag-grip:focus-visible {
+  color: var(--mint-strong);
+  background: var(--accent-soft);
+  outline: 1px solid var(--mint-strong);
+}
+.drag-grip:active {
+  cursor: grabbing;
 }
 .tool-visibility {
   display: inline-flex;
@@ -377,30 +469,6 @@
   color: var(--muted);
   font-size: 9px;
   white-space: nowrap;
-}
-.order-actions {
-  display: flex;
-  gap: 2px;
-}
-.order-actions button {
-  display: inline-grid;
-  width: 22px;
-  height: 24px;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  color: var(--muted);
-  background: transparent;
-  cursor: pointer;
-}
-.order-actions button:hover:not(:disabled),
-.order-actions button:focus-visible {
-  border-color: var(--mint-strong);
-  color: var(--text);
-}
-.order-actions button:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
 }
 .toolbox-miniature {
   display: grid;
@@ -476,7 +544,7 @@ html[data-theme='light'] .settings-error {
     justify-self: start;
   }
   .toolbox-order li {
-    grid-template-columns: 16px minmax(0, 1fr) auto 46px;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
   }
   .tool-visibility span {
     display: none;
@@ -537,14 +605,14 @@ textarea,
 
 ::selection {
   color: #fff;
-  background: rgb(139 92 246 / 58%);
+  background: color-mix(in srgb, var(--mint-strong) 68%, transparent);
 }
 
 input::selection,
 textarea::selection,
 [contenteditable='true']::selection {
   color: #fff;
-  background: rgb(168 85 247 / 62%);
+  background: color-mix(in srgb, var(--mint-strong) 72%, transparent);
 }
 
 html,
@@ -711,7 +779,7 @@ button:disabled {
 .title-menus > div > button:hover,
 .title-menus > div > button[aria-expanded='true'] {
   color: var(--text);
-  background: var(--panel-soft);
+  background: var(--accent-soft);
 }
 .title-menu {
   position: absolute;
@@ -724,7 +792,7 @@ button:disabled {
   padding: 5px;
   border: 1px solid var(--line-strong);
   border-radius: 5px;
-  background: #1b1725;
+  background: var(--panel-raised);
   box-shadow: 0 18px 44px rgb(0 0 0 / 52%);
 }
 .title-menu button {
@@ -744,7 +812,7 @@ button:disabled {
 }
 .title-menu button:hover {
   color: var(--text);
-  background: #272d27;
+  background: var(--accent-soft);
 }
 .title-menu button:disabled {
   cursor: default;
@@ -1436,16 +1504,16 @@ button:disabled {
   gap: 7px;
   height: 32px;
   padding: 0 11px;
-  border: 1px solid #8b5cf6;
+  border: 1px solid var(--mint-strong);
   border-radius: 4px;
   color: #faf5ff;
-  background: #6d28d9;
+  background: var(--mint-strong);
   font-size: 11px;
   font-weight: 650;
   cursor: pointer;
 }
 .export-button:hover {
-  background: #7c3aed;
+  background: color-mix(in srgb, var(--mint-strong) 84%, var(--text));
 }
 
 .document-tabs {
@@ -1456,7 +1524,7 @@ button:disabled {
   align-items: end;
   overflow: hidden;
   border-bottom: 1px solid var(--line);
-  background: #100d17;
+  background: var(--ink);
 }
 .touch-application-menu {
   display: none;
@@ -1473,18 +1541,18 @@ button:disabled {
   border-top: 2px solid transparent;
   border-right: 1px solid #293029;
   color: #a199aa;
-  background: #16131f;
+  background: var(--panel);
   font-size: 10px;
   cursor: pointer;
 }
 .home-document-tab:hover {
-  color: #d7ded7;
-  background: #1d1829;
+  color: var(--text);
+  background: var(--panel-soft);
 }
 .home-document-tab.active {
   border-top-color: var(--mint-strong);
   color: var(--mint);
-  background: #211c2d;
+  background: var(--accent-soft);
 }
 .document-tab-list {
   display: flex;
@@ -1509,16 +1577,16 @@ button:disabled {
   border-top: 2px solid transparent;
   border-right: 1px solid #2b2538;
   color: #a199aa;
-  background: #16131f;
+  background: var(--panel);
 }
 .document-tab:hover {
-  color: #cbd3cb;
-  background: #1b1725;
+  color: var(--text);
+  background: var(--panel-raised);
 }
 .document-tab.active {
-  border-top-color: var(--orange);
+  border-top-color: var(--mint-strong);
   color: var(--text);
-  background: #211c2d;
+  background: var(--accent-soft);
 }
 .document-tab > button:first-child {
   display: flex;
@@ -1574,12 +1642,12 @@ button:disabled {
   border: 0;
   border-left: 1px solid #2b2538;
   color: var(--muted);
-  background: #16131f;
+  background: var(--panel);
   cursor: pointer;
 }
 .document-new:hover {
   color: var(--mint);
-  background: #211c2d;
+  background: var(--accent-soft);
 }
 .document-empty-tab {
   display: flex;
@@ -3296,13 +3364,14 @@ button:disabled {
   background: var(--panel-soft);
 }
 .tool-button.active {
-  border-color: #7c60a5;
-  color: var(--ink);
-  background: var(--mint);
-  box-shadow: inset 0 -2px 0 #8b5cf6;
+  border-color: var(--mint-strong);
+  color: var(--accent-contrast);
+  background: var(--mint-strong);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--text) 34%, transparent);
 }
 .tool-button.active span {
-  color: #5b3f82;
+  color: var(--accent-contrast);
+  opacity: 0.68;
 }
 
 .canvas-workspace {
@@ -3457,11 +3526,30 @@ button:disabled {
   background: transparent;
 }
 .canvas-mat {
+  position: relative;
   flex: 0 0 auto;
   padding: 0;
   border: 0;
   background: transparent;
   box-shadow: none;
+}
+.canvas-mat.show-pixel-grid::after {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background-image:
+    linear-gradient(to right, rgb(15 13 23 / 42%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(15 13 23 / 42%) 1px, transparent 1px);
+  background-size: var(--pixel-grid-size) var(--pixel-grid-size);
+  content: '';
+  pointer-events: none;
+}
+.pixel-cursor-marker {
+  position: absolute;
+  z-index: 3;
+  border: 1px solid rgb(255 255 255 / 88%);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 45%);
+  pointer-events: none;
 }
 .pixel-canvas {
   display: block;
@@ -9855,4 +9943,94 @@ kbd {
   .account-dialog-actions button {
     justify-content: center;
   }
+}
+
+/* Final appearance layer intentionally follows legacy component rules. */
+html[data-theme='light'] :is(.app-titlebar, .app-statusbar) {
+  border-color: var(--line);
+  color: var(--text);
+  background: #dedad2;
+}
+html[data-theme='light'] :is(.studio-shell, .canvas-workspace, .canvas-scroll, .home-workspace) {
+  color: var(--text);
+  background-color: var(--ink);
+}
+html[data-theme='light'] .canvas-scroll {
+  background-image:
+    linear-gradient(#ddd9d1 1px, transparent 1px),
+    linear-gradient(90deg, #ddd9d1 1px, transparent 1px);
+}
+html[data-theme='light']
+  :is(
+    .document-tabs,
+    .app-bar,
+    .canvas-toolbar,
+    .tool-rail,
+    .canvas-status,
+    .title-menu,
+    .panel-context-menu,
+    .timeline,
+    .settings-dialog,
+    .color-picker,
+    .shortcut-guide,
+    .about-card,
+    .connection-dialog,
+    .walkthrough-card,
+    .update-card
+  ) {
+  border-color: var(--line);
+  color: var(--text);
+  background: var(--panel);
+}
+html[data-theme='light']
+  :is(
+    .home-document-tab,
+    .document-tab,
+    .document-new,
+    .settings-dialog-header,
+    .settings-dialog-actions,
+    .assistant-drawer-heading,
+    .mobile-inspector-heading,
+    .layers-heading
+  ) {
+  border-color: var(--line);
+  color: var(--muted);
+  background: var(--panel-raised);
+}
+html[data-theme='light'] :is(.home-document-tab.active, .document-tab.active) {
+  border-top-color: var(--mint-strong);
+  color: var(--text);
+  background: var(--accent-soft);
+}
+html[data-theme='light']
+  :is(
+    .title-menu button:hover,
+    .document-close:hover,
+    .document-new:hover,
+    .tool-button:hover,
+    .icon-button:hover,
+    .settings-tabs button.active
+  ) {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+html[data-theme='light'] :is(.workspace-preview-card, .inspector-host, .assistant-drawer) {
+  border-color: color-mix(in srgb, var(--mint-strong) 38%, var(--line));
+  color: var(--text);
+  background: rgb(251 250 247 / 86%);
+  box-shadow: -12px 12px 38px rgb(70 64 54 / 14%);
+}
+html[data-theme='light'] :is(.home-recent-item, .home-workflow article) {
+  border-color: var(--line);
+  color: var(--text);
+  background: var(--panel-raised);
+}
+html[data-theme='light'] :is(.duration-field input, .onion-toggle, .color-value-fields input) {
+  border-color: var(--line-strong);
+  color: var(--text);
+  background: var(--panel-raised);
+}
+html[data-theme='light'] .tool-button.active {
+  color: var(--accent-contrast);
+  background: var(--mint-strong);
 }

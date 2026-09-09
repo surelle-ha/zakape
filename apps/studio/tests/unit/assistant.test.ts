@@ -162,6 +162,42 @@ describe('assistant proposal validation', () => {
     ).toThrow(/Unsupported/)
   })
 
+  it('rejects operations and project actions disabled in Assistant Settings', () => {
+    expect(() =>
+      validateProposal(
+        {
+          summary: 'Use a disabled fill.',
+          actions: [],
+          edits: [
+            {
+              layer_id: 'layer_1',
+              frame_id: 'frame_1',
+              operations: [
+                { type: 'fill_rect', x: 1, y: 1, width: 2, height: 2, color: '#ffffff' },
+              ],
+            },
+          ],
+          review_notes: [],
+          ready: false,
+        },
+        { ...context, enabledToolIds: ['set_pixels'] },
+      ),
+    ).toThrow(/fill rect is disabled/)
+
+    expect(() =>
+      validateProposal(
+        {
+          summary: 'Create a disabled layer.',
+          actions: [{ type: 'create_layer', layer_id: 'new_layer_fx', name: 'FX' }],
+          edits: [],
+          review_notes: [],
+          ready: false,
+        },
+        { ...context, enabledToolIds: ['set_pixels'] },
+      ),
+    ).toThrow(/Layer creation is disabled/)
+  })
+
   it('allows safe layer and frame creation while rejecting reference-frame edits', () => {
     expect(() =>
       validateProposal(
@@ -447,6 +483,29 @@ describe('Ollama provider adapter', () => {
       frames: [{ frame_id: frameId }],
     })
     expect(payload.tools.map((tool) => tool.name)).toContain('translate_region')
+  })
+
+  it('places bounded user instructions below the protected prompt and advertises enabled tools only', () => {
+    const project = createDemoProject()
+    const messages = createAssistantMessages(
+      'Polish the outline.',
+      project,
+      project.frames[0]!.id,
+      project.layers[0]!.id,
+      'frame',
+      {
+        pass: 1,
+        userInstruction: 'Prefer a cool two-color ramp.',
+        enabledToolIds: ['set_pixels', 'replace_palette_color'],
+      },
+    )
+    const payload = JSON.parse(messages[1]!.content) as {
+      user_instruction: string
+      tools: Array<{ name: string }>
+    }
+    expect(messages[0]!.content).toBe(assistantSystemPrompt)
+    expect(payload.user_instruction).toBe('Prefer a cool two-color ramp.')
+    expect(payload.tools.map((tool) => tool.name)).toEqual(['set_pixels', 'replace_palette_color'])
   })
 
   it('turns local runtime failures into actionable guidance', () => {

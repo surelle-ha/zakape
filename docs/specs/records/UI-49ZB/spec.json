@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "id": "UI-49ZB",
+  "title": "Editor menu customization",
+  "area": "UI",
+  "status": "in_progress",
+  "summary": "Rename the Edit menu to Editor, remove history commands from that menu, and add persisted appearance, assistant settings, and toolbox customization surfaces.",
+  "createdAt": "2026-09-09T01:01:07.287Z",
+  "updatedAt": "2026-09-09T02:22:38.286Z",
+  "clarification": {
+    "questions": [
+      {
+        "question": "Should Assistant Settings permit unrestricted prompt/tool authoring?",
+        "answer": "Use the bounded configuration model.",
+        "decision": "Keep provider/model management; allow an additional user instruction without replacing Zakape's safety envelope; toggle built-in skills and function tools only; reject arbitrary native commands, executable code, unrestricted network tools, and model-defined functions; include Restore defaults."
+      },
+      {
+        "question": "Should Appearance follow operating-system theme changes?",
+        "answer": "Use the recommendation.",
+        "decision": "Offer explicit Dark and Light modes only; never change an explicit choice because the operating-system theme changes."
+      },
+      {
+        "question": "Should settings save continuously or transactionally?",
+        "answer": "Use the recommendation.",
+        "decision": "Use live draft preview with Apply, Cancel, and Restore defaults; only Apply persists and Cancel restores the last applied state."
+      },
+      {
+        "question": "What does hiding a toolbox item mean for keyboard access?",
+        "answer": "Use the recommendation.",
+        "decision": "Pencil, Eraser, and Hand remain visible; optional tools may be hidden and reordered; hidden tools remain available through existing shortcuts."
+      },
+      {
+        "question": "Where do preferences belong?",
+        "answer": "Use the recommendation.",
+        "decision": "Preferences are device-local and shared across guest/local sessions; they are excluded from project files and exports and are not account-synchronized or exportable in this scope."
+      },
+      {
+        "question": "Should accent editing be preset-only or arbitrary?",
+        "answer": "Use the recommendation.",
+        "decision": "Provide curated accent presets plus a custom color-picker/hex value; derive hover, focus, muted, and contrast-safe variants and reject colors that cannot remain readable in the selected theme."
+      },
+      {
+        "question": "How should model and assistant configuration be presented?",
+        "answer": "Use the recommendation.",
+        "decision": "One tabbed Assistant Settings modal owns Model, Instructions, Skills, and Tools; existing model-management entry points open its Model tab."
+      },
+      {
+        "question": "Which assistant capabilities may be disabled?",
+        "answer": "Use the recommendation.",
+        "decision": "Require at least one enabled skill and keep the essential pixel-writing function enabled; layer, frame, timing, fill, and transform functions may be toggled off."
+      },
+      {
+        "question": "How should future tools interact with a customized toolbox?",
+        "answer": "Use the recommendation.",
+        "decision": "New optional tools appear as New and disabled without disturbing the user's order; preference migrations may insert future mandatory core tools."
+      }
+    ],
+    "openQuestions": []
+  },
+  "dependencies": [
+    {
+      "id": "VIEW-R7CR",
+      "type": "advisory",
+      "reason": "The completed shared desktop/touch ApplicationMenu architecture is the menu surface being extended."
+    }
+  ],
+  "affectedFiles": [
+    "apps/studio/app/app.vue",
+    "apps/studio/app/pages/index.vue",
+    "apps/studio/app/components/ApplicationMenu.vue",
+    "apps/studio/app/components/AssistantDrawer.vue",
+    "apps/studio/app/components/ModelConnectionDialog.vue",
+    "apps/studio/app/components/AssistantSettingsDialog.vue",
+    "apps/studio/app/components/AppearanceDialog.vue",
+    "apps/studio/app/components/ToolboxEditorDialog.vue",
+    "apps/studio/app/components/SettingsDialogShell.vue",
+    "apps/studio/app/components/ToolRail.vue",
+    "apps/studio/app/composables/useWorkspace.ts",
+    "apps/studio/app/composables/useAppearanceSettings.ts",
+    "apps/studio/app/composables/useAssistantSettings.ts",
+    "apps/studio/app/composables/useToolboxSettings.ts",
+    "apps/studio/app/composables/useAiAssistant.ts",
+    "apps/studio/app/types/editor.ts",
+    "apps/studio/app/utils/appearance.ts",
+    "apps/studio/app/utils/assistantSkills.ts",
+    "apps/studio/app/utils/editorSettings.ts",
+    "apps/studio/app/utils/commands.ts",
+    "apps/studio/app/assets/css/main.css",
+    "apps/studio/tests/unit/appearance.test.ts",
+    "apps/studio/tests/unit/editor-settings.test.ts",
+    "apps/studio/tests/unit/assistant.test.ts",
+    "apps/studio/tests/e2e/studio.spec.ts",
+    "apps/studio/tests/e2e/responsive.spec.ts",
+    "apps/studio/tests/e2e/editor-settings-visual.spec.ts",
+    "docs/ui-snapshots/editor-appearance-dark.png",
+    "docs/ui-snapshots/editor-appearance-light.png",
+    "docs/ui-snapshots/assistant-settings.png",
+    "docs/ui-snapshots/toolbox-editor.png",
+    "docs/project-workspace.md",
+    "docs/ai/model-assistant.md",
+    "docs/privacy.md",
+    "docs/qa.md",
+    "docs/project-memory/architecture.md",
+    "docs/project-memory/decisions.md"
+  ],
+  "risks": [
+    "Literal dark colors can leave unreadable or visually inconsistent islands in the new light theme.",
+    "An arbitrary accent can fail contrast or spread into neutral surfaces and recreate an over-tinted interface.",
+    "Asynchronous preference hydration can cause a visible dark-to-light startup flash or stale cache race.",
+    "Live appearance preview or draft connection testing can leak cancelled values into applied state.",
+    "Refactoring model settings can accidentally persist API keys that are currently session-only.",
+    "Filtering assistant tools only in the prompt can still allow a model response to execute a disabled capability.",
+    "An empty skill set or disabled pixel-writing capability can make the assistant accept work it cannot perform.",
+    "New, retired, duplicate, or malformed tool IDs can corrupt a customized rail order after upgrades.",
+    "Hiding the active optional tool can leave an invisible active state or inaccessible canvas interaction.",
+    "Drag-only ordering and tall tabbed dialogs can fail on touch, keyboard, short viewports, and safe-area devices.",
+    "Preference write failures can be mistaken for project persistence failures or unexpectedly mutate artwork state.",
+    "Allowing custom executable assistant tools would expand native and model trust boundaries beyond this specification."
+  ],
+  "validation": [
+    "Unit-test appearance parsing, contrast thresholds, semantic token derivation, startup cache reconciliation, invalid fallback, and transactional rollback.",
+    "Unit-test assistant/toolbox v1 normalization, required capabilities/core tools, unknown/duplicate/retired/new IDs, stable ordering, bounded instructions, tool mapping, draft connection tests, and API-key non-persistence.",
+    "Adversarially test that disabled assistant actions and operations are omitted from requests and rejected from model responses while the protected prompt and proposal-review boundary remain active.",
+    "Playwright-test desktop and touch Editor menus, retained Undo/Redo shortcuts, all settings Apply/Cancel/default flows, reload persistence, model-tab routing, tool reordering, hidden-tool shortcuts, fallback behavior, and project-state neutrality.",
+    "Perform accessibility and responsive checks for semantic dialogs, focus containment/return, error announcements, 42-pixel coarse-pointer targets, non-drag ordering, safe areas, constrained heights, reduced motion, and horizontal overflow.",
+    "Review desktop, phone, and tablet screenshots in dark and light themes across Home, editor, menus, drawers, dialogs, glass panels, canvas chrome, hover/focus/disabled states, and custom accents.",
+    "Run affected-file Prettier, studio lint/typecheck/unit/build, focused/full Playwright, root spec tests and validation, pnpm spec validate UI-49ZB, and git diff --check."
+  ],
+  "validationEvidence": [
+    "Implemented Editor menu customization: Appearance, bounded Assistant Settings, and Toolbox Editor with device-local transactional preferences. Studio lint, typecheck, 15 unit files/73 tests, production build, focused desktop/touch Playwright flows, spec validation, and git diff --check pass."
+  ],
+  "overrides": []
+}

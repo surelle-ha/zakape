@@ -14,3 +14,7 @@
 - `.github/workflows/` owns CI, desktop/updater releases, Android packaging, macOS test builds, and website deployment.
 
 Native paths and imported payloads are untrusted. Canonicalize and validate at the Rust boundary, enforce size/count limits, avoid following symlinks across allowed roots, and make multi-file writes transactional where practical.
+
+# Global editor preferences
+
+Appearance, assistant configuration, and toolbox layout use versioned device-local records independent from project state. Appearance is applied through semantic CSS tokens. Assistant capabilities use stable allow-listed IDs and are enforced both when constructing prompts and when validating model responses. Toolbox order uses stable tool IDs while mandatory Pencil, Eraser, and Hand entries remain visible.

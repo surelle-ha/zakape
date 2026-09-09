@@ -108,3 +108,7 @@ The Playwright baselines live beside the end-to-end tests so CI can detect unint
 - Desktop autosaves create only validated `.zakape` files inside the operating system's `Documents/zakape` directory.
 - Reopening the desktop executable focuses the existing main window instead of creating another editor process.
 - The generated Android icon shows the supplied Zakape mark at every density, and the ARM64 APK reports the expected package ID, version, SDK range, ABI, and signature.
+
+# Editor settings QA
+
+Editor settings are covered by normalization, contrast, bounded-assistant, desktop menu, touch menu, provider, and toolbox tests. Release checks include lint, type checking, unit tests, static production generation, focused Playwright coverage, specification validation, and whitespace validation.

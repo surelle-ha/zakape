@@ -9,6 +9,7 @@ export interface CommandDefinition {
 
 export interface ToolDefinition extends CommandDefinition {
   id: ToolId
+  required?: boolean
 }
 
 export const toolDefinitions: ToolDefinition[] = [
@@ -17,6 +18,7 @@ export const toolDefinitions: ToolDefinition[] = [
     label: 'Pencil',
     description: 'Draw crisp pixels with the active color and brush size.',
     shortcut: 'P',
+    required: true,
   },
   {
     id: 'mirror',
@@ -35,6 +37,7 @@ export const toolDefinitions: ToolDefinition[] = [
     label: 'Eraser',
     description: 'Remove pixels from the active layer without changing layers below it.',
     shortcut: 'E',
+    required: true,
   },
   {
     id: 'fill',
@@ -83,6 +86,7 @@ export const toolDefinitions: ToolDefinition[] = [
     label: 'Hand',
     description: 'Drag the workspace to pan. Hold Space for temporary hand mode.',
     shortcut: 'H',
+    required: true,
   },
 ]
 

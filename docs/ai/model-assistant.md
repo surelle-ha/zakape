@@ -115,3 +115,7 @@ Avoid prompts such as “make it better.” See [Sprite art direction](sprite-ar
 - Zakape has no hosted model proxy or telemetry in this release.
 
 A future dedicated Zakape model can implement the same provider-neutral skill, vision, and tool contract without changing the editor's validated operation layer.
+
+# Assistant settings
+
+Open **Editor → Assistant Settings** to choose a provider and model, add a personal art instruction, and enable built-in skills or tools. Personal instructions supplement Zakape's protected pixel-art and safety prompt; they do not replace it. Zakape advertises only enabled capabilities and rejects disabled operations returned by a model. API keys remain session-only.

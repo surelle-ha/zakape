@@ -22,11 +22,13 @@ import {
   HeartHandshake,
   Lightbulb,
   Bug,
-  Undo2,
+  Bot,
+  Palette,
+  Wrench,
 } from '@lucide/vue'
 import type { Ref } from 'vue'
 
-type GroupId = 'file' | 'edit' | 'view' | 'help'
+type GroupId = 'file' | 'editor' | 'view' | 'help'
 type Command = {
   id: string
   label: string
@@ -47,8 +49,9 @@ const {
   showGodotBridge,
   showShortcutGuide,
   showWalkthrough,
+  showEditorSetting,
 } = useWorkspace()
-const { project, canRedo, canUndo, onionSkin, redo, showGrid, showTransparency, undo } = useEditor()
+const { project, onionSkin, showGrid, showTransparency } = useEditor()
 const { saveProject, workspaceDirectory } = useProjectRepository()
 const { checkForUpdates, currentVersion, status: updateStatus } = useAppUpdater()
 const { dialogOpen: accountDialogOpen } = useGoogleAccount()
@@ -106,24 +109,26 @@ const groups = computed<{ id: GroupId; label: string; commands: Command[] }[]>((
     ],
   },
   {
-    id: 'edit',
-    label: 'Edit',
+    id: 'editor',
+    label: 'Editor',
     commands: [
       {
-        id: 'undo',
-        label: 'Undo',
-        icon: Undo2,
-        shortcut: 'Ctrl Z',
-        disabled: () => !canUndo.value,
-        run: undo,
+        id: 'appearance',
+        label: 'Appearance…',
+        icon: Palette,
+        run: () => showEditorSetting('appearance'),
       },
       {
-        id: 'redo',
-        label: 'Redo',
-        icon: RotateCcw,
-        shortcut: 'Ctrl Y',
-        disabled: () => !canRedo.value,
-        run: redo,
+        id: 'assistant-settings',
+        label: 'Assistant Settings…',
+        icon: Bot,
+        run: () => showEditorSetting('assistant', 'model'),
+      },
+      {
+        id: 'toolbox-editor',
+        label: 'Toolbox Editor…',
+        icon: Wrench,
+        run: () => showEditorSetting('toolbox'),
       },
     ],
   },

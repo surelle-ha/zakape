@@ -1,0 +1,6 @@
+{"at":"2026-09-09T01:01:07.309Z","specId":"UI-49ZB","event":"created","from":null,"to":"clarifying","note":"Rename the Edit menu to Editor, remove history commands from that menu, and add persisted appearance, assistant settings, and toolbox customization surfaces.","commit":"efb1a2c675b2"}
+{"at":"2026-09-09T01:13:25.169Z","specId":"UI-49ZB","event":"specification_finalized","from":"clarifying","to":"specified","note":null,"commit":"efb1a2c675b2"}
+{"at":"2026-09-09T01:13:26.613Z","specId":"UI-49ZB","event":"planning_started","from":"specified","to":"planning","note":null,"commit":"efb1a2c675b2"}
+{"at":"2026-09-09T01:24:06.710Z","specId":"UI-49ZB","event":"plan_finalized","from":"planning","to":"planned","note":null,"commit":"efb1a2c675b2"}
+{"at":"2026-09-09T01:25:58.124Z","specId":"UI-49ZB","event":"implementation_started","from":"planned","to":"in_progress","note":null,"commit":"5643adb1cef4"}
+{"at":"2026-09-09T02:22:38.287Z","specId":"UI-49ZB","event":"validation_evidence_added","from":"in_progress","to":"in_progress","note":"Implemented Editor menu customization: Appearance, bounded Assistant Settings, and Toolbox Editor with device-local transactional preferences. Studio lint, typecheck, 15 unit files/73 tests, production build, focused desktop/touch Playwright flows, spec validation, and git diff --check pass.","commit":"5643adb1cef4"}

@@ -101,6 +101,45 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
+test('configures appearance, assistant, and toolbox from the Editor menu', async ({ page }) => {
+  await page.getByRole('button', { name: 'Editor', exact: true }).click()
+  await expect(page.getByRole('menuitem', { name: 'Appearance…' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Assistant Settings…' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Toolbox Editor…' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Undo' })).toHaveCount(0)
+  await expect(page.getByRole('menuitem', { name: 'Redo' })).toHaveCount(0)
+
+  await page.getByRole('menuitem', { name: 'Appearance…' }).click()
+  const appearance = page.getByRole('dialog', { name: 'Shape the workbench' })
+  await appearance.getByRole('button', { name: /Light/ }).click()
+  await appearance.getByRole('button', { name: 'Apply' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+
+  await page.getByRole('button', { name: 'Editor', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Assistant Settings…' }).click()
+  const assistant = page.getByRole('dialog', { name: 'Assistant Settings' })
+  await assistant.getByRole('tab', { name: 'Instructions' }).click()
+  await assistant.getByRole('textbox').fill('Prefer clean two-color ramps.')
+  await assistant.getByRole('button', { name: 'Cancel' }).click()
+  await page.getByRole('button', { name: 'Editor', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Assistant Settings…' }).click()
+  await assistant.getByRole('tab', { name: 'Instructions' }).click()
+  await expect(assistant.getByRole('textbox')).toHaveValue('')
+  await assistant.getByRole('button', { name: 'Cancel' }).click()
+
+  await enterEditor(page, { name: 'Custom toolbox' })
+  await page.getByRole('button', { name: 'Editor', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Toolbox Editor…' }).click()
+  const toolbox = page.getByRole('dialog', { name: 'Toolbox Editor' })
+  const fillRow = toolbox.locator('.toolbox-order li').filter({ hasText: 'Fill' })
+  await fillRow.getByRole('checkbox').uncheck()
+  await toolbox.getByRole('button', { name: 'Apply' }).click()
+  await expect(page.getByTestId('tool-fill')).toHaveCount(0)
+  await page.keyboard.press('f')
+  await expect(page.locator('.tool-chip')).toHaveText('Fill')
+  await page.keyboard.press('Control+z')
+})
+
 test('centralizes canvas display controls in View without changing document dirtiness', async ({
   page,
 }) => {
@@ -1211,7 +1250,7 @@ test('discovers installed Ollama models and switches providers', async ({ page }
   })
 
   await page.getByRole('button', { name: /Manage model/ }).click()
-  await expect(page.getByRole('dialog', { name: 'Choose where the model runs' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Assistant Settings' })).toBeVisible()
   await page.getByRole('button', { name: 'Find models' }).click()
   await expect(page.getByLabel('Installed model')).toHaveValue('qwen2.5-coder:7b')
   await expect(page.getByText('Ollama is ready')).toBeVisible()
@@ -1227,9 +1266,7 @@ test('discovers installed Ollama models and switches providers', async ({ page }
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('button', { name: /Compatible API/ }).click()
   await page.getByRole('button', { name: /Codex CLI/ }).click()
-  const dialogBox = await page
-    .getByRole('dialog', { name: 'Choose where the model runs' })
-    .boundingBox()
+  const dialogBox = await page.getByRole('dialog', { name: 'Assistant Settings' }).boundingBox()
   expect(dialogBox).not.toBeNull()
   expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(390)
   expect(
@@ -1319,7 +1356,7 @@ test('asks whether the assistant should edit one frame or the entire sheet', asy
 
   await page.getByRole('button', { name: /Manage model/ }).click()
   await page.getByRole('button', { name: 'Find models' }).click()
-  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Apply', exact: true }).click()
   const skillRack = page.locator('.assistant-skill-rack')
   await expect(skillRack.getByRole('button')).toHaveCount(6)
   await skillRack.getByRole('button', { name: 'Animate' }).click()

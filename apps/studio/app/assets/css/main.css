@@ -3459,6 +3459,78 @@ button:disabled {
     8px/1 'Azeret Mono Variable',
     monospace;
 }
+
+.compact-select,
+.compact-number,
+.compact-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.compact-select select,
+.compact-number input {
+  min-height: 1.7rem;
+  max-width: 7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  padding: 0 0.35rem;
+  background: var(--surface-strong);
+  color: var(--text);
+  font: inherit;
+}
+
+.compact-number input {
+  width: 3.5rem;
+}
+
+.compact-toggle input {
+  accent-color: var(--mint-strong);
+}
+
+.text-layer-editor {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+
+.text-layer-editor textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  padding: 0.5rem;
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.text-layer-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.text-layer-controls label {
+  display: grid;
+  gap: 0.2rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.text-layer-controls input,
+.text-layer-controls select {
+  min-width: 4rem;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  padding: 0.25rem;
+  background: var(--surface-strong);
+  color: var(--text);
+}
 .zoom-control button {
   display: grid;
   width: 24px;

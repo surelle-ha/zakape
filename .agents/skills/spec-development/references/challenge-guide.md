@@ -25,7 +25,7 @@ Do not finalize the specification, begin planning, or implement the request unti
 
 ## Question quality
 
-Ask exactly one frontier decision per turn and wait for its answer. Include the consequence of the decision and a recommended default when repository evidence supports one. Never ask the user for a fact that can be resolved from the repository or available tools. Record:
+Ask frontier decisions in grouped/bulk rounds by default, and wait for the user's answers before advancing. Group only decisions whose prerequisites are settled; if one answer gates another, keep the gated decision for a later round. Include the consequence of each decision and a recommended default when repository evidence supports one. Never ask the user for a fact that can be resolved from the repository or available tools. Record:
 
 1. the challenged question;
 2. the user's answer or verified repository fact;

@@ -13,7 +13,10 @@ import {
   Pencil,
   Pipette,
   RotateCcw,
+  SprayCan,
+  Spline,
   Square,
+  Type,
 } from '@lucide/vue'
 import type { Component } from 'vue'
 import type { ToolId } from '~/types/editor'
@@ -50,6 +53,10 @@ const toolIcons: Record<ToolId, Component> = {
   line: Minus,
   rectangle: Square,
   circle: Circle,
+  contour: Spline,
+  spray: SprayCan,
+  gradient: Blend,
+  text: Type,
   'select-rect': BoxSelect,
   'select-lasso': LassoSelect,
   hand: Hand,

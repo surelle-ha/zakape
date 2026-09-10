@@ -5,7 +5,9 @@ import type {
   PixelSample,
   PixelSelection,
   SpriteProject,
+  ToolOptions,
   ToolId,
+  TextLayerData,
 } from '~/types/editor'
 import { applyAssistantChanges } from '~/utils/assistant'
 import {
@@ -14,8 +16,16 @@ import {
   emptyPixels,
   makeId,
   registerPixelColor,
+  defaultTextLayerData,
 } from '~/utils/project'
-import { rasterCircle, rasterLine, rasterRectangle } from '~/utils/raster'
+import {
+  matchingPixels,
+  matchingPixelsNonContiguous,
+  rasterCircle,
+  rasterLine,
+  rasterRectangle,
+} from '~/utils/raster'
+import { getCompositePixels, rasterizeTextLayer } from '~/utils/render'
 import {
   applySelectionPixelChanges,
   captureColoredSelectionSamples,
@@ -135,7 +145,28 @@ export const useEditor = () => {
     'active-drawing-color',
     () => 'primary',
   )
-  const brushSize = useState<number>('brush-size', () => 1)
+  const toolOptions = useState<ToolOptions>('tool-options', () => ({
+    brushShape: 'square',
+    brushSize: 1,
+    pixelPerfect: true,
+    shapeMode: 'outline',
+    fillTolerance: 0,
+    fillConnectivity: 4,
+    fillSource: 'active-layer',
+    fillContiguous: true,
+    sprayRadius: 8,
+    sprayDensity: 35,
+    sprayDistribution: 'uniform',
+    gradientMode: 'linear',
+    gradientDither: 'none',
+    contourClosed: false,
+  }))
+  const brushSize = computed<number>({
+    get: () => toolOptions.value.brushSize,
+    set: (value) => {
+      toolOptions.value.brushSize = Math.max(1, Math.min(64, Math.round(value)))
+    },
+  })
   const zoom = useState<number>('canvas-zoom', () => 14)
   const showGrid = useState<boolean>('show-grid', () => true)
   const showTransparency = useState<boolean>('show-transparency', () => true)
@@ -480,6 +511,59 @@ export const useEditor = () => {
     return Boolean(entry)
   }
 
+  const floodFillWithOptions = (
+    x: number,
+    y: number,
+    color: Pixel,
+    options: Partial<Pick<ToolOptions, 'fillTolerance' | 'fillConnectivity' | 'fillSource'>> & {
+      contiguous?: boolean
+    } = {},
+    cancellable = false,
+  ) => {
+    const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
+    if (!pixels) return false
+    const fillColor = registerPixelColor(project.value, color)
+    const source =
+      (options.fillSource ?? toolOptions.value.fillSource) === 'visible-layers'
+        ? getCompositePixels(project.value, activeFrameId.value)
+        : pixels
+    const tolerance = options.fillTolerance ?? toolOptions.value.fillTolerance
+    const pointMatcher =
+      (options.contiguous ?? toolOptions.value.fillContiguous) === false
+        ? matchingPixelsNonContiguous(
+            source,
+            project.value.width,
+            project.value.height,
+            { x, y },
+            tolerance,
+          )
+        : matchingPixels(
+            source,
+            project.value.width,
+            project.value.height,
+            { x, y },
+            fillColor,
+            tolerance,
+            options.fillConnectivity ?? toolOptions.value.fillConnectivity,
+          )
+    const selectionMask = activeSelection.value
+      ? new Set(
+          activeSelection.value.points.map((point) => point.y * project.value.width + point.x),
+        )
+      : null
+    const points = selectionMask
+      ? pointMatcher.filter((point) => selectionMask.has(point.y * project.value.width + point.x))
+      : pointMatcher
+    if (!points.length) return false
+    beginPixelMutation('Fill area')
+    points.forEach((point) =>
+      writeStrokePixel(pixels, point.y * project.value.width + point.x, fillColor),
+    )
+    const entry = commitPixelMutation('Filled area')
+    if (cancellable) committedTouchMutation = entry
+    return Boolean(entry)
+  }
+
   const drawLine = (
     fromX: number,
     fromY: number,
@@ -763,6 +847,7 @@ export const useEditor = () => {
     project.value.layers.push({
       id,
       name: `Layer ${project.value.layers.length + 1}`,
+      kind: 'pixel',
       visible: true,
       opacity: 1,
       cels: Object.fromEntries(
@@ -822,6 +907,65 @@ export const useEditor = () => {
     touch('Changed layer opacity')
   }
 
+  const createTextLayer = (x = 0, y = 0, data: Partial<TextLayerData> = {}) => {
+    checkpoint('Add text layer')
+    const id = makeId('layer_text')
+    const text = { ...defaultTextLayerData(x, y), ...data }
+    const cels = Object.fromEntries(
+      project.value.frames.map((frame) => [
+        frame.id,
+        emptyPixels(project.value.width, project.value.height),
+      ]),
+    )
+    const textByFrame = Object.fromEntries(
+      project.value.frames.map((frame) => [frame.id, { ...text }]),
+    )
+    project.value.layers.push({
+      id,
+      name: 'Text layer',
+      kind: 'text',
+      visible: true,
+      opacity: 1,
+      cels,
+      textByFrame,
+    })
+    project.value.version = 2
+    activeLayerId.value = id
+    touch('Added text layer')
+    return id
+  }
+
+  const updateTextLayer = (layerId: string, data: Partial<TextLayerData>) => {
+    const layer = project.value.layers.find((item) => item.id === layerId)
+    if (!layer || layer.kind !== 'text') return false
+    const current = layer.textByFrame?.[activeFrameId.value]
+    if (!current) return false
+    checkpoint('Edit text layer')
+    layer.textByFrame![activeFrameId.value] = { ...current, ...data }
+    touch('Edited text layer')
+    return true
+  }
+
+  const rasterizeText = (layerId = activeLayerId.value) => {
+    const layer = project.value.layers.find((item) => item.id === layerId)
+    if (!layer || layer.kind !== 'text') return false
+    checkpoint('Rasterize text layer')
+    const cels: Record<string, Pixel[]> = {}
+    project.value.frames.forEach((frame) => {
+      cels[frame.id] = rasterizeTextLayer(
+        layer.textByFrame?.[frame.id],
+        project.value.width,
+        project.value.height,
+      )
+    })
+    layer.kind = 'pixel'
+    layer.cels = cels
+    Reflect.deleteProperty(layer, 'textByFrame')
+    layer.name = `${layer.name.replace(/\s*\(text\)$/i, '')} (rasterized)`
+    touch('Rasterized text layer')
+    return true
+  }
+
   const renameProject = (name: string) => {
     const clean = name.trim().slice(0, 64)
     if (!clean || clean === project.value.name) return
@@ -879,6 +1023,7 @@ export const useEditor = () => {
     activeDrawingColor,
     drawingColor,
     brushSize,
+    toolOptions,
     zoom,
     showGrid,
     showTransparency,
@@ -908,6 +1053,7 @@ export const useEditor = () => {
     cancelStroke,
     pickColor,
     floodFill,
+    floodFillWithOptions,
     drawLine,
     drawRectangle,
     drawCircle,
@@ -929,6 +1075,9 @@ export const useEditor = () => {
     requestLayerRename,
     renameLayer,
     setLayerOpacity,
+    createTextLayer,
+    updateTextLayer,
+    rasterizeText,
     renameProject,
     applyProposal,
   }

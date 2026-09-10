@@ -70,6 +70,30 @@ export const toolDefinitions: ToolDefinition[] = [
     shortcut: 'C',
   },
   {
+    id: 'contour',
+    label: 'Contour',
+    description: 'Place connected outline points and finish or close the contour.',
+    shortcut: 'U',
+  },
+  {
+    id: 'spray',
+    label: 'Spray',
+    description: 'Scatter bounded, seeded pixels with radius, density, and distribution controls.',
+    shortcut: 'Y',
+  },
+  {
+    id: 'gradient',
+    label: 'Gradient',
+    description: 'Drag a linear or radial transition between primary and secondary colors.',
+    shortcut: 'V',
+  },
+  {
+    id: 'text',
+    label: 'Text',
+    description: 'Place an editable pixel text layer with font, size, alignment, and spacing.',
+    shortcut: 'A',
+  },
+  {
     id: 'select-rect',
     label: 'Box select',
     description: 'Drag a box around pixels, then drag inside the selection to move them.',

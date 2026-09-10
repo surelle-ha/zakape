@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "id": "TOOLS-C4EX",
+  "title": "Advanced painting and typography tools",
+  "area": "TOOLS",
+  "status": "in_progress",
+  "summary": "Expand the pixel editor with enhanced fill controls, linear and radial gradients, ordered gradient dithering, and editable text while preserving pixel-precise undoable workflows across desktop and touch devices.",
+  "createdAt": "2026-09-10T01:21:22.473Z",
+  "updatedAt": "2026-09-10T04:47:47.756Z",
+  "clarification": {
+    "questions": [
+      {
+        "question": "What lifecycle makes text genuinely editable after placement?",
+        "answer": "Go with the recommended live text-layer model.",
+        "decision": "Placing text creates a dedicated live text layer that remains editable after reopening; export and explicit Rasterize Text convert it to hard pixel output. This keeps ordinary pixel cels clean and makes font fallback, selection, history, and schema migration explicit."
+      },
+      {
+        "question": "Which shape tools share one mode control versus appearing as separate rail items?",
+        "answer": "Use the recommendation.",
+        "decision": "Keep Rectangle and Circle/Ellipse as separate tools with one shared Outline/Filled mode and shared thickness settings; do not multiply toolbox entries or shortcuts."
+      },
+      {
+        "question": "What exact Pixel-perfect Freehand cleanup rule should apply at joins and stroke intersections?",
+        "answer": "Use the recommendation.",
+        "decision": "Remove only redundant single-pixel corner stair-step artifacts when the neighboring stroke path proves the pixel is a duplicate; preserve intentional isolated pixels and intersections."
+      },
+      {
+        "question": "Which spray distributions and deterministic/repeatable behavior are required?",
+        "answer": "Use the recommendation.",
+        "decision": "Ship deterministic seeded uniform scatter by default, plus Gaussian/center-weighted and edge-preserving distributions; replaying the same gesture uses the same seed for stable previews, undo, and tests."
+      },
+      {
+        "question": "Which color-distance model and tolerance scale should Fill use?",
+        "answer": "Use the recommendation.",
+        "decision": "Use RGBA-aware weighted color distance with a 0–255 tolerance, 4-way contiguous matching by default, optional 8-way connectivity, and non-contiguous all-matching-pixels mode."
+      },
+      {
+        "question": "What area/selection masking contract applies to gradient and text placement?",
+        "answer": "Use the recommendation.",
+        "decision": "An active selection clips gradients and rasterized text; without one, operations clip to the canvas. Text starts at the clicked anchor and never writes outside canvas bounds."
+      },
+      {
+        "question": "Which bundled/system pixel fonts are supported, and what happens when a font is missing?",
+        "answer": "Use the recommendation.",
+        "decision": "Bundle OFL-licensed Pixelify Sans and Silkscreen, permit installed system fonts, and show a warning while falling back to a bundled pixel font when a selected font is unavailable."
+      },
+      {
+        "question": "What brush-size and computational ceilings define performance acceptance?",
+        "answer": "Use the recommendation.",
+        "decision": "1000×1000 remains interactive during brush/shape preview without full-project cloning per pointer event; localized strokes target a 16 ms frame budget, full-canvas fill/gradient commits may use a worker or bounded batch up to 100 ms, brush size is capped at 64, and spray radius at 64."
+      }
+    ],
+    "openQuestions": []
+  },
+  "dependencies": [
+    {
+      "id": "UI-49ZB",
+      "type": "advisory",
+      "reason": "The in-progress customizable toolbox owns preference normalization and presentation for new stable tool IDs; implementation can proceed independently but overlapping tool-definition files require coordination."
+    }
+  ],
+  "affectedFiles": [
+    "apps/studio/app/types/editor.ts",
+    "apps/studio/app/utils/raster.ts",
+    "apps/studio/app/utils/color.ts",
+    "apps/studio/app/utils/project.ts",
+    "apps/studio/app/utils/render.ts",
+    "apps/studio/app/composables/useEditor.ts",
+    "apps/studio/app/components/PixelCanvas.vue",
+    "apps/studio/app/components/ToolRail.vue",
+    "apps/studio/app/utils/commands.ts",
+    "apps/studio/app/pages/index.vue",
+    "apps/studio/app/assets/css/main.css",
+    "apps/studio/app/composables/useToolboxSettings.ts",
+    "apps/studio/app/utils/editorSettings.ts",
+    "apps/studio/tests/unit/raster.test.ts",
+    "apps/studio/tests/unit/color.test.ts",
+    "apps/studio/tests/unit/render.test.ts",
+    "apps/studio/tests/unit/project.test.ts",
+    "apps/studio/tests/e2e/studio.spec.ts",
+    "apps/studio/tests/e2e/responsive.spec.ts",
+    "apps/studio/tests/e2e/tools-c4ex.spec.ts",
+    "docs/ai/",
+    "docs/project-memory/"
+  ],
+  "risks": [
+    "Full-canvas fill/gradient can freeze phones; cap dimensions/options, reuse buffers, profile 1000×1000 fixtures, and move only measured expensive commits to workers.",
+    "Shape thickening can create uneven corners; define integer footprint semantics and golden fixtures at shallow, steep, degenerate, and clipped bounds.",
+    "Pixel-perfect cleanup can erase intentional art; use conservative path-provenance checks and an option to disable cleanup per gesture.",
+    "Composite fill can accidentally write hidden or inactive layers; separate read buffer from active write target and assert layer IDs in tests.",
+    "Text font substitution can change appearance; bundle licensed fallbacks, persist resolved family, warn on substitution, and provide explicit Rasterize Text.",
+    "New tools can break customized rails/shortcuts; use stable IDs, preference normalization, and required Pencil/Eraser/Hand invariants.",
+    "Touch hover affordances do not exist; provide visible controls, long-press or tap paths, and keyboard alternatives on desktop.",
+    "Text-layer rendering may diverge between Canvas2D and exports; use one hard-edge raster helper for preview/export and compare pixel fixtures."
+  ],
+  "validation": [
+    "Unit-test brush footprints, pixel-perfect joins, thick lines, outline/filled shape points, contour closure, cancellation, and one-entry undo.",
+    "Test deterministic spray, RGBA fill tolerance, connectivity, non-contiguous matching, visible-layer reads, indexed limits, grayscale normalization, gradients, ordered dither, selection masks, and text schema migration.",
+    "Playwright-test desktop, tablet, phone, touch cancellation, contextual controls, text editing, missing-font fallback, accessibility, high-resolution interaction, tiled/live previews, and exports.",
+    "Profile 1000×1000 interaction budgets and optimize only measured hot paths.",
+    "Run affected-file Prettier, studio lint/typecheck/unit/build, focused/full Playwright, root checks, pnpm spec validate TOOLS-C4EX, and git diff --check."
+  ],
+  "validationEvidence": [
+    "Studio lint, typecheck, production build, and 78 unit tests pass. Added deterministic raster fixtures and docs/ai/drawing-tools.md. Remaining work: dedicated E2E/performance profiling."
+  ],
+  "overrides": []
+}

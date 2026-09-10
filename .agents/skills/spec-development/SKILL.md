@@ -23,8 +23,8 @@ When creating a substantial spec, create a `clarifying` record and then run a Gr
 
 - Map the request as a design tree whose branches cover the problem, outcomes, journeys, boundaries, risks, and delivery decisions.
 - Resolve repository facts yourself by inspecting specs, source, documentation, tests, and history. Only put genuine product or engineering decisions to the user.
-- Ask one decision question at a time, include the recommended answer and why it matters, then wait for the user's answer before advancing the frontier.
-- Recompute the tree after every answer. Do not ask a question whose prerequisites remain unsettled.
+- Ask material frontier decisions in grouped/bulk rounds by default, include a recommended answer and why each choice matters, then wait for the user's answers before advancing the frontier. Group questions only when their prerequisites are resolved; do not force a one-question-at-a-time loop when the user asks for faster clarification.
+- Recompute the tree after each grouped answer round. Do not ask a question whose prerequisites remain unsettled.
 - Record every answered question and resulting decision in both `spec.md` and `spec.json`.
 - Keep material unknowns in `clarification.openQuestions`. Do not run `specify ID --finalize` until they are resolved and every required section is concrete.
 - When the tree has no open branches, ask the user to confirm explicitly that it reflects the shared understanding. Do not finalize, plan, or implement before that confirmation.

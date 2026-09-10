@@ -1,0 +1,6 @@
+{"at":"2026-09-10T01:21:22.483Z","specId":"TOOLS-C4EX","event":"created","from":null,"to":"clarifying","note":"Expand the pixel editor with enhanced fill controls, linear and radial gradients, ordered gradient dithering, and editable text while preserving pixel-precise undoable workflows across desktop and touch devices.","commit":"302bd9d9f447"}
+{"at":"2026-09-10T01:59:13.783Z","specId":"TOOLS-C4EX","event":"specification_finalized","from":"clarifying","to":"specified","note":null,"commit":"302bd9d9f447"}
+{"at":"2026-09-10T01:59:14.750Z","specId":"TOOLS-C4EX","event":"planning_started","from":"specified","to":"planning","note":null,"commit":"302bd9d9f447"}
+{"at":"2026-09-10T02:09:30.487Z","specId":"TOOLS-C4EX","event":"plan_finalized","from":"planning","to":"planned","note":null,"commit":"302bd9d9f447"}
+{"at":"2026-09-10T02:09:43.312Z","specId":"TOOLS-C4EX","event":"implementation_started","from":"planned","to":"in_progress","note":null,"commit":"302bd9d9f447"}
+{"at":"2026-09-10T04:47:47.757Z","specId":"TOOLS-C4EX","event":"validation_evidence_added","from":"in_progress","to":"in_progress","note":"Studio lint, typecheck, production build, and 78 unit tests pass. Added deterministic raster fixtures and docs/ai/drawing-tools.md. Remaining work: dedicated E2E/performance profiling.","commit":"302bd9d9f447"}

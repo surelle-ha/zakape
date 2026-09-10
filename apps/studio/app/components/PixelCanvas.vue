@@ -953,7 +953,9 @@ const beginPinch = () => {
   const host = canvas.value?.closest<HTMLElement>('.canvas-scroll')
   if (!first || !second || !host) return
   cancelPendingTouch()
-  if (touchMutationCheckpoint) cancelStroke()
+  // Pointer cancellation must restore desktop and touch strokes alike. Shapes have no
+  // active pixel mutation yet, so cancelStroke is a harmless no-op for those previews.
+  if (touchMutationCheckpoint || drawing.value) cancelStroke()
   touchMutationCheckpoint = false
   drawing.value = false
   movingSelection.value = false

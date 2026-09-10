@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.0](https://github.com/surelle-ha/zakape/compare/v0.25.0...v0.26.0) (2026-09-10)
+
+
+### Features
+
+* **studio:** advanced pixel drawing tools ([#49](https://github.com/surelle-ha/zakape/issues/49)) ([6d557a5](https://github.com/surelle-ha/zakape/commit/6d557a547245c6236b48741c3da0254d788c2baf))
+
 ## [0.25.0](https://github.com/surelle-ha/zakape/compare/v0.24.0...v0.25.0) (2026-09-09)
 
 

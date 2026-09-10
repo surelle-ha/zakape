@@ -6,7 +6,7 @@
   "status": "in_progress",
   "summary": "Expand the pixel editor with enhanced fill controls, linear and radial gradients, ordered gradient dithering, and editable text while preserving pixel-precise undoable workflows across desktop and touch devices.",
   "createdAt": "2026-09-10T01:21:22.473Z",
-  "updatedAt": "2026-09-10T04:47:47.756Z",
+  "updatedAt": "2026-09-10T04:52:26.444Z",
   "clarification": {
     "questions": [
       {
@@ -101,7 +101,8 @@
     "Run affected-file Prettier, studio lint/typecheck/unit/build, focused/full Playwright, root checks, pnpm spec validate TOOLS-C4EX, and git diff --check."
   ],
   "validationEvidence": [
-    "Studio lint, typecheck, production build, and 78 unit tests pass. Added deterministic raster fixtures and docs/ai/drawing-tools.md. Remaining work: dedicated E2E/performance profiling."
+    "Studio lint, typecheck, production build, and 78 unit tests pass. Added deterministic raster fixtures and docs/ai/drawing-tools.md. Remaining work: dedicated E2E/performance profiling.",
+    "Focused Playwright regression for advanced tools passed on desktop (1 test). Full cross-device E2E and measured 1000x1000 performance profiling remain follow-up work; spec intentionally stays in_progress."
   ],
   "overrides": []
 }

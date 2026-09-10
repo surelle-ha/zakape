@@ -32,6 +32,7 @@ const {
   activeSelection,
   primaryColor,
   brushSize,
+  toolOptions,
   zoom,
   showGrid,
   showTransparency,
@@ -535,6 +536,10 @@ const keydown = (event: KeyboardEvent) => {
     l: 'line',
     r: 'rectangle',
     c: 'circle',
+    u: 'contour',
+    y: 'spray',
+    v: 'gradient',
+    a: 'text',
     s: 'select-rect',
     q: 'select-lasso',
     h: 'hand',
@@ -562,7 +567,7 @@ const keydown = (event: KeyboardEvent) => {
   }
   if (key === ']') {
     event.preventDefault()
-    brushSize.value = Math.min(4, brushSize.value + 1)
+    brushSize.value = Math.min(64, brushSize.value + 1)
   }
   if (key === '=' || key === '+') {
     event.preventDefault()
@@ -886,6 +891,103 @@ onBeforeUnmount(() => {
                   <span class="brush-dot" aria-hidden="true" />
                 </button>
               </label>
+              <label
+                v-if="
+                  [
+                    'pencil',
+                    'mirror',
+                    'dither',
+                    'eraser',
+                    'line',
+                    'rectangle',
+                    'circle',
+                    'contour',
+                  ].includes(activeTool)
+                "
+                class="compact-select"
+              >
+                <span>Brush</span>
+                <select v-model="toolOptions.brushShape" aria-label="Brush shape">
+                  <option value="square">Square</option>
+                  <option value="circle">Circle</option>
+                </select>
+              </label>
+              <label v-if="['pencil', 'eraser'].includes(activeTool)" class="compact-toggle">
+                <input v-model="toolOptions.pixelPerfect" type="checkbox" />
+                <span>Pixel perfect</span>
+              </label>
+              <label v-if="['rectangle', 'circle'].includes(activeTool)" class="compact-select">
+                <span>Shape</span>
+                <select v-model="toolOptions.shapeMode" aria-label="Shape mode">
+                  <option value="outline">Outline</option>
+                  <option value="filled">Filled</option>
+                </select>
+              </label>
+              <template v-if="activeTool === 'fill'">
+                <label class="compact-number"
+                  ><span>Tolerance</span
+                  ><input
+                    v-model.number="toolOptions.fillTolerance"
+                    type="number"
+                    min="0"
+                    max="255"
+                /></label>
+                <label class="compact-select"
+                  ><span>Connectivity</span
+                  ><select v-model.number="toolOptions.fillConnectivity">
+                    <option :value="4">4-way</option>
+                    <option :value="8">8-way</option>
+                  </select></label
+                >
+                <label class="compact-select"
+                  ><span>Source</span
+                  ><select v-model="toolOptions.fillSource">
+                    <option value="active-layer">Active layer</option>
+                    <option value="visible-layers">Visible layers</option>
+                  </select></label
+                >
+                <label class="compact-toggle"
+                  ><input v-model="toolOptions.fillContiguous" type="checkbox" /><span
+                    >Contiguous</span
+                  ></label
+                >
+              </template>
+              <template v-if="activeTool === 'spray'">
+                <label class="compact-number"
+                  ><span>Radius</span
+                  ><input v-model.number="toolOptions.sprayRadius" type="number" min="1" max="64"
+                /></label>
+                <label class="compact-number"
+                  ><span>Density</span
+                  ><input v-model.number="toolOptions.sprayDensity" type="number" min="1" max="100"
+                /></label>
+                <label class="compact-select"
+                  ><span>Spread</span
+                  ><select v-model="toolOptions.sprayDistribution">
+                    <option value="uniform">Uniform</option>
+                    <option value="gaussian">Centre</option>
+                    <option value="edge">Edge</option>
+                  </select></label
+                >
+              </template>
+              <template v-if="activeTool === 'gradient'">
+                <label class="compact-select"
+                  ><span>Gradient</span
+                  ><select v-model="toolOptions.gradientMode">
+                    <option value="linear">Linear</option>
+                    <option value="radial">Radial</option>
+                  </select></label
+                >
+                <label class="compact-select"
+                  ><span>Dither</span
+                  ><select v-model="toolOptions.gradientDither">
+                    <option value="none">None</option>
+                    <option value="checker">Checker</option>
+                    <option value="quarter">Quarter</option>
+                    <option value="diagonal">Diagonal</option>
+                  </select></label
+                >
+              </template>
               <span class="context-hint">{{ toolHint }}</span>
             </div>
             <div class="zoom-control">

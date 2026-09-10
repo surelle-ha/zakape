@@ -5,6 +5,7 @@ const {
   project,
   activeFrameId,
   activeLayerId,
+  activeLayer,
   layerEditingId,
   addLayer,
   deleteLayer,
@@ -12,6 +13,8 @@ const {
   requestLayerRename,
   renameLayer,
   setLayerOpacity,
+  updateTextLayer,
+  rasterizeText,
 } = useEditor()
 
 const nameDraft = ref('')
@@ -35,6 +38,27 @@ const cancelRename = () => {
   layerEditingId.value = null
   nameDraft.value = ''
 }
+
+const textDraft = ref('')
+const textSizeDraft = ref(8)
+const textAlignDraft = ref<'left' | 'center' | 'right'>('left')
+const syncTextDraft = () => {
+  const data =
+    activeLayer.value?.kind === 'text' ? activeLayer.value.textByFrame?.[activeFrameId.value] : null
+  textDraft.value = data?.content ?? ''
+  textSizeDraft.value = data?.fontSize ?? 8
+  textAlignDraft.value = data?.align ?? 'left'
+}
+const applyTextDraft = () => {
+  if (activeLayer.value?.kind !== 'text') return
+  updateTextLayer(activeLayer.value.id, {
+    content: textDraft.value.slice(0, 2048),
+    fontSize: Math.max(1, Math.min(256, Number(textSizeDraft.value) || 8)),
+    lineHeight: Math.max(1, Math.round((Number(textSizeDraft.value) || 8) * 1.25)),
+    align: textAlignDraft.value,
+  })
+}
+watch([activeLayerId, activeFrameId], syncTextDraft, { immediate: true })
 
 watch(layerEditingId, async (layerId) => {
   if (!layerId || focusingRename) return
@@ -174,6 +198,33 @@ watch(layerEditingId, async (layerId) => {
       >
         <Trash2 :size="14" /> Delete selected layer
       </button>
+      <section
+        v-if="activeLayer?.kind === 'text'"
+        class="text-layer-editor"
+        aria-label="Text layer editor"
+      >
+        <span class="section-kicker"><PencilLine :size="14" /> Live text</span>
+        <textarea v-model="textDraft" rows="3" maxlength="2048" aria-label="Text content" />
+        <div class="text-layer-controls">
+          <label
+            >Size <input v-model.number="textSizeDraft" type="number" min="1" max="256"
+          /></label>
+          <label
+            >Align
+            <select v-model="textAlignDraft">
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select></label
+          >
+        </div>
+        <button type="button" class="secondary-button" @click="applyTextDraft">
+          Apply text changes
+        </button>
+        <button type="button" class="secondary-button" @click="rasterizeText(activeLayer.id)">
+          Rasterize text
+        </button>
+      </section>
     </section>
   </aside>
 </template>

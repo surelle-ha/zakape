@@ -11,13 +11,37 @@ export interface Frame {
 export interface Layer {
   id: string
   name: string
+  kind?: 'pixel' | 'text'
   visible: boolean
   opacity: number
   cels: Record<string, Pixel[]>
+  textByFrame?: Record<string, TextLayerData | null>
+}
+
+export type BrushShape = 'square' | 'circle'
+export type ShapeMode = 'outline' | 'filled'
+export type FillConnectivity = 4 | 8
+export type FillSource = 'active-layer' | 'visible-layers'
+export type SprayDistribution = 'uniform' | 'gaussian' | 'edge'
+export type GradientMode = 'linear' | 'radial'
+export type GradientDither = 'none' | 'checker' | 'quarter' | 'diagonal'
+export type TextAlign = 'left' | 'center' | 'right'
+
+export interface TextLayerData {
+  content: string
+  fontFamily: string
+  fontSize: number
+  lineHeight: number
+  letterSpacing: number
+  align: TextAlign
+  color: string
+  x: number
+  y: number
+  selectionPoints?: PixelPoint[]
 }
 
 export interface SpriteProject {
-  version: 1
+  version: 1 | 2
   id: string
   name: string
   width: number
@@ -42,6 +66,10 @@ export type ToolId =
   | 'line'
   | 'rectangle'
   | 'circle'
+  | 'contour'
+  | 'spray'
+  | 'gradient'
+  | 'text'
   | 'select-rect'
   | 'select-lasso'
   | 'hand'
@@ -86,6 +114,23 @@ export interface PixelPoint {
 
 export interface PixelSample extends PixelPoint {
   color: Pixel
+}
+
+export interface ToolOptions {
+  brushShape: BrushShape
+  brushSize: number
+  pixelPerfect: boolean
+  shapeMode: ShapeMode
+  fillTolerance: number
+  fillConnectivity: FillConnectivity
+  fillSource: FillSource
+  fillContiguous: boolean
+  sprayRadius: number
+  sprayDensity: number
+  sprayDistribution: SprayDistribution
+  gradientMode: GradientMode
+  gradientDither: GradientDither
+  contourClosed: boolean
 }
 
 export interface PixelSelection {

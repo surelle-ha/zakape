@@ -15,6 +15,12 @@ import {
   rasterCircle,
   rasterLine,
   rasterRectangle,
+  rasterFilledEllipse,
+  rasterContour,
+  rasterSpray,
+  gradientSamples,
+  brushFootprint,
+  pixelPerfectPoints,
   resizePixelSamples,
   rotatePixelSamples,
   tiledSourceTile,
@@ -31,6 +37,7 @@ const {
   primaryColor,
   secondaryColor,
   brushSize,
+  toolOptions,
   zoom,
   showGrid,
   showTransparency,
@@ -44,12 +51,13 @@ const {
   endStroke,
   cancelStroke,
   pickColor,
-  floodFill,
+  floodFillWithOptions,
   commitPixelSamples,
   setSelection,
   clearSelection,
   moveSelection,
   transformSelection,
+  createTextLayer,
 } = useEditor()
 const { enabled: tiledMode, effectiveColumns, effectiveRows } = useTiledMode()
 
@@ -297,28 +305,31 @@ const samplesFromDisplayPoints = (points: PixelPoint[], color: Pixel): PixelSamp
     )
     return mirrorPoints({ x: mapped.sourceX, y: mapped.sourceY })
   })
+  const centerPoints =
+    toolOptions.value.pixelPerfect && activeTool.value === 'pencil'
+      ? pixelPerfectPoints(centers)
+      : centers
   const rasterPoints = tiledMode.value
-    ? wrapRasterPoints(centers, project.value.width, project.value.height, brushSize.value)
+    ? wrapRasterPoints(
+        centerPoints,
+        project.value.width,
+        project.value.height,
+        brushSize.value,
+        toolOptions.value.brushShape,
+      )
     : [
         ...new Map(
-          centers
-            .flatMap((point) => {
-              const radius = Math.floor((brushSize.value - 1) / 2)
-              const expanded: PixelPoint[] = []
-              for (let offsetY = -radius; offsetY < brushSize.value - radius; offsetY += 1) {
-                for (let offsetX = -radius; offsetX < brushSize.value - radius; offsetX += 1) {
-                  const next = { x: point.x + offsetX, y: point.y + offsetY }
-                  if (
-                    next.x >= 0 &&
-                    next.y >= 0 &&
-                    next.x < project.value.width &&
-                    next.y < project.value.height
-                  )
-                    expanded.push(next)
-                }
-              }
-              return expanded
-            })
+          centerPoints
+            .flatMap((point) =>
+              brushFootprint(point, brushSize.value, toolOptions.value.brushShape),
+            )
+            .filter(
+              (point) =>
+                point.x >= 0 &&
+                point.y >= 0 &&
+                point.x < project.value.width &&
+                point.y < project.value.height,
+            )
             .map((point) => [`${point.x}:${point.y}`, point]),
         ).values(),
       ]
@@ -334,13 +345,57 @@ const samplesFromDisplayPoints = (points: PixelPoint[], color: Pixel): PixelSamp
 
 const activeShapeSamples = () => {
   if (!shapeStartDisplay.value || !displayCursor.value) return []
+  if (activeTool.value === 'gradient') {
+    const from = mapTiledPoint(
+      shapeStartDisplay.value,
+      project.value.width,
+      project.value.height,
+      effectiveColumns.value,
+      effectiveRows.value,
+    )
+    const to = mapTiledPoint(
+      displayCursor.value,
+      project.value.width,
+      project.value.height,
+      effectiveColumns.value,
+      effectiveRows.value,
+    )
+    const samples = gradientSamples(
+      from,
+      to,
+      { left: 0, top: 0, right: project.value.width - 1, bottom: project.value.height - 1 },
+      primaryColor.value,
+      secondaryColor.value,
+      toolOptions.value.gradientMode,
+      toolOptions.value.gradientDither,
+    )
+    const selectionMask = activeSelection.value
+      ? new Set(activeSelection.value.points.map((point) => `${point.x}:${point.y}`))
+      : null
+    return selectionMask
+      ? samples.filter((sample) => selectionMask.has(`${sample.x}:${sample.y}`))
+      : samples
+  }
   const points =
     activeTool.value === 'line'
       ? rasterLine(shapeStartDisplay.value, displayCursor.value)
       : activeTool.value === 'circle'
-        ? rasterCircle(shapeStartDisplay.value, displayCursor.value)
-        : rasterRectangle(shapeStartDisplay.value, displayCursor.value)
-  return samplesFromDisplayPoints(points, strokeColor.value)
+        ? toolOptions.value.shapeMode === 'filled'
+          ? rasterFilledEllipse(shapeStartDisplay.value, displayCursor.value)
+          : rasterCircle(shapeStartDisplay.value, displayCursor.value)
+        : toolOptions.value.shapeMode === 'filled'
+          ? rasterFilledRectangle(shapeStartDisplay.value, displayCursor.value)
+          : rasterRectangle(shapeStartDisplay.value, displayCursor.value)
+  const contourPoints =
+    activeTool.value === 'contour'
+      ? rasterContour(
+          cursor.value && selectionPath.value.at(-1) !== cursor.value
+            ? [...selectionPath.value, cursor.value]
+            : selectionPath.value,
+          toolOptions.value.contourClosed,
+        )
+      : points
+  return samplesFromDisplayPoints(contourPoints, strokeColor.value)
 }
 
 const getPresentationSurface = () => {
@@ -762,6 +817,20 @@ const flushQueuedStrokePoints = () => {
   if (!queuedStrokePoints.length) return
   const points = queuedStrokePoints
   queuedStrokePoints = []
+  if (activeTool.value === 'pencil' && toolOptions.value.pixelPerfect && points.length > 1) {
+    const path = points.reduce<PixelPoint[]>((result, entry, index) => {
+      const previous = points[index - 1]?.point
+      const segment = previous
+        ? rasterLine(previous, entry.point).slice(index ? 1 : 0)
+        : [entry.point]
+      result.push(...segment)
+      return result
+    }, [])
+    const samples = samplesFromDisplayPoints(pixelPerfectPoints(path), points.at(-1)!.color)
+    paintPixelSamples(samples)
+    patchFrameSurface(samples)
+    return
+  }
   points.forEach(({ point, color }) => paintStrokeAt(point, color))
 }
 
@@ -815,10 +884,35 @@ const beginToolAction = (
     return
   }
   if (activeTool.value === 'fill') {
-    touchMutationCheckpoint = floodFill(point.x, point.y, strokeColor.value, fromTouch) && fromTouch
+    touchMutationCheckpoint =
+      floodFillWithOptions(point.x, point.y, strokeColor.value, {}, fromTouch) && fromTouch
     return
   }
-  if (['line', 'rectangle', 'circle'].includes(activeTool.value)) {
+  if (activeTool.value === 'text') {
+    const content = window.prompt('Text layer content', 'Pixel text')?.slice(0, 512)
+    if (content) {
+      createTextLayer(point.x, point.y, {
+        content,
+        color: strokeColor.value ?? primaryColor.value,
+      })
+    }
+    return
+  }
+  if (activeTool.value === 'contour') {
+    if (!drawing.value) {
+      shapeStartDisplay.value = displayPoint
+      selectionPath.value = [point]
+      drawing.value = true
+    } else {
+      const previous = selectionPath.value.at(-1)
+      if (!previous || previous.x !== point.x || previous.y !== point.y)
+        selectionPath.value.push(point)
+      shapeStartDisplay.value = displayPoint
+    }
+    scheduleRedraw()
+    return
+  }
+  if (['line', 'rectangle', 'circle', 'gradient', 'contour'].includes(activeTool.value)) {
     shapeStartDisplay.value = displayPoint
     drawing.value = true
     return
@@ -829,7 +923,16 @@ const beginToolAction = (
   lastPainted = ''
   lastStrokePoint.value = point
   lastStrokeDisplayPoint.value = displayPoint
-  paintStrokeAt(displayPoint, strokeColor.value)
+  if (activeTool.value === 'spray') {
+    const points = rasterSpray(
+      point,
+      toolOptions.value.sprayRadius,
+      toolOptions.value.sprayDensity,
+      toolOptions.value.sprayDistribution,
+      point.x * 4099 + point.y,
+    )
+    paintPixelSamples(points.map((entry) => ({ ...entry, color: strokeColor.value })))
+  } else paintStrokeAt(displayPoint, strokeColor.value)
 }
 
 const touchDistance = () => {
@@ -850,7 +953,9 @@ const beginPinch = () => {
   const host = canvas.value?.closest<HTMLElement>('.canvas-scroll')
   if (!first || !second || !host) return
   cancelPendingTouch()
-  if (touchMutationCheckpoint) cancelStroke()
+  // Pointer cancellation must restore desktop and touch strokes alike. Shapes have no
+  // active pixel mutation yet, so cancelStroke is a harmless no-op for those previews.
+  if (touchMutationCheckpoint || drawing.value) cancelStroke()
   touchMutationCheckpoint = false
   drawing.value = false
   movingSelection.value = false
@@ -1046,6 +1151,18 @@ const onPointerMove = async (event: PointerEvent) => {
     scheduleRedraw()
   } else if (drawing.value && activeTool.value === 'select-rect') {
     scheduleRedraw()
+  } else if (drawing.value && activeTool.value === 'contour') {
+    scheduleRedraw()
+  } else if (drawing.value && activeTool.value === 'spray') {
+    const sprayPoints = rasterSpray(
+      point,
+      toolOptions.value.sprayRadius,
+      toolOptions.value.sprayDensity,
+      toolOptions.value.sprayDistribution,
+      point.x * 4099 + point.y,
+    )
+    paintPixelSamples(sprayPoints.map((entry) => ({ ...entry, color: strokeColor.value })))
+    scheduleRedraw()
   } else if (drawing.value && ['pencil', 'mirror', 'dither', 'eraser'].includes(activeTool.value)) {
     const points = lastStrokeDisplayPoint.value
       ? rasterLine(lastStrokeDisplayPoint.value, displayPoint)
@@ -1109,6 +1226,12 @@ const onPointerUp = (event: PointerEvent) => {
     canvas.value?.releasePointerCapture(event.pointerId)
     return
   }
+  if (activeTool.value === 'contour') {
+    canvas.value?.releasePointerCapture(event.pointerId)
+    interactionBounds = null
+    scheduleRedraw()
+    return
+  }
   const point = isSelectionTool.value ? selectionPointFromEvent(event) : pointFromEvent(event)
   if (shapeStart.value && activeTool.value === 'select-rect') {
     setSelection('rectangle', rasterFilledRectangle(shapeStart.value, point))
@@ -1119,14 +1242,16 @@ const onPointerUp = (event: PointerEvent) => {
     )
   } else if (
     shapeStartDisplay.value &&
-    ['line', 'rectangle', 'circle'].includes(activeTool.value)
+    ['line', 'rectangle', 'circle', 'gradient'].includes(activeTool.value)
   ) {
     const label =
       activeTool.value === 'line'
         ? ['Draw line', 'Drew line']
         : activeTool.value === 'circle'
           ? ['Draw circle', 'Drew circle']
-          : ['Draw rectangle', 'Drew rectangle']
+          : activeTool.value === 'gradient'
+            ? ['Draw gradient', 'Drew gradient']
+            : ['Draw rectangle', 'Drew rectangle']
     commitPixelSamples(activeShapeSamples(), label[0]!, label[1]!)
   } else {
     endStroke()
@@ -1143,6 +1268,17 @@ const onPointerUp = (event: PointerEvent) => {
   interactionBounds = null
   touchMutationCheckpoint = false
   canvas.value?.releasePointerCapture(event.pointerId)
+  scheduleRedraw()
+}
+
+const finishContour = () => {
+  if (activeTool.value !== 'contour' || !drawing.value || selectionPath.value.length < 2) return
+  commitPixelSamples(activeShapeSamples(), 'Draw contour', 'Drew contour')
+  drawing.value = false
+  shapeStart.value = null
+  shapeStartDisplay.value = null
+  displayCursor.value = null
+  selectionPath.value = []
   scheduleRedraw()
 }
 
@@ -1189,6 +1325,7 @@ watch(
     () => project.value.checkerSize,
     activeFrameId,
     activeTool,
+    toolOptions,
     activeSelection,
     zoom,
     showGrid,
@@ -1247,6 +1384,7 @@ onBeforeUnmount(() => {
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
       @pointercancel="onPointerCancel"
+      @dblclick="finishContour"
       @pointerleave="onPointerLeave"
     />
     <i

@@ -1,4 +1,11 @@
-import type { CanvasBackground, ColorMode, Layer, Pixel, SpriteProject } from '~/types/editor'
+import type {
+  CanvasBackground,
+  ColorMode,
+  Layer,
+  Pixel,
+  SpriteProject,
+  TextLayerData,
+} from '~/types/editor'
 import { toRaw } from 'vue'
 import { defaultPalette, normalizePalette } from '~/utils/palettes'
 
@@ -59,6 +66,7 @@ export const createBlankProject = (
       {
         id: makeId('layer'),
         name: 'Pixel layer',
+        kind: 'pixel',
         visible: true,
         opacity: 1,
         cels: {
@@ -128,6 +136,7 @@ export const createDemoProject = (): SpriteProject => {
     {
       id: 'layer_body',
       name: 'Mint runner',
+      kind: 'pixel',
       visible: true,
       opacity: 1,
       cels: bodyCels,
@@ -135,6 +144,7 @@ export const createDemoProject = (): SpriteProject => {
     {
       id: 'layer_details',
       name: 'Face + spark',
+      kind: 'pixel',
       visible: true,
       opacity: 1,
       cels: detailCels,
@@ -235,7 +245,7 @@ export const parseSpriteProject = (input: unknown): SpriteProject => {
   const width = Number(input.width)
   const height = Number(input.height)
   if (
-    input.version !== 1 ||
+    ![1, 2].includes(Number(input.version)) ||
     !isSafeId(input.id) ||
     typeof input.name !== 'string' ||
     !input.name.trim() ||
@@ -307,6 +317,44 @@ export const parseSpriteProject = (input: unknown): SpriteProject => {
       throw unsupportedProject()
     }
     layerIds.add(layer.id)
+    const kind = layer.kind === undefined ? 'pixel' : layer.kind
+    if (kind !== 'pixel' && kind !== 'text') throw unsupportedProject()
+    if (kind === 'text') {
+      if (!isRecord(layer.textByFrame)) throw unsupportedProject()
+      for (const frameId of frameIds) {
+        const text = layer.textByFrame[frameId]
+        if (text === null || text === undefined) continue
+        if (!isRecord(text) || typeof text.content !== 'string' || text.content.length > 2048)
+          throw unsupportedProject()
+        if (typeof text.fontFamily !== 'string' || text.fontFamily.length > 128)
+          throw unsupportedProject()
+        if (
+          !Number.isFinite(Number(text.fontSize)) ||
+          Number(text.fontSize) < 1 ||
+          Number(text.fontSize) > 256
+        )
+          throw unsupportedProject()
+        if (
+          !Number.isFinite(Number(text.lineHeight)) ||
+          Number(text.lineHeight) < 1 ||
+          Number(text.lineHeight) > 512
+        )
+          throw unsupportedProject()
+        if (
+          !Number.isFinite(Number(text.letterSpacing)) ||
+          Number(text.letterSpacing) < -64 ||
+          Number(text.letterSpacing) > 64
+        )
+          throw unsupportedProject()
+        if (
+          !['left', 'center', 'right'].includes(String(text.align)) ||
+          !normalizeHex(String(text.color))
+        )
+          throw unsupportedProject()
+        if (!Number.isFinite(Number(text.x)) || !Number.isFinite(Number(text.y)))
+          throw unsupportedProject()
+      }
+    }
     for (const frameId of frameIds) {
       const pixels = layer.cels[frameId]
       if (
@@ -325,5 +373,23 @@ export const parseSpriteProject = (input: unknown): SpriteProject => {
   project.colorMode ??= 'rgba'
   project.background ??= 'transparent'
   project.checkerSize ??= 2
+  project.version = Number(project.version) === 2 ? 2 : 1
+  project.layers.forEach((layer) => {
+    layer.kind ??= 'pixel'
+    if (layer.kind === 'text')
+      layer.textByFrame ??= Object.fromEntries(project.frames.map((frame) => [frame.id, null]))
+  })
   return project
 }
+
+export const defaultTextLayerData = (x = 0, y = 0): TextLayerData => ({
+  content: 'Pixel text',
+  fontFamily: 'Silkscreen, monospace',
+  fontSize: 8,
+  lineHeight: 10,
+  letterSpacing: 0,
+  align: 'left',
+  color: '#ffffff',
+  x,
+  y,
+})

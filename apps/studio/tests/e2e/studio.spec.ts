@@ -273,6 +273,20 @@ test('shows local account status and exposes desktop update controls', async ({ 
   await expect(page.getByRole('dialog', { name: 'Zakape' })).toContainText('surelle-ha')
 })
 
+test('exposes advanced drawing tools and contextual controls', async ({ page }) => {
+  await enterEditor(page, { name: 'Tool coverage', width: 24, height: 24 })
+  for (const tool of ['contour', 'spray', 'gradient', 'text']) {
+    await expect(page.getByTestId(`tool-${tool}`)).toBeVisible()
+  }
+  await page.getByTestId('tool-spray').click()
+  await expect(page.getByText('Radius')).toBeVisible()
+  await page.getByTestId('tool-gradient').click()
+  await expect(page.locator('.compact-select').filter({ hasText: 'Gradient' })).toBeVisible()
+  await page.getByTestId('tool-text').click()
+  page.once('dialog', (dialog) => dialog.dismiss())
+  await page.getByTestId('pixel-canvas').click({ position: { x: 20, y: 20 } })
+})
+
 test('keeps support and diagnostics actions in Help without changing the workspace', async ({
   page,
 }) => {

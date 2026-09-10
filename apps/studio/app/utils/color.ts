@@ -4,6 +4,10 @@ export interface RgbColor {
   b: number
 }
 
+export interface RgbaColor extends RgbColor {
+  a: number
+}
+
 export interface HsvColor {
   h: number
   s: number
@@ -90,3 +94,29 @@ export const hsvToRgb = ({ h, s, v }: HsvColor): RgbColor => {
 
 export const hexToHsv = (value: string) => rgbToHsv(hexToRgb(value))
 export const hsvToHex = (value: HsvColor) => rgbToHex(hsvToRgb(value))
+
+export const hexToRgba = (value: string): RgbaColor => ({ ...hexToRgb(value), a: 255 })
+
+/** Weighted perceptual-enough distance for deterministic pixel fills. */
+export const colorDistance = (first: string | null, second: string | null) => {
+  if (first === second) return 0
+  if (!first || !second) return 255
+  const a = hexToRgba(first)
+  const b = hexToRgba(second)
+  const red = a.r - b.r
+  const green = a.g - b.g
+  const blue = a.b - b.b
+  // Green is the most perceptually sensitive channel; alpha is intentionally weighted strongly.
+  return Math.min(255, Math.sqrt(0.299 * red ** 2 + 0.587 * green ** 2 + 0.114 * blue ** 2))
+}
+
+export const interpolateHex = (from: string, to: string, amount: number) => {
+  const start = hexToRgb(from)
+  const end = hexToRgb(to)
+  const t = clamp(amount, 0, 1)
+  return rgbToHex({
+    r: start.r + (end.r - start.r) * t,
+    g: start.g + (end.g - start.g) * t,
+    b: start.b + (end.b - start.b) * t,
+  })
+}

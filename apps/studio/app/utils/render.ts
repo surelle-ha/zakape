@@ -1,4 +1,4 @@
-import type { Pixel, SpriteProject } from '~/types/editor'
+import type { Pixel, SpriteProject, TextLayerData } from '~/types/editor'
 import { toRaw } from 'vue'
 
 interface PixelSurface {
@@ -94,6 +94,68 @@ export const getCompositePixels = (project: SpriteProject, frameId: string): Pix
     toRaw(cel).forEach((pixel, index) => {
       if (pixel) output[index] = pixel
     })
+    if (layer.kind === 'text' && typeof document !== 'undefined') {
+      rasterizeTextLayer(layer.textByFrame?.[frameId], project.width, project.height).forEach(
+        (pixel, index) => {
+          if (pixel) output[index] = pixel
+        },
+      )
+    }
+  }
+  return output
+}
+
+/** Rasterize live text to hard pixels so previews, fills, and exports never contain antialiasing halos. */
+export const rasterizeTextLayer = (
+  text: TextLayerData | null | undefined,
+  width: number,
+  height: number,
+): Pixel[] => {
+  const output: Pixel[] = Array.from({ length: width * height }, () => null)
+  if (!text?.content || typeof document === 'undefined') return output
+  const surface = document.createElement('canvas')
+  surface.width = width
+  surface.height = height
+  const context = surface.getContext('2d')
+  if (!context) return output
+  context.clearRect(0, 0, width, height)
+  context.fillStyle = '#ffffff'
+  context.font = `${Math.max(1, Math.round(text.fontSize))}px ${text.fontFamily || 'sans-serif'}`
+  context.textBaseline = 'top'
+  context.textAlign = text.align
+  const lines = text.content.split('\n')
+  lines.forEach((line, lineIndex) => {
+    const baseline = text.y + lineIndex * text.lineHeight
+    if (!text.letterSpacing) {
+      context.fillText(line, text.x, baseline)
+      return
+    }
+    const glyphs = [...line]
+    const widths = glyphs.map((glyph) => context.measureText(glyph).width)
+    const total =
+      widths.reduce((sum, value) => sum + value, 0) +
+      Math.max(0, glyphs.length - 1) * text.letterSpacing
+    let cursor =
+      text.align === 'center'
+        ? text.x - total / 2
+        : text.align === 'right'
+          ? text.x - total
+          : text.x
+    glyphs.forEach((glyph, index) => {
+      context.fillText(glyph, cursor, baseline)
+      cursor += widths[index]! + text.letterSpacing
+    })
+  })
+  const data = context.getImageData(0, 0, width, height).data
+  const color = text.color || '#ffffff'
+  for (let index = 0; index < output.length; index += 1) {
+    if (data[index * 4 + 3]! >= 96) output[index] = color
+  }
+  if (text.selectionPoints?.length) {
+    const allowed = new Set(text.selectionPoints.map((point) => point.y * width + point.x))
+    output.forEach((pixel, index) => {
+      if (pixel && !allowed.has(index)) output[index] = null
+    })
   }
   return output
 }
@@ -110,10 +172,18 @@ export const drawProjectFrame = (
   for (const layer of project.layers) {
     if (!layer.visible || layer.opacity <= 0) continue
     const pixels = layer.cels[frameId]
-    if (!pixels) continue
     context.save()
     context.globalAlpha = layer.opacity
-    drawPixelBuffer(context, pixels, project.width, project.height, scale)
+    if (pixels) drawPixelBuffer(context, pixels, project.width, project.height, scale)
+    const text = layer.kind === 'text' ? layer.textByFrame?.[frameId] : null
+    if (text?.content)
+      drawPixelBuffer(
+        context,
+        rasterizeTextLayer(text, project.width, project.height),
+        project.width,
+        project.height,
+        scale,
+      )
     context.restore()
   }
 }
@@ -129,10 +199,19 @@ export const drawLayerFrame = (
   context.imageSmoothingEnabled = false
   const layer = project.layers.find((item) => item.id === layerId)
   const pixels = layer?.cels[frameId]
-  if (!layer || !pixels) return
+  if (!layer) return
   context.save()
   context.globalAlpha = layer.opacity
-  drawPixelBuffer(context, pixels, project.width, project.height, scale)
+  if (pixels) drawPixelBuffer(context, pixels, project.width, project.height, scale)
+  const text = layer.kind === 'text' ? layer.textByFrame?.[frameId] : null
+  if (text?.content)
+    drawPixelBuffer(
+      context,
+      rasterizeTextLayer(text, project.width, project.height),
+      project.width,
+      project.height,
+      scale,
+    )
   context.restore()
 }
 

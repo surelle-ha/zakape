@@ -11,6 +11,13 @@ import {
   positiveModulo,
   tiledSourceTile,
   wrapRasterPoints,
+  brushFootprint,
+  pixelPerfectPoints,
+  rasterFilledEllipse,
+  rasterSpray,
+  gradientSamples,
+  matchingPixels,
+  matchingPixelsNonContiguous,
 } from '~/utils/raster'
 
 describe('raster previews', () => {
@@ -108,5 +115,51 @@ describe('raster previews', () => {
     const rotated = rotatePixelSamples(samples, Math.PI / 2, 8, 8)
     expect(rotated).toHaveLength(2)
     expect(new Set(rotated.map((sample) => sample.x))).toHaveLength(1)
+  })
+
+  it('supports bounded brush footprints and conservative pixel-perfect cleanup', () => {
+    expect(brushFootprint({ x: 2, y: 2 }, 3, 'circle')).toHaveLength(9)
+    expect(brushFootprint({ x: 2, y: 2 }, 5, 'circle').length).toBeLessThan(25)
+    expect(
+      pixelPerfectPoints([
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+        { x: 2, y: 0 },
+      ]),
+    ).toEqual([
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+    ])
+  })
+
+  it('creates deterministic sprays and clipped filled ellipses', () => {
+    expect(rasterSpray({ x: 4, y: 4 }, 4, 50, 'uniform', 42)).toEqual(
+      rasterSpray({ x: 4, y: 4 }, 4, 50, 'uniform', 42),
+    )
+    expect(
+      rasterFilledEllipse({ x: 0, y: 0 }, { x: 4, y: 2 }).every(
+        (point) => point.x >= 0 && point.y >= 0,
+      ),
+    ).toBe(true)
+  })
+
+  it('supports tolerance, connectivity, and non-contiguous matching', () => {
+    const pixels = ['#000000', '#010101', '#ffffff', '#000000']
+    expect(matchingPixels(pixels, 2, 2, { x: 0, y: 0 }, '#ffffff', 2, 4)).toHaveLength(3)
+    expect(matchingPixelsNonContiguous(pixels, 2, 2, { x: 0, y: 0 }, 2)).toHaveLength(3)
+  })
+
+  it('samples gradients with an ordered dither pattern', () => {
+    const samples = gradientSamples(
+      { x: 0, y: 0 },
+      { x: 3, y: 0 },
+      { left: 0, top: 0, right: 3, bottom: 1 },
+      '#000000',
+      '#ffffff',
+      'linear',
+      'checker',
+    )
+    expect(samples).toHaveLength(8)
+    expect(samples[0]!.color).not.toBe(samples[1]!.color)
   })
 })

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.1](https://github.com/surelle-ha/zakape/compare/v0.26.0...v0.26.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **studio:** keep expanded tool rail above timeline ([#51](https://github.com/surelle-ha/zakape/issues/51)) ([305d84a](https://github.com/surelle-ha/zakape/commit/305d84a09e24414e1f3f63679154d717f5a3a5b5))
+
 ## [0.26.0](https://github.com/surelle-ha/zakape/compare/v0.25.0...v0.26.0) (2026-09-10)
 
 

@@ -23,6 +23,7 @@
 # UI-49ZB — bounded editor customization
 
 Zakape uses explicit Dark/Light themes, contrast-validated accent presets or custom hex colors, transactional settings dialogs, a single tabbed Assistant Settings surface, and a configurable tool rail. Assistant extensions remain built-in and allow-listed; arbitrary executable, native, network, or model-defined tools are outside the trust boundary.
+
 ## 2026-09-10 — TOOLS-C4EX
 
 Advanced drawing tools remain pure integer operations behind `useEditor`. Fill reads either the active

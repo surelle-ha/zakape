@@ -9604,17 +9604,28 @@ kbd {
 
 @media (min-width: 1024px) and (max-height: 760px) {
   .tool-rail {
-    gap: 1px;
-    padding-block: 4px;
+    gap: 0;
+    padding-block: 2px;
   }
 
   .tool-color-stack {
-    height: 42px;
+    height: 36px;
   }
 
   .tool-button {
-    width: 31px;
-    height: 31px;
+    width: 27px;
+    height: 27px;
+  }
+
+  .tool-button svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .tool-button span {
+    right: 2px;
+    bottom: 1px;
+    font-size: 6px;
   }
 
   .tool-rail-separator {

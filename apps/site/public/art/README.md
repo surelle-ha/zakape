@@ -8,5 +8,13 @@
 - Rights: Public domain
 - Local file: `calling-of-saint-matthew.jpg`
 
-The website uses this reproduction as a decorative, low-contrast background study. Zakape's own
-tested interface captures remain the primary product imagery.
+## Pixel-art studies
+
+The site also includes three supplied pixel-art studies in the public gallery:
+
+- `the-scream.png` — Edvard Munch, *The Scream*
+- `great-wave.png` — Katsushika Hokusai, *The Great Wave off Kanagawa*
+- `god-man.png` — Michelangelo, *The Creation of Adam*
+
+These are used as the site's primary visual surfaces in place of product screenshots. The files
+were provided for this project and are presented in full colour against a monochrome interface.

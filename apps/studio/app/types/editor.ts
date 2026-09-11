@@ -138,6 +138,12 @@ export interface PixelSelection {
   frameId: string
   layerId: string
   points: PixelPoint[]
+  /** Complete floating-cell payload, including transparent cells. */
+  samples?: PixelSample[]
+  /** Original mask used to clear the source when the selection is committed. */
+  originPoints?: PixelPoint[]
+  /** Original colors, used to move/delete only active (colored) pixels. */
+  originSamples?: PixelSample[]
 }
 
 export interface SetPixelsOperation {

@@ -57,6 +57,8 @@ const {
   clearSelection,
   moveSelection,
   transformSelection,
+  moveSelectionToNewLayer,
+  deleteSelectionPixels,
   createTextLayer,
 } = useEditor()
 const { enabled: tiledMode, effectiveColumns, effectiveRows } = useTiledMode()
@@ -160,11 +162,34 @@ const selectionCursor = computed(() => {
   return undefined
 })
 
+const selectionToolbarStyle = computed(() => {
+  const points = activeSelection.value?.points ?? []
+  if (!points.length) return {}
+  const bounds = pixelBounds(points)
+  return {
+    left: `${Math.min(canvasWidth.value - 8, (bounds.right + 1) * zoom.value + 8)}px`,
+    top: `${Math.max(8, bounds.top * zoom.value - 4)}px`,
+  }
+})
+
 const captureSelectionSamples = (): PixelSample[] =>
+  activeSelection.value?.samples?.map((sample) => ({ ...sample })) ??
   (activeSelection.value?.points ?? []).map((point) => ({
     ...point,
     color: activePixels.value[point.y * project.value.width + point.x] ?? null,
   }))
+
+const selectionIsFloating = computed(() => {
+  const current = activeSelection.value
+  if (!current?.samples?.length || !current.originPoints?.length) return false
+  if (current.points.length !== current.originPoints.length) return true
+  const origin = new Set(current.originPoints.map((point) => `${point.x}:${point.y}`))
+  if (current.points.some((point) => !origin.has(`${point.x}:${point.y}`))) return true
+  return current.samples.some((sample) => {
+    const original = activePixels.value[sample.y * project.value.width + sample.x] ?? null
+    return original !== sample.color
+  })
+})
 
 const draftSelectionPoints = () => {
   if (!drawing.value || !shapeStart.value || !cursor.value || !isSelectionTool.value) return []
@@ -514,6 +539,21 @@ const redraw = () => {
     effectiveRows.value,
   )
 
+  // A moved selection is a floating layer: clear its original cells from the
+  // composite so transparent holes and repeated moves never reveal stale pixels.
+  if ((selectionIsFloating.value || movingSelection.value) && activeSelection.value?.originPoints?.length) {
+    context.save()
+    activeSelection.value.originPoints.forEach((point) => {
+      context.clearRect(
+        (sourceOffset.value.x + point.x) * zoom.value,
+        (sourceOffset.value.y + point.y) * zoom.value,
+        zoom.value,
+        zoom.value,
+      )
+    })
+    context.restore()
+  }
+
   if (drawing.value && !isSelectionTool.value && shapeStartDisplay.value) {
     context.save()
     context.globalAlpha = 0.78
@@ -565,16 +605,16 @@ const redraw = () => {
         context,
         selectionTransformPreview.value.map(({ x, y }) => ({ x, y })),
       )
-    } else if (movingSelection.value) {
+    } else if (movingSelection.value || selectionIsFloating.value) {
       context.save()
       context.globalAlpha = 0.92
-      activeSelection.value.points.forEach((point) => {
-        const pixel = activePixels.value[point.y * project.value.width + point.x]
-        if (!pixel) return
-        context.fillStyle = pixel
+      ;(activeSelection.value.samples ?? []).forEach((sample) => {
+        if (!sample.color) return
+        context.fillStyle = sample.color
+        const offset = movingSelection.value ? selectionOffset.value : { x: 0, y: 0 }
         context.fillRect(
-          (point.x + selectionOffset.value.x) * zoom.value,
-          (point.y + selectionOffset.value.y) * zoom.value,
+          (sample.x + offset.x) * zoom.value,
+          (sample.y + offset.y) * zoom.value,
           zoom.value,
           zoom.value,
         )
@@ -726,21 +766,21 @@ const beginSelectionTransform = (event: PointerEvent, mode: SelectionTransformMo
 
 const resizedBounds = (mode: Exclude<SelectionTransformMode, 'rotate'>, point: PixelPoint) => {
   const source = pixelBounds(selectionTransformSamples.value)
-  const target = { ...source }
-  if (mode.endsWith('nw')) {
-    target.left = Math.min(point.x, source.right)
-    target.top = Math.min(point.y, source.bottom)
-  } else if (mode.endsWith('ne')) {
-    target.right = Math.max(point.x, source.left)
-    target.top = Math.min(point.y, source.bottom)
-  } else if (mode.endsWith('se')) {
-    target.right = Math.max(point.x, source.left)
-    target.bottom = Math.max(point.y, source.top)
-  } else {
-    target.left = Math.min(point.x, source.right)
-    target.bottom = Math.max(point.y, source.top)
+  const anchor = mode === 'resize-nw'
+    ? { x: source.right, y: source.bottom }
+    : mode === 'resize-ne'
+      ? { x: source.left, y: source.bottom }
+      : mode === 'resize-se'
+        ? { x: source.left, y: source.top }
+        : { x: source.right, y: source.top }
+  return {
+    left: Math.min(point.x, anchor.x),
+    right: Math.max(point.x, anchor.x),
+    top: Math.min(point.y, anchor.y),
+    bottom: Math.max(point.y, anchor.y),
+    flipX: mode.endsWith('nw') || mode.endsWith('sw') ? point.x > anchor.x : point.x < anchor.x,
+    flipY: mode.endsWith('nw') || mode.endsWith('ne') ? point.y > anchor.y : point.y < anchor.y,
   }
-  return target
 }
 
 const updateSelectionTransform = (event: PointerEvent) => {
@@ -761,9 +801,12 @@ const updateSelectionTransform = (event: PointerEvent) => {
       project.value.height,
     )
   } else {
+    const target = resizedBounds(mode, selectionPointFromEvent(event))
     selectionTransformPreview.value = resizePixelSamples(
       selectionTransformSamples.value,
-      resizedBounds(mode, selectionPointFromEvent(event)),
+      target,
+      target.flipX,
+      target.flipY,
     )
   }
   scheduleRedraw()
@@ -1399,5 +1442,44 @@ onBeforeUnmount(() => {
       }"
       aria-hidden="true"
     />
+    <div
+      v-if="activeSelection && !drawing && !selectionTransformMode"
+      class="selection-toolbar"
+      :style="selectionToolbarStyle"
+      role="toolbar"
+      aria-label="Selection actions"
+      @pointerdown.stop
+    >
+      <button
+        type="button"
+        class="selection-toolbar-button"
+        title="Move selected pixels to a new layer"
+        aria-label="Move selection to new layer"
+        @click="moveSelectionToNewLayer"
+      >
+        <span aria-hidden="true">＋</span>
+        Layer
+      </button>
+      <button
+        type="button"
+        class="selection-toolbar-button"
+        title="Delete selected pixels"
+        aria-label="Delete selected pixels"
+        @click="deleteSelectionPixels"
+      >
+        <span aria-hidden="true">⌫</span>
+        Delete
+      </button>
+      <button
+        type="button"
+        class="selection-toolbar-button selection-toolbar-button-muted"
+        title="2D rigging is coming soon"
+        aria-label="Create 2D rig"
+        disabled
+      >
+        2D Rigging
+        <small>Soon</small>
+      </button>
+    </div>
   </div>
 </template>

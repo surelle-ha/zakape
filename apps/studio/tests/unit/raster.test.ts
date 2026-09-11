@@ -117,6 +117,17 @@ describe('raster previews', () => {
     expect(new Set(rotated.map((sample) => sample.x))).toHaveLength(1)
   })
 
+  it('flips selection content when a resize handle crosses its opposite edge', () => {
+    const samples = [
+      { x: 1, y: 0, color: '#111111' },
+      { x: 2, y: 0, color: '#222222' },
+    ]
+    expect(resizePixelSamples(samples, { left: 1, right: 2, top: 0, bottom: 0 }, true)).toEqual([
+      { x: 1, y: 0, color: '#222222' },
+      { x: 2, y: 0, color: '#111111' },
+    ])
+  })
+
   it('supports bounded brush footprints and conservative pixel-perfect cleanup', () => {
     expect(brushFootprint({ x: 2, y: 2 }, 3, 'circle')).toHaveLength(9)
     expect(brushFootprint({ x: 2, y: 2 }, 5, 'circle').length).toBeLessThan(25)

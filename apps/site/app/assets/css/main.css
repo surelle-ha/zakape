@@ -1,17 +1,17 @@
 :root {
   color-scheme: dark;
-  --ink: #120e0c;
-  --ink-soft: #1b1412;
-  --wine: #4b1726;
-  --wine-bright: #75263c;
-  --gold: #c5a15b;
-  --gold-pale: #dfc98f;
-  --bronze: #80623d;
-  --parchment: #eadfc8;
-  --paper-muted: #b8aa91;
-  --lapis: #40547f;
-  --line: rgb(197 161 91 / 24%);
-  --glass: rgb(25 17 15 / 68%);
+  --ink: #050505;
+  --ink-soft: #111111;
+  --wine: #242424;
+  --wine-bright: #4a4a4a;
+  --gold: #ffffff;
+  --gold-pale: #f4f4f4;
+  --bronze: #8b8b8b;
+  --parchment: #f1f1f1;
+  --paper-muted: #a5a5a5;
+  --lapis: #777777;
+  --line: rgb(255 255 255 / 22%);
+  --glass: rgb(18 18 18 / 78%);
   --nav-height: 70px;
   font-family: 'Bricolage Grotesque Variable', system-ui, sans-serif;
   background: var(--ink);
@@ -1450,5 +1450,441 @@ h2 em {
   [data-reveal] {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* Monochrome gallery direction: the artwork carries the atmosphere, the UI stays ink-black. */
+.site-shell,
+.atelier-hero,
+.atelier-section,
+.companion-section,
+.finale-section,
+.pricing-shell,
+.content-page,
+.legal-shell,
+.download-shell {
+  background-color: var(--ink);
+}
+
+.site-nav {
+  background: rgb(5 5 5 / 88%);
+}
+
+.pricing-shell,
+.legal-shell,
+.download-shell {
+  background: radial-gradient(circle at 70% 5%, rgb(255 255 255 / 8%), transparent 30%), var(--ink);
+}
+
+.chiaroscuro {
+  z-index: -1;
+  background:
+    linear-gradient(90deg, #050505 6%, rgb(5 5 5 / 94%) 34%, rgb(5 5 5 / 50%) 73%, #050505 100%),
+    linear-gradient(0deg, #050505 0%, transparent 35%, #050505 100%);
+}
+
+.atelier-hero {
+  background:
+    radial-gradient(circle at 78% 48%, rgb(255 255 255 / 10%), transparent 34%),
+    linear-gradient(112deg, #050505 17%, #171717 58%, #080808);
+}
+
+.atelier-section {
+  background:
+    radial-gradient(circle at 18% 40%, rgb(255 255 255 / 8%), transparent 36%),
+    linear-gradient(145deg, #141414, #050505 65%);
+}
+
+.companion-section {
+  background: radial-gradient(circle at 76% 38%, rgb(255 255 255 / 9%), transparent 35%), #090909;
+}
+
+.finale-section {
+  background: radial-gradient(ellipse at 48% 115%, rgb(255 255 255 / 12%), transparent 52%), #070707;
+}
+
+.old-master,
+.art-capture img,
+.assistant-frame img {
+  filter: grayscale(1) contrast(1.12);
+}
+
+.old-master {
+  z-index: -2;
+  opacity: 0.3;
+  object-fit: contain;
+  object-position: 82% center;
+  mix-blend-mode: screen;
+}
+
+.gilded-capture,
+.assistant-frame {
+  background: linear-gradient(135deg, #383838, #eeeeee 25%, #181818 53%, #bdbdbd 75%, #252525);
+}
+
+.art-capture {
+  margin: 0;
+  padding: 7px;
+  overflow: hidden;
+}
+
+.art-capture img {
+  width: 100%;
+  aspect-ratio: 725 / 500;
+  object-fit: cover;
+}
+
+.art-capture figcaption {
+  padding: 9px 10px 3px;
+  color: #bdbdbd;
+  font: 600 8px/1.3 'Azeret Mono Variable', monospace;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+
+.gallery-plaque {
+  border-color: #5f5f5f;
+  background: linear-gradient(180deg, #191919, #050505);
+}
+
+.gallery-plaque span,
+.gallery-plaque small,
+.art-credit {
+  color: #999;
+}
+
+.craft-panels article,
+.price-card,
+.detected-download,
+.privacy-grid article,
+.platform-grid article {
+  background: linear-gradient(150deg, rgb(34 34 34 / 92%), rgb(8 8 8 / 94%));
+}
+
+.cta-primary {
+  border-color: #f4f4f4;
+  background: #f1f1f1;
+  color: #050505;
+  box-shadow: 0 10px 35px rgb(0 0 0 / 42%), inset 0 1px rgb(255 255 255 / 70%);
+}
+
+.cta-primary:hover {
+  background: #fff;
+}
+
+@media (max-width: 800px) {
+  .old-master {
+    object-fit: cover;
+    object-position: 75% center;
+  }
+}
+
+/* Civic atelier direction: an ink-and-paper interface that lets the artwork
+   carry the colour. Sharp rules, public-notice labels and restrained surfaces
+   echo a modern cultural institution rather than a product template. */
+:root {
+  --ink: #0a0b0c;
+  --ink-soft: #151617;
+  --parchment: #f1f0eb;
+  --paper-muted: #a9aaa8;
+  --line: rgb(241 240 235 / 24%);
+  --gold: #f1f0eb;
+  --gold-pale: #fff;
+  --bronze: #9c9d9a;
+  --wine-bright: #f1f0eb;
+  --glass: rgb(20 21 22 / 86%);
+}
+
+body {
+  background: #0a0b0c;
+}
+
+.site-nav {
+  border-bottom-color: rgb(241 240 235 / 30%);
+  background: rgb(10 11 12 / 93%);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 24%);
+  backdrop-filter: blur(18px);
+}
+
+.site-nav nav a,
+.site-footer a {
+  color: #a9aaa8;
+}
+
+.site-nav nav a:hover,
+.site-nav nav a.router-link-active,
+.site-footer a:hover {
+  color: #fff;
+}
+
+.nav-source,
+.cta-secondary {
+  border-color: rgb(241 240 235 / 36%);
+  background: rgb(241 240 235 / 5%);
+}
+
+.public-notice {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-bottom: 26px;
+  border: 1px solid rgb(241 240 235 / 35%);
+  color: #d2d3d0;
+  font: 600 9px/1 'Azeret Mono Variable', monospace;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.public-notice span {
+  padding: 9px 11px;
+  border-right: 1px solid rgb(241 240 235 / 24%);
+}
+
+.public-notice span:last-child {
+  border-right: 0;
+}
+
+.atelier-hero {
+  display: flex;
+  align-items: center;
+  background-image:
+    linear-gradient(90deg, rgb(7 8 9 / 98%) 0%, rgb(7 8 9 / 91%) 38%, rgb(7 8 9 / 46%) 72%, rgb(7 8 9 / 20%) 100%),
+    url('/art/great-wave.png');
+  background-position: center, center right;
+  background-size: cover, cover;
+  background-repeat: no-repeat;
+}
+
+.atelier-hero .hero-copy {
+  max-width: 650px;
+}
+
+.atelier-hero .hero-copy h1 {
+  max-width: 640px;
+}
+
+.old-master,
+.art-capture img,
+.assistant-frame img,
+.finale-art img {
+  filter: saturate(1.18) contrast(1.06);
+}
+
+.old-master {
+  opacity: .55;
+  mix-blend-mode: normal;
+  object-fit: cover;
+  object-position: 82% center;
+}
+
+.chiaroscuro {
+  background:
+    linear-gradient(90deg, #090a0b 5%, rgb(9 10 11 / 92%) 35%, rgb(9 10 11 / 30%) 78%, #090a0b 100%),
+    linear-gradient(0deg, #090a0b 0%, transparent 35%, #090a0b 100%);
+}
+
+.gilded-capture,
+.assistant-frame {
+  padding: 6px;
+  background: #f1f0eb;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 58%);
+}
+
+.art-capture figcaption {
+  color: #111213;
+  background: #f1f0eb;
+}
+
+.gallery-plaque {
+  border-color: rgb(241 240 235 / 55%);
+  background: #0a0b0c;
+}
+
+.atelier-section {
+  color: #111213;
+  background: #e9e8e3;
+}
+
+.atelier-section::before {
+  border-color: rgb(17 18 19 / 20%);
+}
+
+.atelier-section .site-kicker,
+.atelier-section .section-heading > p:last-child,
+.atelier-section .craft-panels p {
+  color: #555756;
+}
+
+.atelier-section .site-kicker span {
+  background: #111213;
+  box-shadow: 8px 0 0 #8f908d;
+}
+
+.atelier-section h2,
+.atelier-section h3 {
+  color: #111213;
+}
+
+.atelier-section h2 em,
+.finale-section h2 em {
+  color: #555756;
+}
+
+.atelier-showcase {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(260px, .95fr);
+  align-items: center;
+  gap: clamp(18px, 3vw, 42px);
+}
+
+.atelier-showcase .product-capture {
+  border: 1px solid #111213;
+  box-shadow: 12px 12px 0 rgb(17 18 19 / 10%);
+}
+
+.atelier-showcase .craft-panels {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.atelier-showcase .craft-panels article {
+  min-height: 0;
+  padding: 15px 17px;
+  border-color: rgb(17 18 19 / 28%);
+  background: #f4f3ee;
+  box-shadow: none;
+}
+
+.atelier-showcase .craft-panels article:nth-child(2) {
+  transform: none;
+}
+
+.atelier-showcase .craft-panels h3 {
+  margin-top: 26px;
+  font-size: 24px;
+}
+
+.atelier-showcase .craft-panels header {
+  color: #111213;
+}
+
+.atelier-ribbon {
+  color: #f1f0eb;
+  border-color: #111213;
+  background: #111213;
+}
+
+.atelier-ribbon span {
+  color: #f1f0eb;
+}
+
+.companion-section {
+  background: #101112;
+}
+
+.companion-section .site-kicker,
+.companion-section .companion-copy > p {
+  color: #b9bab7;
+}
+
+.finale-section {
+  color: #111213;
+  background: #f1f0eb;
+}
+
+.finale-section::before {
+  border-color: rgb(17 18 19 / 22%);
+}
+
+.finale-section::after {
+  color: #111213;
+  background: #f1f0eb;
+}
+
+.finale-section .site-kicker,
+.finale-section .finale-body > p,
+.finale-section .art-credit {
+  color: #555756;
+}
+
+.finale-section .site-kicker span {
+  background: #111213;
+  box-shadow: 8px 0 0 #8f908d;
+}
+
+.finale-section h2,
+.finale-section .format-list span {
+  color: #111213;
+}
+
+.finale-section .format-list,
+.finale-section .format-list span {
+  border-color: rgb(17 18 19 / 25%);
+}
+
+.finale-section .format-list i,
+.finale-section .text-link {
+  color: #111213;
+}
+
+.finale-art {
+  position: absolute;
+  right: clamp(38px, 9vw, 150px);
+  bottom: 0;
+  z-index: 1;
+  width: clamp(120px, 16vw, 220px);
+  margin: 0;
+  border: 1px solid #111213;
+  background: #111213;
+  transform: rotate(2deg);
+}
+
+.finale-art img {
+  width: 100%;
+  aspect-ratio: 500 / 664;
+  object-fit: cover;
+}
+
+.finale-art figcaption {
+  padding: 8px;
+  color: #f1f0eb;
+  font: 600 8px/1.2 'Azeret Mono Variable', monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.site-footer {
+  border-top-color: rgb(241 240 235 / 25%);
+  background: #0a0b0c;
+}
+
+@media (max-width: 800px) {
+  .public-notice {
+    margin-bottom: 18px;
+    font-size: 8px;
+  }
+  .public-notice span {
+    padding: 8px 9px;
+  }
+  .atelier-showcase {
+    grid-template-columns: 1fr;
+  }
+  .atelier-showcase .product-capture {
+    order: 2;
+  }
+  .finale-art {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: min(170px, 48vw);
+    margin: 0 0 -18px auto;
+  }
+  .atelier-hero {
+    background-image:
+      linear-gradient(180deg, rgb(7 8 9 / 95%) 0%, rgb(7 8 9 / 82%) 44%, rgb(7 8 9 / 62%) 100%),
+      url('/art/great-wave.png');
+    background-position: center, 64% center;
+    background-size: cover, auto 100%;
   }
 }

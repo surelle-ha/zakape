@@ -3650,6 +3650,47 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.selection-toolbar {
+  position: absolute;
+  z-index: 8;
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid rgb(167 139 250 / 58%);
+  border-radius: 8px;
+  background: rgb(16 18 24 / 94%);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 28%);
+  backdrop-filter: blur(8px);
+}
+.selection-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: #f4f4f5;
+  background: transparent;
+  font: 600 10px/1 ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+.selection-toolbar-button:hover:not(:disabled),
+.selection-toolbar-button:focus-visible:not(:disabled) {
+  border-color: #a78bfa;
+  background: rgb(139 92 246 / 18%);
+}
+.selection-toolbar-button:disabled {
+  color: #8b92a0;
+  cursor: not-allowed;
+}
+.selection-toolbar-button-muted small {
+  color: #a78bfa;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
 .tiled-mode-backdrop {
   position: fixed;
   inset: 0;

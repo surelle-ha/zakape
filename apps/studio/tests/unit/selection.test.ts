@@ -4,6 +4,7 @@ import {
   applySelectionPixelChanges,
   captureColoredSelectionSamples,
   planColoredSelectionMutation,
+  planFloatingSelectionMutation,
   translateSelectionPoints,
 } from '~/utils/selection'
 
@@ -79,5 +80,18 @@ describe('selection pixel mutations', () => {
         ],
       ),
     ).toEqual([])
+  })
+
+  it('commits colored floating pixels without erasing destination art through transparent holes', () => {
+    const pixels: Pixel[] = ['#ff0000', '#00ff00', '#0000ff', '#ffffff']
+    const changes = planFloatingSelectionMutation(
+      pixels,
+      4,
+      1,
+      [{ x: 0, y: 0 }, { x: 1, y: 0 }],
+      [{ x: 2, y: 0, color: '#ff0000' }, { x: 3, y: 0, color: null }],
+    )
+    applySelectionPixelChanges(pixels, changes)
+    expect(pixels).toEqual([null, null, '#ff0000', '#ffffff'])
   })
 })

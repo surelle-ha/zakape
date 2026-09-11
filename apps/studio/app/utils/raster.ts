@@ -439,7 +439,12 @@ export const pixelBounds = (points: PixelPoint[]): PixelBounds => ({
 const sampleMap = (samples: PixelSample[]) =>
   new Map(samples.map((sample) => [`${sample.x}:${sample.y}`, sample]))
 
-export const resizePixelSamples = (samples: PixelSample[], target: PixelBounds): PixelSample[] => {
+export const resizePixelSamples = (
+  samples: PixelSample[],
+  target: PixelBounds,
+  flipX = false,
+  flipY = false,
+): PixelSample[] => {
   if (!samples.length) return []
   const source = pixelBounds(samples)
   const sourceWidth = source.right - source.left + 1
@@ -450,13 +455,17 @@ export const resizePixelSamples = (samples: PixelSample[], target: PixelBounds):
   const resized: PixelSample[] = []
 
   for (let y = target.top; y <= target.bottom; y += 1) {
-    const sourceY =
-      source.top +
-      Math.min(sourceHeight - 1, Math.floor(((y - target.top) * sourceHeight) / targetHeight))
+    const sourceRow = Math.min(
+      sourceHeight - 1,
+      Math.floor(((y - target.top) * sourceHeight) / targetHeight),
+    )
+    const sourceY = flipY ? source.bottom - sourceRow : source.top + sourceRow
     for (let x = target.left; x <= target.right; x += 1) {
-      const sourceX =
-        source.left +
-        Math.min(sourceWidth - 1, Math.floor(((x - target.left) * sourceWidth) / targetWidth))
+      const sourceColumn = Math.min(
+        sourceWidth - 1,
+        Math.floor(((x - target.left) * sourceWidth) / targetWidth),
+      )
+      const sourceX = flipX ? source.right - sourceColumn : source.left + sourceColumn
       const sample = byPoint.get(`${sourceX}:${sourceY}`)
       if (sample) resized.push({ x, y, color: sample.color })
     }

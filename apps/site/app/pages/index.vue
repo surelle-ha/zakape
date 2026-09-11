@@ -15,8 +15,6 @@ import {
   ShieldCheck,
   Sparkles,
 } from '@lucide/vue'
-import assistantScreenshot from '../../../../docs/ui-snapshots/assistant-drawer.png'
-
 const repository = 'https://github.com/surelle-ha/zakape'
 const siteURL = 'https://zakape.0110harold.workers.dev'
 
@@ -52,17 +50,12 @@ const formats = ['PNG stills', 'Animated GIF', 'Sprite sheet + JSON', 'Portable 
 
     <main id="main-content">
       <section class="atelier-hero" data-scroll-section data-scroll-label="Opening">
-        <img
-          class="old-master"
-          src="/art/calling-of-saint-matthew.jpg"
-          alt=""
-          width="1060"
-          height="1001"
-          aria-hidden="true"
-        />
-        <div class="chiaroscuro" aria-hidden="true" />
-
         <div class="hero-copy" data-reveal>
+          <div class="public-notice" aria-label="Project status">
+            <span>Public release</span>
+            <span>Open source</span>
+            <span>Maintained independently</span>
+          </div>
           <p class="site-kicker"><span /> The open digital atelier</p>
           <h1>Craft sprites<br /><em>worthy of a world.</em></h1>
           <p class="hero-lede">
@@ -82,15 +75,6 @@ const formats = ['PNG stills', 'Animated GIF', 'Sprite sheet + JSON', 'Portable 
           </div>
         </div>
 
-        <div class="hero-gallery" data-reveal data-reveal-delay="0.12">
-          <div class="gilded-capture"><StudioMockup /></div>
-          <div class="gallery-plaque">
-            <span>WORKBENCH No. 01</span>
-            <strong>The living canvas</strong>
-            <small>Authentic capture from Zakape Studio</small>
-          </div>
-        </div>
-
         <a href="#atelier" class="hero-scroll"><ArrowDown :size="14" /> Tour the atelier</a>
       </section>
 
@@ -104,15 +88,18 @@ const formats = ['PNG stills', 'Animated GIF', 'Sprite sheet + JSON', 'Portable 
           </p>
         </div>
 
-        <div class="craft-panels" data-reveal data-reveal-delay="0.1">
-          <article v-for="(item, index) in craft" :key="item.title">
-            <header>
-              <span>0{{ index + 1 }}</span
-              ><component :is="item.icon" :size="20" />
-            </header>
-            <h3>{{ item.title }}</h3>
-            <p>{{ item.copy }}</p>
-          </article>
+        <div class="atelier-showcase" data-reveal data-reveal-delay="0.1">
+          <StudioMockup />
+          <div class="craft-panels">
+            <article v-for="(item, index) in craft" :key="item.title">
+              <header>
+                <span>0{{ index + 1 }}</span
+                ><component :is="item.icon" :size="20" />
+              </header>
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.copy }}</p>
+            </article>
+          </div>
         </div>
 
         <div class="atelier-ribbon" data-reveal>
@@ -131,13 +118,13 @@ const formats = ['PNG stills', 'Animated GIF', 'Sprite sheet + JSON', 'Portable 
         <div class="companion-visual" data-reveal>
           <figure class="assistant-frame">
             <img
-              :src="assistantScreenshot"
-              alt="Zakape Studio with the Art Assistant open beside a pixel canvas"
-              width="1440"
-              height="960"
+              src="/art/god-man.png"
+              alt="Pixel-art study of Michelangelo's Creation of Adam"
+              width="1920"
+              height="720"
               loading="lazy"
             />
-            <figcaption><Bot :size="13" /> A reviewable creative companion</figcaption>
+            <figcaption><Bot :size="13" /> A creative companion, by invitation</figcaption>
           </figure>
         </div>
 
@@ -172,6 +159,16 @@ const formats = ['PNG stills', 'Animated GIF', 'Sprite sheet + JSON', 'Portable 
       </section>
 
       <section class="finale-section" data-scroll-section data-scroll-label="Open studio">
+        <figure class="finale-art" data-reveal>
+          <img
+            src="/art/the-scream.png"
+            alt="Pixel-art study of Edvard Munch's The Scream"
+            width="500"
+            height="664"
+            loading="lazy"
+          />
+          <figcaption>Study 03 · Edvard Munch · 1893</figcaption>
+        </figure>
         <div class="finale-heading" data-reveal>
           <p class="site-kicker"><span /> Leave with your work</p>
           <h2>Open files.<br />Open source.<br /><em>An open invitation.</em></h2>
@@ -199,8 +196,8 @@ const formats = ['PNG stills', 'Animated GIF', 'Sprite sheet + JSON', 'Portable 
         </div>
 
         <footer class="art-credit">
-          Background study: Caravaggio, <cite>The Calling of Saint Matthew</cite>, 1599–1600. Public
-          domain, via Wikimedia Commons.
+          Pixel studies: Hokusai, <cite>The Great Wave off Kanagawa</cite>; Munch, <cite>The Scream</cite>;
+          Michelangelo, <cite>The Creation of Adam</cite>.
         </footer>
       </section>
     </main>

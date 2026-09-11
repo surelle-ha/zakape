@@ -60,5 +60,36 @@ export const planColoredSelectionMutation = (
   return [...planned.values()].filter((change) => change.before !== change.after)
 }
 
+/**
+ * Plans an atomic floating-selection commit. The complete mask remains
+ * isolated while editing, but only colored samples mutate the destination.
+ * Transparent cells therefore never erase unrelated destination artwork.
+ */
+export const planFloatingSelectionMutation = (
+  pixels: Pixel[],
+  width: number,
+  height: number,
+  originPoints: PixelPoint[],
+  targetSamples: PixelSample[],
+): SelectionPixelChange[] => {
+  const planned = new Map<number, SelectionPixelChange>()
+  const setAfter = (index: number, after: Pixel) => {
+    const existing = planned.get(index)
+    planned.set(index, {
+      index,
+      before: existing?.before ?? pixels[index] ?? null,
+      after,
+    })
+  }
+  originPoints.forEach((point) => {
+    if (inBounds(point, width, height)) setAfter(point.y * width + point.x, null)
+  })
+  targetSamples.forEach((sample) => {
+    if (sample.color && inBounds(sample, width, height))
+      setAfter(sample.y * width + sample.x, sample.color)
+  })
+  return [...planned.values()].filter((change) => change.before !== change.after)
+}
+
 export const applySelectionPixelChanges = (pixels: Pixel[], changes: SelectionPixelChange[]) =>
   changes.forEach((change) => (pixels[change.index] = change.after))

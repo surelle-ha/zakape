@@ -8,6 +8,7 @@ import type {
   ToolOptions,
   ToolId,
   TextLayerData,
+  Layer,
 } from '~/types/editor'
 import { applyAssistantChanges } from '~/utils/assistant'
 import {
@@ -28,8 +29,7 @@ import {
 import { getCompositePixels, rasterizeTextLayer } from '~/utils/render'
 import {
   applySelectionPixelChanges,
-  captureColoredSelectionSamples,
-  planColoredSelectionMutation,
+  planFloatingSelectionMutation,
   translateSelectionPoints,
 } from '~/utils/selection'
 import { toRaw } from 'vue'
@@ -628,12 +628,21 @@ export const useEditor = () => {
         unique.set(`${point.x}:${point.y}`, point)
       }
     })
+    const selectedPoints = [...unique.values()]
+    const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
+    const selectedSamples = selectedPoints.map((point) => ({
+      ...point,
+      color: pixels?.[point.y * project.value.width + point.x] ?? null,
+    }))
     selection.value = unique.size
       ? {
           kind,
           frameId: activeFrameId.value,
           layerId: activeLayerId.value,
-          points: [...unique.values()],
+          points: selectedPoints,
+          originPoints: selectedPoints.map((point) => ({ ...point })),
+          originSamples: selectedSamples.map((sample) => ({ ...sample })),
+          samples: selectedSamples,
         }
       : null
     lastAction.value = selection.value
@@ -643,30 +652,42 @@ export const useEditor = () => {
 
   const clearSelection = () => {
     if (!selection.value) return
+    commitFloatingSelection()
     selection.value = null
     lastAction.value = 'Selection cleared'
   }
 
-  const moveSelection = (offsetX: number, offsetY: number) => {
+  // Persist a floating edit without removing the selection overlay. This is
+  // used by autosave/document switching so work is never lost mid-selection.
+  const commitSelection = () => commitFloatingSelection()
+
+  const commitFloatingSelection = () => {
     const current = activeSelection.value
     const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
-    if (!current || !pixels || (offsetX === 0 && offsetY === 0)) return false
-    const captured = captureColoredSelectionSamples(pixels, project.value.width, current.points)
+    if (!current || !pixels || !current.samples?.length || !current.originPoints?.length) return false
+    const changes = planFloatingSelectionMutation(
+      pixels,
+      project.value.width,
+      project.value.height,
+      (current.originSamples ?? []).filter((sample) => sample.color),
+      current.samples,
+    )
+    if (!changes.length) return false
+    checkpoint('Commit selection')
+    applySelectionPixelChanges(pixels, changes)
+    touch('Committed selection')
+    return true
+  }
+
+  const moveSelection = (offsetX: number, offsetY: number) => {
+    const current = activeSelection.value
+    if (!current || (offsetX === 0 && offsetY === 0)) return false
+    const captured = current.samples ?? []
     const targetSamples = captured.map((sample) => ({
       ...sample,
       x: sample.x + offsetX,
       y: sample.y + offsetY,
     }))
-    const changes = planColoredSelectionMutation(
-      pixels,
-      project.value.width,
-      project.value.height,
-      current.points,
-      targetSamples,
-    )
-    if (!changes.length) return false
-    checkpoint('Move selection')
-    applySelectionPixelChanges(pixels, changes)
     selection.value = {
       ...current,
       points: translateSelectionPoints(
@@ -676,15 +697,22 @@ export const useEditor = () => {
         project.value.width,
         project.value.height,
       ),
+      samples: targetSamples.filter(
+        (sample) =>
+          sample.x >= 0 &&
+          sample.y >= 0 &&
+          sample.x < project.value.width &&
+          sample.y < project.value.height,
+      ),
     }
-    touch(`Moved selection ${offsetX}, ${offsetY}`)
+    // Keep the edit floating; it becomes a real pixel mutation on deselect.
+    lastAction.value = `Moved selection ${offsetX}, ${offsetY}`
     return true
   }
 
   const transformSelection = (samples: PixelSample[], action: string) => {
     const current = activeSelection.value
-    const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
-    if (!current || !pixels || !samples.length) return false
+    if (!current || !samples.length) return false
     const transformed = new Map<string, PixelSample>()
     samples.forEach((sample) => {
       if (
@@ -698,21 +726,14 @@ export const useEditor = () => {
     })
     if (!transformed.size) return false
 
-    const changes = planColoredSelectionMutation(
-      pixels,
-      project.value.width,
-      project.value.height,
-      current.points,
-      [...transformed.values()],
-    )
-    if (!changes.length) return false
-    checkpoint(action)
-    applySelectionPixelChanges(pixels, changes)
+    const transformedSamples = [...transformed.values()]
     selection.value = {
       ...current,
-      points: [...transformed.values()].map(({ x, y }) => ({ x, y })),
+      points: transformedSamples.map(({ x, y }) => ({ x, y })),
+      samples: transformedSamples,
     }
-    touch(action)
+    // Transform previews remain isolated until the selection is committed.
+    lastAction.value = action
     return true
   }
 
@@ -721,10 +742,50 @@ export const useEditor = () => {
     const pixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
     if (!current || !pixels) return false
     checkpoint('Clear selection')
-    current.points.forEach((point) => {
+    const origin = (current.originSamples ?? current.samples ?? []).filter((sample) => sample.color)
+    origin.forEach((point) => {
       pixels[point.y * project.value.width + point.x] = null
     })
+    ;(current.samples ?? []).forEach((sample) => {
+      if (sample.color) pixels[sample.y * project.value.width + sample.x] = null
+    })
+    selection.value = null
     touch('Cleared selected pixels')
+    return true
+  }
+
+  const moveSelectionToNewLayer = () => {
+    const current = activeSelection.value
+    const sourcePixels = rawPixels(activeLayer.value?.cels[activeFrameId.value])
+    if (!current || !sourcePixels) return false
+    const origin = (current.originSamples ?? current.samples ?? []).filter((sample) => sample.color)
+    checkpoint('Move selection to new layer')
+    const layerId = makeId('layer_selection')
+    const layer: Layer = {
+      id: layerId,
+      name: `Selection ${project.value.layers.length + 1}`,
+      kind: 'pixel',
+      visible: true,
+      opacity: 1,
+      cels: Object.fromEntries(
+        project.value.frames.map((frame) => [
+          frame.id,
+          emptyPixels(project.value.width, project.value.height),
+        ]),
+      ),
+    }
+    const targetPixels = layer.cels[activeFrameId.value]!
+    ;(current.samples ?? []).forEach((sample) => {
+      if (sample.color && sample.x >= 0 && sample.y >= 0 && sample.x < project.value.width && sample.y < project.value.height)
+        targetPixels[sample.y * project.value.width + sample.x] = sample.color
+    })
+    origin.forEach((point) => {
+      sourcePixels[point.y * project.value.width + point.x] = null
+    })
+    project.value.layers.push(layer)
+    activeLayerId.value = layerId
+    selection.value = null
+    touch('Moved selection to new layer')
     return true
   }
 
@@ -1060,8 +1121,10 @@ export const useEditor = () => {
     commitPixelSamples,
     setSelection,
     clearSelection,
+    commitSelection,
     moveSelection,
     transformSelection,
+    moveSelectionToNewLayer,
     deleteSelectionPixels,
     undo,
     redo,

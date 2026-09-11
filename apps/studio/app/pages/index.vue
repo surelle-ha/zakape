@@ -50,6 +50,7 @@ const {
   swapColors,
   resetColors,
   clearSelection,
+  commitSelection,
   deleteSelectionPixels,
   addFrame,
   deleteFrame,
@@ -199,6 +200,7 @@ const openAssistant = () => {
 
 const saveNow = async () => {
   if (isPlaceholder.value) return
+  commitSelection()
   await saveProject(cloneProject(project.value))
   window.setTimeout(() => {
     if (persistenceState.value === 'saved') persistenceState.value = 'idle'
@@ -304,7 +306,10 @@ const switchDocument = async (documentId: string) => {
     return
   }
   if (autosaveTimer) window.clearTimeout(autosaveTimer)
-  if (!isPlaceholder.value) await saveProject(cloneProject(project.value))
+  if (!isPlaceholder.value) {
+    commitSelection()
+    await saveProject(cloneProject(project.value))
+  }
   discardProposal()
   if (!activateDocument(documentId)) return
   nameDraft.value = project.value.name
@@ -317,6 +322,7 @@ const switchDocument = async (documentId: string) => {
 const performCloseSpriteDocument = async (documentId: string) => {
   const document = documents.value.find((item) => item.id === documentId)
   if (document && !document.placeholder) {
+    if (document.id === activeDocumentId.value) commitSelection()
     const saved = await saveProject(cloneProject(document.project))
     if (!saved) throw new Error('Zakape could not save this project. Keep it open and try again.')
   }
@@ -620,6 +626,7 @@ watch(dirtyRevision, () => {
   autosaveTimer = window.setTimeout(() => {
     const document = documents.value.find((item) => item.id === documentId)
     if (!document || document.placeholder) return
+    if (document.id === activeDocumentId.value) commitSelection()
     void saveProject(cloneProject(document.project))
   }, 700)
 })

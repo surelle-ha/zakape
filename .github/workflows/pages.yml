@@ -38,7 +38,7 @@ jobs:
           NUXT_APP_BASE_URL: /
           NUXT_PUBLIC_SITE_URL: https://zakape.0110harold.workers.dev
       - name: Deploy website to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}

@@ -104,7 +104,7 @@ jobs:
           echo "checksum=$archive.sha256" >>"$GITHUB_OUTPUT"
           echo "version=$version" >>"$GITHUB_OUTPUT"
       - name: Upload unsigned macOS package
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Zakape-${{ steps.package.outputs.version }}-macOS-unnotarized-universal
           path: |
